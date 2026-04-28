@@ -140,7 +140,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 .stops-section { padding: 16px 36px 0; }
 .stops-title { font-family: 'Unbounded', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--dimmer); margin-bottom: 10px; }
 .stops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 7px; }
-.stop-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 9px; transition: border-color 0.2s; cursor: default; }
+.stop-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 9px; transition: border-color 0.2s, background 0.2s; cursor: default; }
 .stop-card:hover { border-color: rgba(255,255,255,0.14); }
 .stop-badge { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; }
 .stop-info { flex: 1; min-width: 0; }
@@ -282,6 +282,7 @@ const STOP_COLORS = ['#FF3366','#FF7A00','#FFD600','#00C566','#0090FF','#A855F7'
 // ─── State ────────────────────────────────────────────────────────────────────
 let activeRoute = '40', activeView = 'map';
 let W = 0, H = 0;
+let hoveredWptIdx = null;
 
 // ─── Route / view switching ──────────────────────────────────────────────────
 function setRoute(id) {
@@ -315,6 +316,22 @@ function updateStats() {
   document.getElementById('stat-stops').textContent = s.stops;
 }
 
+// ─── Stop / waypoint hover sync ──────────────────────────────────────────────
+function highlightWpt(idx, redrawCanvas) {
+  hoveredWptIdx = idx;
+  document.querySelectorAll('.stop-card').forEach(el => {
+    const elIdx = parseInt(el.dataset.stopIdx);
+    if (idx !== null && elIdx === idx) {
+      el.style.borderColor = el.dataset.stopColor + '99';
+      el.style.background  = el.dataset.stopColor + '18';
+    } else {
+      el.style.borderColor = '';
+      el.style.background  = '';
+    }
+  });
+  if (redrawCanvas && activeView === 'elev') drawElevation();
+}
+
 // ─── Stop cards ──────────────────────────────────────────────────────────────
 function buildStops() {
   const wpts = [...ROUTES[activeRoute].waypoints].sort((a,b) => a.d - b.d);
@@ -326,6 +343,10 @@ function buildStops() {
 
     const card = document.createElement('div');
     card.className = 'stop-card';
+    card.dataset.stopIdx   = i;
+    card.dataset.stopColor = c;
+    card.addEventListener('mouseenter', () => highlightWpt(i, true));
+    card.addEventListener('mouseleave', () => highlightWpt(null, true));
 
     let badgePill = '';
     if (w.t === 'gear')   badgePill = `<div class="stop-badge-pill" style="background:rgba(255,51,102,0.12);color:#FF3366;border:1px solid rgba(255,51,102,0.25)">Bike Shop</div>`;
@@ -435,13 +456,15 @@ function drawElevation() {
   // Waypoints
   wpts.forEach((w, i) => {
     const x=toX(w.d), y=toY(w.e), c=STOP_COLORS[i%STOP_COLORS.length];
-    ctx.setLineDash([3,5]); ctx.strokeStyle=c+'55'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(x,y+6); ctx.lineTo(x,H-PAD.bottom); ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.fillStyle=c+'1a'; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);  ctx.fillStyle=c+'44'; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.fillStyle=c; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
-    if(W>480) { ctx.fillStyle=c; ctx.font='bold 8px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,x,y-13); }
+    const hot = i === hoveredWptIdx;
+    const r0=hot?15:10, r1=hot?9:6, r2=hot?5:4;
+    ctx.setLineDash([3,5]); ctx.strokeStyle=c+(hot?'88':'55'); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,y+r2+2); ctx.lineTo(x,H-PAD.bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(x,y,r0,0,Math.PI*2); ctx.fillStyle=c+(hot?'33':'1a'); ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r1,0,Math.PI*2); ctx.fillStyle=c+(hot?'77':'44'); ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r2,0,Math.PI*2); ctx.fillStyle=c; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r2,0,Math.PI*2); ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
+    if(W>480) { ctx.fillStyle=c; ctx.font=(hot?'bold 9px':'bold 8px')+' Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,x,y-(r0+3)); }
   });
 
   // Hover
@@ -476,8 +499,15 @@ function onMove(e) {
   let left=x; if(left-90<PAD.left)left=PAD.left+90; if(left+90>W-PAD.right)left=W-PAD.right-90;
   tooltip.style.left=left+'px'; tooltip.style.top=Math.max(PAD.top,y-80)+'px'; tooltip.classList.add('show');
   hairline.style.left=x+'px'; hairline.style.top=PAD.top+'px'; hairline.style.height=(H-PAD.top-PAD.bottom)+'px'; hairline.classList.add('show');
+  const nearbyIdx = nearby ? canvas._wpts.indexOf(nearby) : -1;
+  const newIdx = nearbyIdx === -1 ? null : nearbyIdx;
+  if (newIdx !== hoveredWptIdx) highlightWpt(newIdx, false);
 }
-function onLeave() { tooltip.classList.remove('show'); hairline.classList.remove('show'); }
+function onLeave() {
+  tooltip.classList.remove('show');
+  hairline.classList.remove('show');
+  highlightWpt(null, false);
+}
 canvas.addEventListener('mousemove',onMove);
 canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e);},{passive:false});
 canvas.addEventListener('mouseleave',onLeave);
