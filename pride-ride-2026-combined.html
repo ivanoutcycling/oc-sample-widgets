@@ -332,9 +332,12 @@ function highlightWpt(idx, redrawCanvas) {
   wptMarkers.forEach((m, i) => {
     const el = m.getElement();
     if (!el) return;
-    el.style.transition = 'transform 0.15s';
-    el.style.transform  = (idx !== null && i === idx) ? 'scale(1.5)' : '';
-    el.style.zIndex     = (idx !== null && i === idx) ? '1000' : '';
+    const inner = el.firstElementChild;
+    if (inner) {
+      inner.style.transition = 'transform 0.15s';
+      inner.style.transform  = (idx !== null && i === idx) ? 'scale(1.5)' : '';
+    }
+    el.style.zIndex = (idx !== null && i === idx) ? '1000' : '';
   });
   if (redrawCanvas && activeView === 'elev') drawElevation();
 }
