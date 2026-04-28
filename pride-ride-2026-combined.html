@@ -179,13 +179,13 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 </div>
 
 <div class="view-toggle">
-  <button class="view-btn" id="btn-elev" onclick="setView('elev')">
-    <svg viewBox="0 0 14 10" fill="none"><polyline points="0,9 3,4 6,7 9,2 14,5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
-    Elevation
-  </button>
   <button class="view-btn active" id="btn-map" onclick="setView('map')">
     <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="6" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 10.5 C7 10.5 2.5 7.5 2.5 5.5 a4.5 4.5 0 0 1 9 0 C11.5 7.5 7 10.5 7 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     Map
+  </button>
+  <button class="view-btn" id="btn-elev" onclick="setView('elev')">
+    <svg viewBox="0 0 14 10" fill="none"><polyline points="0,9 3,4 6,7 9,2 14,5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    Elevation
   </button>
 </div>
 
