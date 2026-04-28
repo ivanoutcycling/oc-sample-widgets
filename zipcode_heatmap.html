@@ -445,7 +445,7 @@
   }
   // --- Map setup ----------------------------------------------------
   const map = L.map('map', { zoomControl: true, attributionControl: true })
-    .setView([40.74, -73.97], 11);
+    .setView([40.71, -74.01], 11);
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -1034,8 +1034,15 @@
       style: styleFeature,
       onEachFeature: onEachFeature
     }).addTo(map);
-    if (geoLayer.getBounds().isValid()) {
-      map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] });
+    // Only fit bounds to features that have data; skip when no data is loaded
+    // so the map stays at the tight NYC/NJ default view on initial load.
+    const active = activeCounts();
+    const dataFeatures = features.filter(f => (active[getKey(f)] || 0) > 0);
+    if (dataFeatures.length) {
+      const dataLayer = L.geoJSON({ type: 'FeatureCollection', features: dataFeatures });
+      if (dataLayer.getBounds().isValid()) {
+        map.fitBounds(dataLayer.getBounds(), { padding: [30, 30] });
+      }
     }
   }
 
