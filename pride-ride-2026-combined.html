@@ -140,7 +140,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 .stops-section { padding: 16px 36px 0; }
 .stops-title { font-family: 'Unbounded', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--dimmer); margin-bottom: 10px; }
 .stops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 7px; }
-.stop-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 9px; transition: border-color 0.2s; cursor: default; }
+.stop-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 9px; transition: border-color 0.2s, background 0.2s; cursor: default; }
 .stop-card:hover { border-color: rgba(255,255,255,0.14); }
 .stop-badge { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; }
 .stop-info { flex: 1; min-width: 0; }
@@ -179,13 +179,13 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 </div>
 
 <div class="view-toggle">
-  <button class="view-btn active" id="btn-elev" onclick="setView('elev')">
-    <svg viewBox="0 0 14 10" fill="none"><polyline points="0,9 3,4 6,7 9,2 14,5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
-    Elevation
-  </button>
-  <button class="view-btn" id="btn-map" onclick="setView('map')">
+  <button class="view-btn active" id="btn-map" onclick="setView('map')">
     <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="6" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 10.5 C7 10.5 2.5 7.5 2.5 5.5 a4.5 4.5 0 0 1 9 0 C11.5 7.5 7 10.5 7 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     Map
+  </button>
+  <button class="view-btn" id="btn-elev" onclick="setView('elev')">
+    <svg viewBox="0 0 14 10" fill="none"><polyline points="0,9 3,4 6,7 9,2 14,5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    Elevation
   </button>
 </div>
 
@@ -199,7 +199,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 <div class="panel-wrap">
   <div class="panel" id="main-panel">
     <!-- Elevation view -->
-    <div class="elev-panel active" id="elev-panel">
+    <div class="elev-panel" id="elev-panel">
       <canvas id="chart"></canvas>
       <div id="hairline"></div>
       <div id="tooltip"><div class="tt-inner">
@@ -209,7 +209,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
       </div></div>
     </div>
   <!-- Map view -->
-    <div class="map-panel" id="map-panel">
+    <div class="map-panel active" id="map-panel">
       <div id="leaflet-map" style="width:100%;height:440px;border-radius:13px;overflow:hidden;position:relative;">
         <div id="map-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#0f0f1c;border-radius:13px;z-index:5;font-family:Inter,sans-serif;font-size:12px;color:rgba(238,234,255,0.4);">Loading map…</div>
       </div>
@@ -253,6 +253,7 @@ const ROUTES = {
       { d:15.955, e:51.5,  lat:40.99061, lon:-73.96898, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
       { d:22.867, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true },
       { d:30.988, e:155.2, lat:41.13036, lon:-73.92261, n:'Rest Stop — Rockland Lake State Park',                 icon:'🍌', t:'food', alsoFinish: true },
+      { d:48.456, e:56.8,  lat:40.99061, lon:-73.96898, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
     ],
     elevation: [{"d":0.0,"e":13.1},{"d":0.2466,"e":19.0},{"d":0.4041,"e":63.0},{"d":0.6738,"e":62.7},{"d":0.867,"e":92.8},{"d":1.1525,"e":135.8},{"d":1.6948,"e":176.8},{"d":2.2172,"e":184.4},{"d":2.3554,"e":196.9},{"d":2.7599,"e":233.6},{"d":3.5325,"e":294.6},{"d":3.6743,"e":291.3},{"d":3.8126,"e":290.0},{"d":4.2488,"e":323.5},{"d":4.7499,"e":338.3},{"d":5.1862,"e":339.6},{"d":5.7548,"e":338.3},{"d":6.4998,"e":379.9},{"d":7.0434,"e":287.7},{"d":7.2365,"e":212.6},{"d":7.6642,"e":147.6},{"d":8.1297,"e":110.6},{"d":8.3996,"e":116.5},{"d":8.6689,"e":133.2},{"d":9.4684,"e":102.7},{"d":9.7404,"e":86.9},{"d":10.027,"e":50.2},{"d":10.3005,"e":55.8},{"d":10.4606,"e":52.8},{"d":10.751,"e":52.5},{"d":10.9166,"e":57.7},{"d":11.0993,"e":53.8},{"d":11.3752,"e":57.4},{"d":11.7058,"e":75.1},{"d":12.0385,"e":66.9},{"d":12.5899,"e":72.5},{"d":12.8965,"e":57.1},{"d":13.332,"e":44.6},{"d":13.9795,"e":50.9},{"d":14.295,"e":40.4},{"d":14.7225,"e":28.9},{"d":15.2731,"e":31.5},{"d":15.5053,"e":29.2},{"d":16.0933,"e":93.5},{"d":16.8332,"e":89.9},{"d":17.4001,"e":87.6},{"d":18.0758,"e":60.7},{"d":18.4382,"e":37.4},{"d":18.9103,"e":42.0},{"d":19.6653,"e":46.3},{"d":19.9709,"e":50.5},{"d":20.2838,"e":16.4},{"d":20.8524,"e":3.6},{"d":21.1331,"e":1.6},{"d":21.5563,"e":7.2},{"d":22.0092,"e":0.0},{"d":22.2948,"e":0.0},{"d":22.7214,"e":8.2},{"d":23.221,"e":7.5},{"d":23.796,"e":12.5},{"d":24.3781,"e":24.0},{"d":24.9492,"e":30.5},{"d":25.5206,"e":14.4},{"d":25.7548,"e":51.8},{"d":26.2972,"e":32.2},{"d":26.8796,"e":89.9},{"d":27.6384,"e":106.6},{"d":28.0028,"e":178.8},{"d":28.2804,"e":252.0},{"d":28.6714,"e":367.1},{"d":29.0629,"e":395.7},{"d":29.4634,"e":246.1},{"d":29.842,"e":210.6},{"d":30.3755,"e":210.6},{"d":30.9155,"e":155.2},{"d":31.0723,"e":156.2},{"d":31.3367,"e":195.5},{"d":31.5956,"e":198.2},{"d":31.8838,"e":190.9},{"d":32.1737,"e":183.4},{"d":32.5218,"e":210.3},{"d":32.9084,"e":178.5},{"d":33.2219,"e":168.0},{"d":33.4513,"e":149.6},{"d":33.724,"e":162.4},{"d":34.1533,"e":142.1},{"d":34.601,"e":175.5},{"d":35.3376,"e":88.3},{"d":35.9108,"e":99.4},{"d":36.5303,"e":122.4},{"d":37.2105,"e":144.7},{"d":37.9338,"e":133.5},{"d":38.2145,"e":93.2},{"d":38.8807,"e":143.7},{"d":39.6063,"e":94.5},{"d":40.1057,"e":94.5},{"d":40.6324,"e":72.2},{"d":41.1156,"e":149.6},{"d":41.506,"e":194.2},{"d":41.9462,"e":146.7},{"d":42.3149,"e":91.5},{"d":42.8323,"e":72.8},{"d":43.2425,"e":73.2},{"d":43.4939,"e":109.6},{"d":43.8539,"e":57.4},{"d":44.4122,"e":57.7},{"d":44.8855,"e":64.6},{"d":45.3151,"e":74.5},{"d":45.8286,"e":81.4},{"d":46.2711,"e":74.1},{"d":46.8771,"e":57.1},{"d":47.4216,"e":96.1},{"d":47.96,"e":73.2},{"d":48.4557,"e":56.8},{"d":48.854,"e":42.3},{"d":49.2994,"e":40.4},{"d":49.9862,"e":91.9},{"d":50.6005,"e":31.5},{"d":50.8694,"e":34.8},{"d":51.3697,"e":29.9},{"d":51.7561,"e":55.8},{"d":52.1695,"e":38.7},{"d":52.7627,"e":41.3},{"d":53.2881,"e":33.8},{"d":53.8783,"e":38.1},{"d":54.5504,"e":39.0},{"d":55.3357,"e":45.6},{"d":55.5999,"e":55.4},{"d":56.3561,"e":82.0},{"d":57.0163,"e":131.2},{"d":57.2605,"e":105.3},{"d":57.7972,"e":177.5},{"d":58.6109,"e":357.3},{"d":59.4505,"e":341.5},{"d":60.0177,"e":315.3},{"d":60.525,"e":338.9},{"d":61.0406,"e":327.1},{"d":61.4928,"e":288.7},{"d":61.6359,"e":290.7},{"d":61.7673,"e":290.4},{"d":62.3851,"e":258.2},{"d":62.9567,"e":215.6},{"d":63.0421,"e":209.0},{"d":63.3891,"e":139.4},{"d":63.6099,"e":91.9},{"d":63.7303,"e":39.7},{"d":64.0804,"e":12.8},{"d":64.4372,"e":16.4},{"d":64.7465,"e":15.7},{"d":64.93,"e":3.3},{"d":65.1196,"e":15.1},{"d":65.4636,"e":13.1}],
     map: [{"lat":40.82841,"lon":-73.95372},{"lat":40.8311,"lon":-73.95034},{"lat":40.83492,"lon":-73.94687},{"lat":40.84085,"lon":-73.94281},{"lat":40.85053,"lon":-73.9416},{"lat":40.85251,"lon":-73.95624},{"lat":40.85379,"lon":-73.96251},{"lat":40.86062,"lon":-73.95983},{"lat":40.87218,"lon":-73.95275},{"lat":40.88642,"lon":-73.95285},{"lat":40.89118,"lon":-73.96272},{"lat":40.90045,"lon":-73.96273},{"lat":40.90685,"lon":-73.95951},{"lat":40.91813,"lon":-73.96344},{"lat":40.92494,"lon":-73.96332},{"lat":40.92984,"lon":-73.96118},{"lat":40.93492,"lon":-73.95665},{"lat":40.94127,"lon":-73.95728},{"lat":40.94908,"lon":-73.95288},{"lat":40.95712,"lon":-73.95348},{"lat":40.96542,"lon":-73.95935},{"lat":40.9754,"lon":-73.96569},{"lat":40.98458,"lon":-73.97226},{"lat":40.99482,"lon":-73.96474},{"lat":41.0099,"lon":-73.95335},{"lat":41.02058,"lon":-73.94694},{"lat":41.02453,"lon":-73.92999},{"lat":41.02927,"lon":-73.92528},{"lat":41.03894,"lon":-73.91406},{"lat":41.04228,"lon":-73.90361},{"lat":41.04194,"lon":-73.9051},{"lat":41.04347,"lon":-73.91749},{"lat":41.05964,"lon":-73.92031},{"lat":41.07475,"lon":-73.91955},{"lat":41.08519,"lon":-73.91838},{"lat":41.10235,"lon":-73.91737},{"lat":41.10842,"lon":-73.92244},{"lat":41.10912,"lon":-73.93525},{"lat":41.11833,"lon":-73.94106},{"lat":41.12793,"lon":-73.92761},{"lat":41.12942,"lon":-73.92293},{"lat":41.13048,"lon":-73.91671},{"lat":41.13795,"lon":-73.91653},{"lat":41.14672,"lon":-73.91864},{"lat":41.1479,"lon":-73.92622},{"lat":41.14708,"lon":-73.93466},{"lat":41.1537,"lon":-73.95244},{"lat":41.15209,"lon":-73.96637},{"lat":41.13386,"lon":-73.96683},{"lat":41.12291,"lon":-73.96967},{"lat":41.1039,"lon":-73.97235},{"lat":41.09009,"lon":-73.97153},{"lat":41.08188,"lon":-73.97728},{"lat":41.07075,"lon":-73.97898},{"lat":41.05956,"lon":-73.98915},{"lat":41.05481,"lon":-73.99086},{"lat":41.04436,"lon":-73.98874},{"lat":41.03836,"lon":-73.97773},{"lat":41.02463,"lon":-73.97739},{"lat":41.01308,"lon":-73.98469},{"lat":41.00383,"lon":-73.98536},{"lat":41.00068,"lon":-73.97341},{"lat":40.98906,"lon":-73.97177},{"lat":40.98248,"lon":-73.97237},{"lat":40.97235,"lon":-73.96065},{"lat":40.95968,"lon":-73.96203},{"lat":40.94492,"lon":-73.96193},{"lat":40.92578,"lon":-73.96422},{"lat":40.91314,"lon":-73.96545},{"lat":40.90401,"lon":-73.96175},{"lat":40.89065,"lon":-73.95669},{"lat":40.87579,"lon":-73.9509},{"lat":40.86362,"lon":-73.95674},{"lat":40.85437,"lon":-73.96296},{"lat":40.85387,"lon":-73.96245},{"lat":40.8501,"lon":-73.94121},{"lat":40.85241,"lon":-73.94132},{"lat":40.85148,"lon":-73.9441},{"lat":40.84284,"lon":-73.94601},{"lat":40.83642,"lon":-73.94944},{"lat":40.83083,"lon":-73.95214},{"lat":40.82841,"lon":-73.95372}]
@@ -268,6 +269,7 @@ const ROUTES = {
       { d:31.006, e:155.8, lat:41.13033, lon:-73.92249, n:'Rest Stop — Rockland Lake State Park',                 icon:'🍌', t:'food', alsoFinish: true },
       { d:51.484, e:636.8, lat:41.13054, lon:-74.07697, n:'Rest Stop — Manny Welder Park, Monsey NY',             icon:'🍌', t:'food' },
       { d:62.454, e:235.6, lat:41.01704, lon:-74.13103, n:'Borough Park Restroom',                               icon:'🚻', t:'toilet' },
+      { d:84.274, e:54.8,  lat:40.99055, lon:-73.96908, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
     ],
     elevation: [{"d":0.0,"e":13.1},{"d":0.344,"e":15.1},{"d":0.7422,"e":15.1},{"d":1.2311,"e":7.9},{"d":1.7131,"e":50.9},{"d":1.9311,"e":111.9},{"d":2.3257,"e":192.9},{"d":2.461,"e":204.7},{"d":3.5761,"e":294.6},{"d":3.7514,"e":291.3},{"d":4.2334,"e":321.9},{"d":4.8658,"e":338.9},{"d":5.6227,"e":348.1},{"d":6.6146,"e":366.5},{"d":7.2446,"e":235.9},{"d":7.6606,"e":151.6},{"d":8.3123,"e":105.3},{"d":8.6774,"e":132.9},{"d":9.5702,"e":109.6},{"d":9.9988,"e":96.1},{"d":10.8925,"e":55.8},{"d":11.4653,"e":65.0},{"d":11.9696,"e":66.9},{"d":12.6589,"e":64.6},{"d":13.1471,"e":70.9},{"d":13.9956,"e":50.2},{"d":14.5052,"e":51.5},{"d":15.2095,"e":37.1},{"d":15.5646,"e":29.2},{"d":16.5789,"e":93.2},{"d":17.4118,"e":87.6},{"d":18.2806,"e":54.1},{"d":18.7938,"e":39.0},{"d":19.8044,"e":46.9},{"d":20.1329,"e":19.4},{"d":20.8738,"e":3.9},{"d":21.2261,"e":3.6},{"d":21.9444,"e":0.0},{"d":22.4744,"e":1.0},{"d":23.0862,"e":5.2},{"d":23.8784,"e":20.3},{"d":24.6614,"e":21.7},{"d":25.4816,"e":15.1},{"d":25.8992,"e":73.5},{"d":26.743,"e":76.1},{"d":27.6732,"e":106.6},{"d":28.1311,"e":187.0},{"d":28.6831,"e":367.1},{"d":29.2835,"e":344.2},{"d":29.6784,"e":194.6},{"d":30.4854,"e":210.0},{"d":31.0071,"e":155.8},{"d":31.3433,"e":194.9},{"d":31.6528,"e":204.7},{"d":32.0615,"e":204.4},{"d":32.5456,"e":210.3},{"d":33.1377,"e":178.5},{"d":33.4751,"e":149.6},{"d":33.8459,"e":153.5},{"d":34.492,"e":193.9},{"d":35.403,"e":86.3},{"d":36.4186,"e":101.0},{"d":37.2583,"e":106.3},{"d":38.146,"e":197.2},{"d":38.8072,"e":123.7},{"d":39.3257,"e":152.2},{"d":39.9616,"e":214.6},{"d":40.2704,"e":302.5},{"d":40.7648,"e":471.5},{"d":41.2443,"e":509.2},{"d":41.8134,"e":461.0},{"d":42.6866,"e":385.2},{"d":43.2114,"e":482.6},{"d":43.7809,"e":736.9},{"d":44.4083,"e":842.2},{"d":45.0278,"e":640.7},{"d":45.6769,"e":514.8},{"d":46.4008,"e":500.3},{"d":47.0738,"e":451.8},{"d":47.9565,"e":557.4},{"d":48.8565,"e":528.2},{"d":49.4857,"e":491.5},{"d":50.0201,"e":504.6},{"d":51.1126,"e":604.7},{"d":51.649,"e":633.5},{"d":52.5986,"e":615.2},{"d":53.1085,"e":533.5},{"d":53.5627,"e":518.4},{"d":54.2604,"e":454.4},{"d":55.0576,"e":524.9},{"d":55.9961,"e":547.6},{"d":56.4755,"e":524.6},{"d":57.0366,"e":549.5},{"d":57.9938,"e":463.3},{"d":58.5768,"e":409.4},{"d":59.1084,"e":421.3},{"d":59.9721,"e":366.1},{"d":61.0107,"e":286.4},{"d":61.6053,"e":281.5},{"d":62.4753,"e":236.5},{"d":63.1939,"e":236.5},{"d":64.0177,"e":186.0},{"d":64.2405,"e":163.4},{"d":64.8887,"e":111.9},{"d":65.6266,"e":136.8},{"d":66.248,"e":114.2},{"d":66.7403,"e":89.6},{"d":67.3137,"e":86.6},{"d":68.2287,"e":129.9},{"d":68.8568,"e":67.3},{"d":69.8093,"e":90.6},{"d":70.885,"e":53.5},{"d":71.6857,"e":47.6},{"d":72.5896,"e":49.2},{"d":73.3126,"e":56.8},{"d":74.1939,"e":72.5},{"d":74.6805,"e":61.4},{"d":75.184,"e":79.1},{"d":75.8661,"e":60.0},{"d":76.4816,"e":39.4},{"d":77.3579,"e":89.2},{"d":78.0378,"e":35.1},{"d":78.583,"e":48.2},{"d":79.6483,"e":78.7},{"d":80.4886,"e":47.2},{"d":81.6059,"e":63.0},{"d":82.4805,"e":25.9},{"d":83.3551,"e":15.7},{"d":84.2742,"e":54.8},{"d":84.6934,"e":4.9},{"d":85.4566,"e":22.0},{"d":86.4908,"e":98.8},{"d":87.475,"e":148.3},{"d":88.2321,"e":149.6},{"d":89.1051,"e":75.1},{"d":89.8653,"e":55.8},{"d":90.7809,"e":127.3},{"d":91.2105,"e":119.1},{"d":92.1733,"e":378.3},{"d":92.9468,"e":355.3},{"d":93.7813,"e":326.1},{"d":94.3921,"e":333.0},{"d":95.1099,"e":288.7},{"d":95.3973,"e":291.0},{"d":95.768,"e":285.1},{"d":96.7023,"e":214.9},{"d":97.0279,"e":200.5},{"d":97.8865,"e":155.2},{"d":98.6111,"e":127.6},{"d":99.1108,"e":127.6},{"d":99.5161,"e":67.3},{"d":99.8192,"e":36.4},{"d":100.1109,"e":13.1}],
     map: [{"lat":40.82841,"lon":-73.95372},{"lat":40.83802,"lon":-73.94879},{"lat":40.84977,"lon":-73.94626},{"lat":40.85138,"lon":-73.94144},{"lat":40.85208,"lon":-73.95403},{"lat":40.85385,"lon":-73.96283},{"lat":40.86982,"lon":-73.95432},{"lat":40.8887,"lon":-73.95524},{"lat":40.89527,"lon":-73.96536},{"lat":40.90707,"lon":-73.95944},{"lat":40.92186,"lon":-73.96257},{"lat":40.94005,"lon":-73.95745},{"lat":40.95482,"lon":-73.94741},{"lat":40.96134,"lon":-73.96137},{"lat":40.97604,"lon":-73.9672},{"lat":40.98833,"lon":-73.97121},{"lat":41.008,"lon":-73.95415},{"lat":41.01924,"lon":-73.94351},{"lat":41.02881,"lon":-73.92687},{"lat":41.03945,"lon":-73.91332},{"lat":41.04292,"lon":-73.89768},{"lat":41.04312,"lon":-73.91738},{"lat":41.06493,"lon":-73.92087},{"lat":41.08017,"lon":-73.91893},{"lat":41.10382,"lon":-73.91759},{"lat":41.10887,"lon":-73.9293},{"lat":41.11792,"lon":-73.94034},{"lat":41.13065,"lon":-73.9237},{"lat":41.129,"lon":-73.91835},{"lat":41.13801,"lon":-73.91647},{"lat":41.1495,"lon":-73.92256},{"lat":41.14676,"lon":-73.93406},{"lat":41.15598,"lon":-73.95886},{"lat":41.16938,"lon":-73.97758},{"lat":41.18164,"lon":-73.9921},{"lat":41.18481,"lon":-74.00835},{"lat":41.18353,"lon":-74.02319},{"lat":41.18082,"lon":-74.03503},{"lat":41.19494,"lon":-74.04051},{"lat":41.20514,"lon":-74.04056},{"lat":41.19749,"lon":-74.05203},{"lat":41.18845,"lon":-74.06188},{"lat":41.17073,"lon":-74.068},{"lat":41.15504,"lon":-74.08187},{"lat":41.13727,"lon":-74.08319},{"lat":41.12847,"lon":-74.08144},{"lat":41.12284,"lon":-74.09649},{"lat":41.11589,"lon":-74.1135},{"lat":41.09312,"lon":-74.12199},{"lat":41.08433,"lon":-74.11822},{"lat":41.06392,"lon":-74.12195},{"lat":41.04853,"lon":-74.1247},{"lat":41.02834,"lon":-74.12722},{"lat":41.01493,"lon":-74.12538},{"lat":41.01039,"lon":-74.10738},{"lat":41.0154,"lon":-74.09976},{"lat":40.99955,"lon":-74.09191},{"lat":40.98705,"lon":-74.08857},{"lat":40.98245,"lon":-74.06855},{"lat":41.00297,"lon":-74.05324},{"lat":41.00573,"lon":-74.02035},{"lat":41.01858,"lon":-74.00969},{"lat":41.01486,"lon":-73.99598},{"lat":41.00458,"lon":-73.98178},{"lat":40.99287,"lon":-73.96603},{"lat":40.98167,"lon":-73.97247},{"lat":40.96853,"lon":-73.99128},{"lat":40.95719,"lon":-74.01409},{"lat":40.95298,"lon":-74.03599},{"lat":40.94565,"lon":-74.01937},{"lat":40.94451,"lon":-73.98931},{"lat":40.92883,"lon":-73.97765},{"lat":40.91598,"lon":-73.96641},{"lat":40.90326,"lon":-73.9625},{"lat":40.88664,"lon":-73.94946},{"lat":40.86658,"lon":-73.95484},{"lat":40.85436,"lon":-73.96291},{"lat":40.851,"lon":-73.94851},{"lat":40.85039,"lon":-73.9406},{"lat":40.83548,"lon":-73.94434},{"lat":40.83401,"lon":-73.9495},{"lat":40.82982,"lon":-73.95284},{"lat":40.82841,"lon":-73.95372}]
@@ -278,8 +280,9 @@ const ROUTES = {
 const STOP_COLORS = ['#FF3366','#FF7A00','#FFD600','#00C566','#0090FF','#A855F7'];
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let activeRoute = '40', activeView = 'elev';
+let activeRoute = '40', activeView = 'map';
 let W = 0, H = 0;
+let hoveredWptIdx = null;
 
 // ─── Route / view switching ──────────────────────────────────────────────────
 function setRoute(id) {
@@ -313,6 +316,32 @@ function updateStats() {
   document.getElementById('stat-stops').textContent = s.stops;
 }
 
+// ─── Stop / waypoint hover sync ──────────────────────────────────────────────
+function highlightWpt(idx, redrawCanvas) {
+  hoveredWptIdx = idx;
+  document.querySelectorAll('.stop-card').forEach(el => {
+    const elIdx = parseInt(el.dataset.stopIdx);
+    if (idx !== null && elIdx === idx) {
+      el.style.borderColor = el.dataset.stopColor + '99';
+      el.style.background  = el.dataset.stopColor + '18';
+    } else {
+      el.style.borderColor = '';
+      el.style.background  = '';
+    }
+  });
+  wptMarkers.forEach((m, i) => {
+    const el = m.getElement();
+    if (!el) return;
+    const inner = el.firstElementChild;
+    if (inner) {
+      inner.style.transition = 'transform 0.15s';
+      inner.style.transform  = (idx !== null && i === idx) ? 'scale(1.5)' : '';
+    }
+    el.style.zIndex = (idx !== null && i === idx) ? '1000' : '';
+  });
+  if (redrawCanvas && activeView === 'elev') drawElevation();
+}
+
 // ─── Stop cards ──────────────────────────────────────────────────────────────
 function buildStops() {
   const wpts = [...ROUTES[activeRoute].waypoints].sort((a,b) => a.d - b.d);
@@ -320,10 +349,14 @@ function buildStops() {
   grid.innerHTML = '';
   wpts.forEach((w, i) => {
     const c = STOP_COLORS[i % STOP_COLORS.length];
-    const isDual = w.alsoFinish; // doubles as both mid-stop and final stop for shorter routes
+    const isDual = false;
 
     const card = document.createElement('div');
     card.className = 'stop-card';
+    card.dataset.stopIdx   = i;
+    card.dataset.stopColor = c;
+    card.addEventListener('mouseenter', () => highlightWpt(i, true));
+    card.addEventListener('mouseleave', () => highlightWpt(null, true));
 
     let badgePill = '';
     if (w.t === 'gear')   badgePill = `<div class="stop-badge-pill" style="background:rgba(255,51,102,0.12);color:#FF3366;border:1px solid rgba(255,51,102,0.25)">Bike Shop</div>`;
@@ -433,13 +466,15 @@ function drawElevation() {
   // Waypoints
   wpts.forEach((w, i) => {
     const x=toX(w.d), y=toY(w.e), c=STOP_COLORS[i%STOP_COLORS.length];
-    ctx.setLineDash([3,5]); ctx.strokeStyle=c+'55'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(x,y+6); ctx.lineTo(x,H-PAD.bottom); ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.fillStyle=c+'1a'; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);  ctx.fillStyle=c+'44'; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.fillStyle=c; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
-    if(W>480) { ctx.fillStyle=c; ctx.font='bold 8px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,x,y-13); }
+    const hot = i === hoveredWptIdx;
+    const r0=hot?15:10, r1=hot?9:6, r2=hot?5:4;
+    ctx.setLineDash([3,5]); ctx.strokeStyle=c+(hot?'88':'55'); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,y+r2+2); ctx.lineTo(x,H-PAD.bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(x,y,r0,0,Math.PI*2); ctx.fillStyle=c+(hot?'33':'1a'); ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r1,0,Math.PI*2); ctx.fillStyle=c+(hot?'77':'44'); ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r2,0,Math.PI*2); ctx.fillStyle=c; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r2,0,Math.PI*2); ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
+    if(W>480) { ctx.fillStyle=c; ctx.font=(hot?'bold 9px':'bold 8px')+' Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,x,y-(r0+3)); }
   });
 
   // Hover
@@ -474,8 +509,15 @@ function onMove(e) {
   let left=x; if(left-90<PAD.left)left=PAD.left+90; if(left+90>W-PAD.right)left=W-PAD.right-90;
   tooltip.style.left=left+'px'; tooltip.style.top=Math.max(PAD.top,y-80)+'px'; tooltip.classList.add('show');
   hairline.style.left=x+'px'; hairline.style.top=PAD.top+'px'; hairline.style.height=(H-PAD.top-PAD.bottom)+'px'; hairline.classList.add('show');
+  const nearbyIdx = nearby ? canvas._wpts.indexOf(nearby) : -1;
+  const newIdx = nearbyIdx === -1 ? null : nearbyIdx;
+  if (newIdx !== hoveredWptIdx) highlightWpt(newIdx, false);
 }
-function onLeave() { tooltip.classList.remove('show'); hairline.classList.remove('show'); }
+function onLeave() {
+  tooltip.classList.remove('show');
+  hairline.classList.remove('show');
+  highlightWpt(null, false);
+}
 canvas.addEventListener('mousemove',onMove);
 canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e);},{passive:false});
 canvas.addEventListener('mouseleave',onLeave);
@@ -486,12 +528,13 @@ canvas.addEventListener('touchend',onLeave);
 const ROUTE_VIEW = {
   '40':  { center: [40.935, -73.940], zoom: 11 },
   '65':  { center: [40.990, -73.940], zoom: 10 },
-  '100': { center: [41.025, -74.010], zoom: 9  },
+  '100': { center: [41.017, -74.015], zoom: 10 },
 };
 
 let leafletMap = null;
 let routeLayer = null;
 let markerLayers = [];
+let wptMarkers = [];
 
 function initLeaflet() {
   leafletMap = L.map('leaflet-map', { zoomControl: true, attributionControl: true });
@@ -551,6 +594,7 @@ function drawMap() {
   // ── Remove ALL previously drawn route/marker layers ──────────────────────
   markerLayers.forEach(layer => leafletMap.removeLayer(layer));
   markerLayers = [];
+  wptMarkers = [];
   if (routeLayer) { leafletMap.removeLayer(routeLayer); routeLayer = null; }
 
   leafletMap.setView(view.center, view.zoom);
@@ -595,7 +639,10 @@ function drawMap() {
         direction: 'right', className: 'map-tip'
       })
       .addTo(leafletMap);
+    m.on('mouseover', () => highlightWpt(i, false));
+    m.on('mouseout',  () => highlightWpt(null, false));
     markerLayers.push(m);
+    wptMarkers.push(m);
   });
 
   setTimeout(() => leafletMap.invalidateSize(), 50);
@@ -604,7 +651,7 @@ function drawMap() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 updateStats();
 buildStops();
-drawElevation();
+drawMap();
 window.addEventListener('resize', () => {
   if (activeView === 'elev') drawElevation();
 });
