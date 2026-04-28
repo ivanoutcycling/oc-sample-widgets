@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pride Ride 2026 — Route Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Leaflet tooltip override */
+.map-tip {
+  background: rgba(7,7,15,0.92) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  border-radius: 8px !important;
+  color: #eeeaff !important;
+  font-family: Inter, sans-serif !important;
+  font-size: 11px !important;
+  padding: 6px 10px !important;
+  box-shadow: none !important;
+}
+.map-tip::before { display: none !important; }
+.leaflet-control-zoom a {
+  background: #1a1a2e !important;
+  color: #eeeaff !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+.leaflet-control-zoom a:hover { background: #242440 !important; }
+.leaflet-control-attribution {
+  background: rgba(7,7,15,0.7) !important;
+  color: rgba(238,234,255,0.35) !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a { color: rgba(238,234,255,0.5) !important; }
+</style>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #07070f;
+  --surface: #0f0f1c;
+  --card:    #131323;
+  --border:  rgba(255,255,255,0.07);
+  --text:    #eeeaff;
+  --muted:   rgba(238,234,255,0.38);
+  --dimmer:  rgba(238,234,255,0.14);
+  --r: #FF3366; --o: #FF7A00; --y: #FFD600; --g: #00C566; --b: #0090FF; --v: #A855F7;
+  --rainbow: linear-gradient(90deg, var(--r) 0%, var(--o) 20%, var(--y) 40%, var(--g) 60%, var(--b) 80%, var(--v) 100%);
+}
+
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* ── Outer shell ── */
+.widget { max-width: 920px; margin: 0 auto; padding-bottom: 32px; }
+
+/* ── Top bar ── */
+.topbar { padding: 32px 36px 0; }
+.rainbow-stripe { height: 3px; background: var(--rainbow); border-radius: 2px; margin-bottom: 24px; box-shadow: 0 0 24px rgba(168,85,247,0.5); }
+.eyebrow { font-family: 'Unbounded', sans-serif; font-size: 9px; letter-spacing: 5px; color: var(--y); text-transform: uppercase; margin-bottom: 8px; }
+.title   { font-family: 'Unbounded', sans-serif; font-size: clamp(28px, 5.5vw, 52px); font-weight: 900; line-height: 0.92; letter-spacing: -1px; background: var(--rainbow); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 6px; }
+.subtitle { font-size: 12px; font-weight: 300; color: var(--muted); }
+
+/* ── Route selector ── */
+.route-selector { display: flex; gap: 8px; padding: 20px 36px 0; flex-wrap: wrap; }
+
+.route-btn {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 10px 20px;
+  border-radius: 40px;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  background: #1a1a2e;
+  color: rgba(238,234,255,0.6);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  -webkit-appearance: none;
+}
+.route-btn::before { content: ''; position: absolute; inset: 0; background: var(--rainbow); opacity: 0; transition: opacity 0.2s; }
+.route-btn:hover { color: #eeeaff; border-color: rgba(255,255,255,0.35); }
+.route-btn.active { color: #07070f; border-color: transparent; }
+.route-btn.active::before { opacity: 1; }
+.route-btn span { position: relative; z-index: 1; }
+
+/* ── View toggle ── */
+.view-toggle { display: flex; gap: 4px; padding: 14px 36px 0; }
+.view-btn {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.3px;
+  padding: 7px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
+  background: #1a1a2e; color: rgba(238,234,255,0.5); cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+  -webkit-appearance: none;
+}
+.view-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.view-btn.active { background: #242440; border-color: rgba(255,255,255,0.28); color: #eeeaff; }
+.view-btn:hover:not(.active) { color: #eeeaff; border-color: rgba(255,255,255,0.25); }
+
+/* ── Stats row ── */
+.stats {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 1px;
+  background: var(--border); margin: 16px 36px 0;
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+}
+.stat { background: var(--surface); padding: 14px 0; text-align: center; }
+.stat-val { font-family: 'Unbounded', sans-serif; font-size: clamp(18px, 3vw, 28px); font-weight: 700; line-height: 1; letter-spacing: -0.5px; }
+.stat:nth-child(1) .stat-val { color: var(--y); }
+.stat:nth-child(2) .stat-val { color: var(--g); }
+.stat:nth-child(3) .stat-val { color: var(--b); }
+.stat:nth-child(4) .stat-val { color: var(--v); }
+.stat-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--dimmer); margin-top: 4px; font-weight: 500; }
+
+/* ── Main panel ── */
+.panel-wrap { padding: 20px 36px 0; position: relative; }
+.panel { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+
+/* ── Elevation canvas ── */
+.elev-panel { display: block; }
+canvas { display: block; width: 100%; cursor: crosshair; }
+#tooltip { position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 20; transform: translateX(-50%); }
+#tooltip.show { opacity: 1; }
+.tt-inner { background: rgba(7,7,15,0.95); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(14px); white-space: nowrap; }
+.tt-dist { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+.tt-ele  { font-family: 'Unbounded', sans-serif; font-size: 19px; font-weight: 700; }
+.tt-name { font-size: 10px; color: var(--muted); margin-top: 3px; font-style: italic; max-width: 180px; white-space: normal; line-height: 1.3; }
+#hairline { position: absolute; width: 1px; background: rgba(255,255,255,0.12); pointer-events: none; opacity: 0; transition: opacity 0.1s; }
+#hairline.show { opacity: 1; }
+
+/* ── Map panel ── */
+.map-panel { display: none; }
+.map-panel.active { display: block; }
+.elev-panel.active { display: block; }
+.elev-panel { display: none; }
+
+#mapsvg { width: 100%; display: block; }
+
+/* ── Stop cards ── */
+.stops-section { padding: 16px 36px 0; }
+.stops-title { font-family: 'Unbounded', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--dimmer); margin-bottom: 10px; }
+.stops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 7px; }
+.stop-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 9px; transition: border-color 0.2s; cursor: default; }
+.stop-card:hover { border-color: rgba(255,255,255,0.14); }
+.stop-badge { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.stop-info { flex: 1; min-width: 0; }
+.stop-name { font-size: 10.5px; font-weight: 500; line-height: 1.35; color: var(--text); margin-bottom: 2px; }
+.stop-badge-pill { display: inline-block; font-size: 8px; font-family: 'DM Mono', monospace; letter-spacing: 0.5px; padding: 1px 5px; border-radius: 3px; margin-bottom: 3px; font-weight: 500; }
+.stop-meta { display: flex; gap: 7px; font-size: 9.5px; color: var(--muted); align-items: center; }
+.stop-mi { font-family: 'Unbounded', sans-serif; font-size: 9.5px; font-weight: 700; }
+
+/* double-duty badge */
+.dual-badge { font-size: 7.5px; font-family: 'DM Mono', monospace; padding: 2px 6px; border-radius: 3px; background: rgba(255,214,0,0.15); border: 1px solid rgba(255,214,0,0.3); color: var(--y); letter-spacing: 0.3px; margin-top: 3px; display: inline-block; line-height: 1.4; }
+
+.divider { height: 1px; background: var(--border); margin: 16px 36px 0; }
+.note { padding: 9px 36px 0; font-size: 9.5px; color: var(--dimmer); font-style: italic; }
+
+@media (max-width: 560px) {
+  .topbar,.panel-wrap,.stops-section,.divider,.note,.route-selector,.view-toggle { padding-left: 16px; padding-right: 16px; }
+  .stats { margin-left: 16px; margin-right: 16px; grid-template-columns: repeat(2,1fr); }
+  .stops-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="widget">
+
+<div class="topbar">
+  <div class="rainbow-stripe"></div>
+  <div class="eyebrow">Route Explorer</div>
+  <div class="title">Pride Ride 2026</div>
+  <div class="subtitle">Washington Heights → Hudson Palisades → Hudson Valley · Select your distance</div>
+</div>
+
+<div class="route-selector">
+  <button class="route-btn active" data-route="40" onclick="setRoute('40')"><span>40 mi</span></button>
+  <button class="route-btn" data-route="65" onclick="setRoute('65')"><span>65 mi</span></button>
+  <button class="route-btn" data-route="100" onclick="setRoute('100')"><span>100 mi</span></button>
+</div>
+
+<div class="view-toggle">
+  <button class="view-btn active" id="btn-elev" onclick="setView('elev')">
+    <svg viewBox="0 0 14 10" fill="none"><polyline points="0,9 3,4 6,7 9,2 14,5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    Elevation
+  </button>
+  <button class="view-btn" id="btn-map" onclick="setView('map')">
+    <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="6" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 10.5 C7 10.5 2.5 7.5 2.5 5.5 a4.5 4.5 0 0 1 9 0 C11.5 7.5 7 10.5 7 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    Map
+  </button>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val" id="stat-dist">40.7</div><div class="stat-label">Miles</div></div>
+  <div class="stat"><div class="stat-val" id="stat-gain">2,132</div><div class="stat-label">Ft Gain</div></div>
+  <div class="stat"><div class="stat-val" id="stat-peak">411</div><div class="stat-label">Ft Peak</div></div>
+  <div class="stat"><div class="stat-val" id="stat-stops">3</div><div class="stat-label">Stops</div></div>
+</div>
+
+<div class="panel-wrap">
+  <div class="panel" id="main-panel">
+    <!-- Elevation view -->
+    <div class="elev-panel active" id="elev-panel">
+      <canvas id="chart"></canvas>
+      <div id="hairline"></div>
+      <div id="tooltip"><div class="tt-inner">
+        <div class="tt-dist" id="tt-dist"></div>
+        <div class="tt-ele" id="tt-ele"></div>
+        <div class="tt-name" id="tt-name"></div>
+      </div></div>
+    </div>
+  <!-- Map view -->
+    <div class="map-panel" id="map-panel">
+      <div id="leaflet-map" style="width:100%;height:440px;border-radius:13px;overflow:hidden;position:relative;">
+        <div id="map-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#0f0f1c;border-radius:13px;z-index:5;font-family:Inter,sans-serif;font-size:12px;color:rgba(238,234,255,0.4);">Loading map…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stops-section">
+  <div class="stops-title">Waypoints &amp; Rest Stops</div>
+  <div class="stops-grid" id="stops-grid"></div>
+</div>
+
+<div class="divider"></div>
+<div class="note">Elevation &amp; GPS data from GPX track. Distances cumulative along route.</div>
+
+</div><!-- /.widget -->
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ROUTES = {
+  '40': {
+    label: '40 mi', subtitle: 'Washington Heights → Palisades → Piermont → Return',
+    stats: { dist: '40.7', gain: '2,132', peak: '411', stops: 3 },
+    waypoints: [
+      { d:4.426,  e:330.7, lat:40.86121, lon:-73.95918, n:'Strictly Bicycles',                         icon:'🔧', t:'gear' },
+      { d:17.194, e:191.3, lat:41.01439, lon:-73.91331, n:'9W Market',                                 icon:'☕', t:'food' },
+      { d:19.383, e:3.6,   lat:41.04058, lon:-73.91157, n:'Rest Stop — Goswick Pavilion, Piermont NY', icon:'🍌', t:'food', alsoFinish65: false, alsoFinish100: false },
+    ],
+    elevation: [{"d":0.0,"e":13.1},{"d":0.2007,"e":16.1},{"d":0.2635,"e":28.9},{"d":0.3763,"e":54.1},{"d":0.4394,"e":60.0},{"d":0.5174,"e":64.3},{"d":0.6566,"e":61.7},{"d":0.7365,"e":80.1},{"d":0.9226,"e":98.1},{"d":0.9986,"e":115.5},{"d":1.0637,"e":126.3},{"d":1.1308,"e":133.5},{"d":1.2305,"e":149.9},{"d":1.6196,"e":170.3},{"d":1.8791,"e":189.3},{"d":2.2289,"e":200.5},{"d":2.3534,"e":191.6},{"d":2.4005,"e":195.9},{"d":2.4473,"e":200.1},{"d":2.8733,"e":238.8},{"d":3.4695,"e":293.3},{"d":3.6175,"e":289.7},{"d":3.7051,"e":291.3},{"d":3.7615,"e":291.3},{"d":3.8733,"e":289.7},{"d":4.1776,"e":319.6},{"d":4.3793,"e":328.1},{"d":4.5926,"e":333.7},{"d":4.8403,"e":338.9},{"d":5.1002,"e":349.7},{"d":5.3077,"e":328.1},{"d":5.5793,"e":349.7},{"d":5.8174,"e":338.3},{"d":6.2229,"e":361.5},{"d":6.646,"e":368.4},{"d":7.1103,"e":380.2},{"d":7.6986,"e":157.8},{"d":8.0369,"e":99.7},{"d":8.186,"e":86.6},{"d":8.3563,"e":107.6},{"d":8.614,"e":86.0},{"d":8.8817,"e":64.6},{"d":9.314,"e":51.8},{"d":9.7108,"e":51.2},{"d":9.8593,"e":50.9},{"d":10.2308,"e":44.9},{"d":10.7027,"e":40.0},{"d":11.0932,"e":41.7},{"d":11.4868,"e":37.1},{"d":11.964,"e":36.4},{"d":12.1959,"e":46.6},{"d":12.6916,"e":56.1},{"d":13.0098,"e":45.3},{"d":13.3333,"e":55.8},{"d":13.5769,"e":53.1},{"d":13.9597,"e":48.2},{"d":14.2033,"e":52.8},{"d":14.6316,"e":59.7},{"d":15.058,"e":67.3},{"d":15.2999,"e":46.9},{"d":15.5715,"e":54.8},{"d":15.7823,"e":77.4},{"d":16.0945,"e":120.7},{"d":16.2355,"e":152.6},{"d":16.3884,"e":159.4},{"d":16.5474,"e":165.4},{"d":16.7531,"e":183.4},{"d":17.0459,"e":198.2},{"d":17.2112,"e":190.3},{"d":17.4651,"e":184.7},{"d":17.8283,"e":176.2},{"d":18.0787,"e":159.4},{"d":18.2308,"e":143.7},{"d":18.4062,"e":168.3},{"d":18.6854,"e":44.9},{"d":18.924,"e":3.6},{"d":19.1298,"e":7.2},{"d":19.2566,"e":2.3},{"d":19.4641,"e":7.9},{"d":19.7559,"e":5.6},{"d":20.0454,"e":0.0},{"d":20.1785,"e":0.0},{"d":20.3115,"e":0.0},{"d":20.601,"e":5.6},{"d":20.8928,"e":7.9},{"d":21.1058,"e":1.6},{"d":21.2837,"e":5.2},{"d":21.474,"e":7.9},{"d":21.8272,"e":21.7},{"d":22.1194,"e":19.0},{"d":22.2389,"e":68.9},{"d":22.3818,"e":114.8},{"d":22.6309,"e":169.9},{"d":23.0039,"e":147.3},{"d":23.3045,"e":188.6},{"d":23.615,"e":194.6},{"d":23.8983,"e":183.1},{"d":24.0536,"e":164.0},{"d":24.2323,"e":146.0},{"d":24.3921,"e":146.0},{"d":24.5941,"e":83.3},{"d":24.879,"e":62.3},{"d":25.1399,"e":50.2},{"d":25.3114,"e":46.9},{"d":25.6636,"e":66.9},{"d":26.0616,"e":72.8},{"d":26.3602,"e":52.5},{"d":26.7161,"e":43.0},{"d":27.0194,"e":51.5},{"d":27.2925,"e":50.5},{"d":27.5806,"e":47.9},{"d":27.965,"e":60.0},{"d":28.3505,"e":46.6},{"d":28.5823,"e":36.4},{"d":29.0595,"e":37.1},{"d":29.4531,"e":41.7},{"d":29.8436,"e":40.0},{"d":30.2594,"e":64.6},{"d":30.5984,"e":136.2},{"d":30.7571,"e":144.7},{"d":31.0654,"e":153.9},{"d":31.1792,"e":163.7},{"d":31.5102,"e":168.6},{"d":31.7548,"e":267.7},{"d":32.1733,"e":358.9},{"d":32.3056,"e":391.4},{"d":32.5371,"e":405.8},{"d":32.8549,"e":410.1},{"d":33.3057,"e":387.5},{"d":33.6968,"e":369.8},{"d":34.1308,"e":382.5},{"d":34.612,"e":344.5},{"d":34.9618,"e":348.1},{"d":35.2899,"e":328.4},{"d":35.5749,"e":344.2},{"d":35.7915,"e":338.3},{"d":36.0779,"e":334.0},{"d":36.3515,"e":321.9},{"d":36.6803,"e":288.7},{"d":36.8129,"e":290.0},{"d":36.867,"e":290.7},{"d":36.9412,"e":292.3},{"d":37.0337,"e":298.9},{"d":37.5429,"e":262.8},{"d":38.0863,"e":221.8},{"d":38.1825,"e":214.9},{"d":38.2291,"e":211.3},{"d":38.4066,"e":207.3},{"d":38.5574,"e":118.8},{"d":38.6751,"e":119.4},{"d":38.8242,"e":93.2},{"d":38.8867,"e":67.6},{"d":39.0249,"e":57.4},{"d":39.2763,"e":13.1},{"d":39.432,"e":7.9},{"d":39.5937,"e":15.7},{"d":39.8886,"e":14.8},{"d":39.9735,"e":15.1},{"d":40.2082,"e":5.6},{"d":40.345,"e":14.4},{"d":40.5323,"e":11.5},{"d":40.6804,"e":13.1}],
+    map: [{"lat":40.82841,"lon":-73.95372},{"lat":40.83109,"lon":-73.95121},{"lat":40.83188,"lon":-73.94993},{"lat":40.83421,"lon":-73.94937},{"lat":40.83535,"lon":-73.94542},{"lat":40.83704,"lon":-73.94677},{"lat":40.83831,"lon":-73.94523},{"lat":40.84538,"lon":-73.94052},{"lat":40.85062,"lon":-73.94133},{"lat":40.84979,"lon":-73.9417},{"lat":40.85338,"lon":-73.96066},{"lat":40.85429,"lon":-73.9627},{"lat":40.85403,"lon":-73.96355},{"lat":40.86069,"lon":-73.95976},{"lat":40.86621,"lon":-73.95493},{"lat":40.87256,"lon":-73.95245},{"lat":40.87953,"lon":-73.94954},{"lat":40.88848,"lon":-73.95259},{"lat":40.89862,"lon":-73.96382},{"lat":40.90496,"lon":-73.96273},{"lat":40.9092,"lon":-73.96535},{"lat":40.91818,"lon":-73.96587},{"lat":40.92519,"lon":-73.963},{"lat":40.93677,"lon":-73.96239},{"lat":40.94804,"lon":-73.9614},{"lat":40.95807,"lon":-73.96132},{"lat":40.96809,"lon":-73.95323},{"lat":40.97393,"lon":-73.94579},{"lat":40.98206,"lon":-73.94131},{"lat":40.99281,"lon":-73.93404},{"lat":40.99891,"lon":-73.92981},{"lat":41.00522,"lon":-73.9253},{"lat":41.00755,"lon":-73.92098},{"lat":41.01091,"lon":-73.91653},{"lat":41.01463,"lon":-73.91337},{"lat":41.02301,"lon":-73.91681},{"lat":41.02824,"lon":-73.91903},{"lat":41.0339,"lon":-73.91833},{"lat":41.03865,"lon":-73.91498},{"lat":41.04067,"lon":-73.91001},{"lat":41.04263,"lon":-73.89971},{"lat":41.04263,"lon":-73.89971},{"lat":41.04067,"lon":-73.91001},{"lat":41.03825,"lon":-73.91593},{"lat":41.03262,"lon":-73.92255},{"lat":41.02828,"lon":-73.92366},{"lat":41.02545,"lon":-73.91768},{"lat":41.01612,"lon":-73.91412},{"lat":41.00969,"lon":-73.9176},{"lat":41.00722,"lon":-73.92233},{"lat":41.00333,"lon":-73.92633},{"lat":40.99703,"lon":-73.93088},{"lat":40.99035,"lon":-73.93485},{"lat":40.9819,"lon":-73.94156},{"lat":40.97337,"lon":-73.94639},{"lat":40.9675,"lon":-73.95355},{"lat":40.95807,"lon":-73.96132},{"lat":40.94804,"lon":-73.9614},{"lat":40.93677,"lon":-73.96239},{"lat":40.92894,"lon":-73.95689},{"lat":40.92246,"lon":-73.95893},{"lat":40.91784,"lon":-73.95488},{"lat":40.9111,"lon":-73.94757},{"lat":40.90596,"lon":-73.94768},{"lat":40.89572,"lon":-73.95337},{"lat":40.88658,"lon":-73.95156},{"lat":40.87703,"lon":-73.9506},{"lat":40.86878,"lon":-73.95458},{"lat":40.86222,"lon":-73.95807},{"lat":40.85459,"lon":-73.96327},{"lat":40.85399,"lon":-73.96254},{"lat":40.85381,"lon":-73.96232},{"lat":40.84996,"lon":-73.94285},{"lat":40.85058,"lon":-73.94155},{"lat":40.85183,"lon":-73.94184},{"lat":40.8508,"lon":-73.94372},{"lat":40.85069,"lon":-73.94565},{"lat":40.84508,"lon":-73.94603},{"lat":40.83884,"lon":-73.94823},{"lat":40.83451,"lon":-73.95003},{"lat":40.83033,"lon":-73.95249},{"lat":40.82841,"lon":-73.95372}]
+  },
+
+  '65': {
+    label: '65 mi', subtitle: 'Washington Heights → Palisades → Piermont → Rockland Lake → Return',
+    stats: { dist: '65.5', gain: '3,404', peak: '411', stops: 4 },
+    waypoints: [
+      { d:4.367,  e:329.7, lat:40.86121, lon:-73.95918, n:'Strictly Bicycles',                                    icon:'🔧', t:'gear' },
+      { d:15.955, e:51.5,  lat:40.99061, lon:-73.96898, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
+      { d:22.867, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true },
+      { d:30.988, e:155.2, lat:41.13036, lon:-73.92261, n:'Rest Stop — Rockland Lake State Park',                 icon:'🍌', t:'food', alsoFinish: true },
+    ],
+    elevation: [{"d":0.0,"e":13.1},{"d":0.2466,"e":19.0},{"d":0.4041,"e":63.0},{"d":0.6738,"e":62.7},{"d":0.867,"e":92.8},{"d":1.1525,"e":135.8},{"d":1.6948,"e":176.8},{"d":2.2172,"e":184.4},{"d":2.3554,"e":196.9},{"d":2.7599,"e":233.6},{"d":3.5325,"e":294.6},{"d":3.6743,"e":291.3},{"d":3.8126,"e":290.0},{"d":4.2488,"e":323.5},{"d":4.7499,"e":338.3},{"d":5.1862,"e":339.6},{"d":5.7548,"e":338.3},{"d":6.4998,"e":379.9},{"d":7.0434,"e":287.7},{"d":7.2365,"e":212.6},{"d":7.6642,"e":147.6},{"d":8.1297,"e":110.6},{"d":8.3996,"e":116.5},{"d":8.6689,"e":133.2},{"d":9.4684,"e":102.7},{"d":9.7404,"e":86.9},{"d":10.027,"e":50.2},{"d":10.3005,"e":55.8},{"d":10.4606,"e":52.8},{"d":10.751,"e":52.5},{"d":10.9166,"e":57.7},{"d":11.0993,"e":53.8},{"d":11.3752,"e":57.4},{"d":11.7058,"e":75.1},{"d":12.0385,"e":66.9},{"d":12.5899,"e":72.5},{"d":12.8965,"e":57.1},{"d":13.332,"e":44.6},{"d":13.9795,"e":50.9},{"d":14.295,"e":40.4},{"d":14.7225,"e":28.9},{"d":15.2731,"e":31.5},{"d":15.5053,"e":29.2},{"d":16.0933,"e":93.5},{"d":16.8332,"e":89.9},{"d":17.4001,"e":87.6},{"d":18.0758,"e":60.7},{"d":18.4382,"e":37.4},{"d":18.9103,"e":42.0},{"d":19.6653,"e":46.3},{"d":19.9709,"e":50.5},{"d":20.2838,"e":16.4},{"d":20.8524,"e":3.6},{"d":21.1331,"e":1.6},{"d":21.5563,"e":7.2},{"d":22.0092,"e":0.0},{"d":22.2948,"e":0.0},{"d":22.7214,"e":8.2},{"d":23.221,"e":7.5},{"d":23.796,"e":12.5},{"d":24.3781,"e":24.0},{"d":24.9492,"e":30.5},{"d":25.5206,"e":14.4},{"d":25.7548,"e":51.8},{"d":26.2972,"e":32.2},{"d":26.8796,"e":89.9},{"d":27.6384,"e":106.6},{"d":28.0028,"e":178.8},{"d":28.2804,"e":252.0},{"d":28.6714,"e":367.1},{"d":29.0629,"e":395.7},{"d":29.4634,"e":246.1},{"d":29.842,"e":210.6},{"d":30.3755,"e":210.6},{"d":30.9155,"e":155.2},{"d":31.0723,"e":156.2},{"d":31.3367,"e":195.5},{"d":31.5956,"e":198.2},{"d":31.8838,"e":190.9},{"d":32.1737,"e":183.4},{"d":32.5218,"e":210.3},{"d":32.9084,"e":178.5},{"d":33.2219,"e":168.0},{"d":33.4513,"e":149.6},{"d":33.724,"e":162.4},{"d":34.1533,"e":142.1},{"d":34.601,"e":175.5},{"d":35.3376,"e":88.3},{"d":35.9108,"e":99.4},{"d":36.5303,"e":122.4},{"d":37.2105,"e":144.7},{"d":37.9338,"e":133.5},{"d":38.2145,"e":93.2},{"d":38.8807,"e":143.7},{"d":39.6063,"e":94.5},{"d":40.1057,"e":94.5},{"d":40.6324,"e":72.2},{"d":41.1156,"e":149.6},{"d":41.506,"e":194.2},{"d":41.9462,"e":146.7},{"d":42.3149,"e":91.5},{"d":42.8323,"e":72.8},{"d":43.2425,"e":73.2},{"d":43.4939,"e":109.6},{"d":43.8539,"e":57.4},{"d":44.4122,"e":57.7},{"d":44.8855,"e":64.6},{"d":45.3151,"e":74.5},{"d":45.8286,"e":81.4},{"d":46.2711,"e":74.1},{"d":46.8771,"e":57.1},{"d":47.4216,"e":96.1},{"d":47.96,"e":73.2},{"d":48.4557,"e":56.8},{"d":48.854,"e":42.3},{"d":49.2994,"e":40.4},{"d":49.9862,"e":91.9},{"d":50.6005,"e":31.5},{"d":50.8694,"e":34.8},{"d":51.3697,"e":29.9},{"d":51.7561,"e":55.8},{"d":52.1695,"e":38.7},{"d":52.7627,"e":41.3},{"d":53.2881,"e":33.8},{"d":53.8783,"e":38.1},{"d":54.5504,"e":39.0},{"d":55.3357,"e":45.6},{"d":55.5999,"e":55.4},{"d":56.3561,"e":82.0},{"d":57.0163,"e":131.2},{"d":57.2605,"e":105.3},{"d":57.7972,"e":177.5},{"d":58.6109,"e":357.3},{"d":59.4505,"e":341.5},{"d":60.0177,"e":315.3},{"d":60.525,"e":338.9},{"d":61.0406,"e":327.1},{"d":61.4928,"e":288.7},{"d":61.6359,"e":290.7},{"d":61.7673,"e":290.4},{"d":62.3851,"e":258.2},{"d":62.9567,"e":215.6},{"d":63.0421,"e":209.0},{"d":63.3891,"e":139.4},{"d":63.6099,"e":91.9},{"d":63.7303,"e":39.7},{"d":64.0804,"e":12.8},{"d":64.4372,"e":16.4},{"d":64.7465,"e":15.7},{"d":64.93,"e":3.3},{"d":65.1196,"e":15.1},{"d":65.4636,"e":13.1}],
+    map: [{"lat":40.82841,"lon":-73.95372},{"lat":40.8311,"lon":-73.95034},{"lat":40.83492,"lon":-73.94687},{"lat":40.84085,"lon":-73.94281},{"lat":40.85053,"lon":-73.9416},{"lat":40.85251,"lon":-73.95624},{"lat":40.85379,"lon":-73.96251},{"lat":40.86062,"lon":-73.95983},{"lat":40.87218,"lon":-73.95275},{"lat":40.88642,"lon":-73.95285},{"lat":40.89118,"lon":-73.96272},{"lat":40.90045,"lon":-73.96273},{"lat":40.90685,"lon":-73.95951},{"lat":40.91813,"lon":-73.96344},{"lat":40.92494,"lon":-73.96332},{"lat":40.92984,"lon":-73.96118},{"lat":40.93492,"lon":-73.95665},{"lat":40.94127,"lon":-73.95728},{"lat":40.94908,"lon":-73.95288},{"lat":40.95712,"lon":-73.95348},{"lat":40.96542,"lon":-73.95935},{"lat":40.9754,"lon":-73.96569},{"lat":40.98458,"lon":-73.97226},{"lat":40.99482,"lon":-73.96474},{"lat":41.0099,"lon":-73.95335},{"lat":41.02058,"lon":-73.94694},{"lat":41.02453,"lon":-73.92999},{"lat":41.02927,"lon":-73.92528},{"lat":41.03894,"lon":-73.91406},{"lat":41.04228,"lon":-73.90361},{"lat":41.04194,"lon":-73.9051},{"lat":41.04347,"lon":-73.91749},{"lat":41.05964,"lon":-73.92031},{"lat":41.07475,"lon":-73.91955},{"lat":41.08519,"lon":-73.91838},{"lat":41.10235,"lon":-73.91737},{"lat":41.10842,"lon":-73.92244},{"lat":41.10912,"lon":-73.93525},{"lat":41.11833,"lon":-73.94106},{"lat":41.12793,"lon":-73.92761},{"lat":41.12942,"lon":-73.92293},{"lat":41.13048,"lon":-73.91671},{"lat":41.13795,"lon":-73.91653},{"lat":41.14672,"lon":-73.91864},{"lat":41.1479,"lon":-73.92622},{"lat":41.14708,"lon":-73.93466},{"lat":41.1537,"lon":-73.95244},{"lat":41.15209,"lon":-73.96637},{"lat":41.13386,"lon":-73.96683},{"lat":41.12291,"lon":-73.96967},{"lat":41.1039,"lon":-73.97235},{"lat":41.09009,"lon":-73.97153},{"lat":41.08188,"lon":-73.97728},{"lat":41.07075,"lon":-73.97898},{"lat":41.05956,"lon":-73.98915},{"lat":41.05481,"lon":-73.99086},{"lat":41.04436,"lon":-73.98874},{"lat":41.03836,"lon":-73.97773},{"lat":41.02463,"lon":-73.97739},{"lat":41.01308,"lon":-73.98469},{"lat":41.00383,"lon":-73.98536},{"lat":41.00068,"lon":-73.97341},{"lat":40.98906,"lon":-73.97177},{"lat":40.98248,"lon":-73.97237},{"lat":40.97235,"lon":-73.96065},{"lat":40.95968,"lon":-73.96203},{"lat":40.94492,"lon":-73.96193},{"lat":40.92578,"lon":-73.96422},{"lat":40.91314,"lon":-73.96545},{"lat":40.90401,"lon":-73.96175},{"lat":40.89065,"lon":-73.95669},{"lat":40.87579,"lon":-73.9509},{"lat":40.86362,"lon":-73.95674},{"lat":40.85437,"lon":-73.96296},{"lat":40.85387,"lon":-73.96245},{"lat":40.8501,"lon":-73.94121},{"lat":40.85241,"lon":-73.94132},{"lat":40.85148,"lon":-73.9441},{"lat":40.84284,"lon":-73.94601},{"lat":40.83642,"lon":-73.94944},{"lat":40.83083,"lon":-73.95214},{"lat":40.82841,"lon":-73.95372}]
+  },
+
+  '100': {
+    label: '100 mi', subtitle: 'Washington Heights → Palisades → Harriman → Monsey → Hudson Valley Loop',
+    stats: { dist: '100.1', gain: '6,013', peak: '842', stops: 6 },
+    waypoints: [
+      { d:4.411,  e:329.7, lat:40.86121, lon:-73.95918, n:'Strictly Bicycles',                                    icon:'🔧', t:'gear' },
+      { d:15.96,  e:49.9,  lat:40.99055, lon:-73.96908, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
+      { d:21.276, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true },
+      { d:31.006, e:155.8, lat:41.13033, lon:-73.92249, n:'Rest Stop — Rockland Lake State Park',                 icon:'🍌', t:'food', alsoFinish: true },
+      { d:51.484, e:636.8, lat:41.13054, lon:-74.07697, n:'Rest Stop — Manny Welder Park, Monsey NY',             icon:'🍌', t:'food' },
+      { d:62.454, e:235.6, lat:41.01704, lon:-74.13103, n:'Borough Park Restroom',                               icon:'🚻', t:'toilet' },
+    ],
+    elevation: [{"d":0.0,"e":13.1},{"d":0.344,"e":15.1},{"d":0.7422,"e":15.1},{"d":1.2311,"e":7.9},{"d":1.7131,"e":50.9},{"d":1.9311,"e":111.9},{"d":2.3257,"e":192.9},{"d":2.461,"e":204.7},{"d":3.5761,"e":294.6},{"d":3.7514,"e":291.3},{"d":4.2334,"e":321.9},{"d":4.8658,"e":338.9},{"d":5.6227,"e":348.1},{"d":6.6146,"e":366.5},{"d":7.2446,"e":235.9},{"d":7.6606,"e":151.6},{"d":8.3123,"e":105.3},{"d":8.6774,"e":132.9},{"d":9.5702,"e":109.6},{"d":9.9988,"e":96.1},{"d":10.8925,"e":55.8},{"d":11.4653,"e":65.0},{"d":11.9696,"e":66.9},{"d":12.6589,"e":64.6},{"d":13.1471,"e":70.9},{"d":13.9956,"e":50.2},{"d":14.5052,"e":51.5},{"d":15.2095,"e":37.1},{"d":15.5646,"e":29.2},{"d":16.5789,"e":93.2},{"d":17.4118,"e":87.6},{"d":18.2806,"e":54.1},{"d":18.7938,"e":39.0},{"d":19.8044,"e":46.9},{"d":20.1329,"e":19.4},{"d":20.8738,"e":3.9},{"d":21.2261,"e":3.6},{"d":21.9444,"e":0.0},{"d":22.4744,"e":1.0},{"d":23.0862,"e":5.2},{"d":23.8784,"e":20.3},{"d":24.6614,"e":21.7},{"d":25.4816,"e":15.1},{"d":25.8992,"e":73.5},{"d":26.743,"e":76.1},{"d":27.6732,"e":106.6},{"d":28.1311,"e":187.0},{"d":28.6831,"e":367.1},{"d":29.2835,"e":344.2},{"d":29.6784,"e":194.6},{"d":30.4854,"e":210.0},{"d":31.0071,"e":155.8},{"d":31.3433,"e":194.9},{"d":31.6528,"e":204.7},{"d":32.0615,"e":204.4},{"d":32.5456,"e":210.3},{"d":33.1377,"e":178.5},{"d":33.4751,"e":149.6},{"d":33.8459,"e":153.5},{"d":34.492,"e":193.9},{"d":35.403,"e":86.3},{"d":36.4186,"e":101.0},{"d":37.2583,"e":106.3},{"d":38.146,"e":197.2},{"d":38.8072,"e":123.7},{"d":39.3257,"e":152.2},{"d":39.9616,"e":214.6},{"d":40.2704,"e":302.5},{"d":40.7648,"e":471.5},{"d":41.2443,"e":509.2},{"d":41.8134,"e":461.0},{"d":42.6866,"e":385.2},{"d":43.2114,"e":482.6},{"d":43.7809,"e":736.9},{"d":44.4083,"e":842.2},{"d":45.0278,"e":640.7},{"d":45.6769,"e":514.8},{"d":46.4008,"e":500.3},{"d":47.0738,"e":451.8},{"d":47.9565,"e":557.4},{"d":48.8565,"e":528.2},{"d":49.4857,"e":491.5},{"d":50.0201,"e":504.6},{"d":51.1126,"e":604.7},{"d":51.649,"e":633.5},{"d":52.5986,"e":615.2},{"d":53.1085,"e":533.5},{"d":53.5627,"e":518.4},{"d":54.2604,"e":454.4},{"d":55.0576,"e":524.9},{"d":55.9961,"e":547.6},{"d":56.4755,"e":524.6},{"d":57.0366,"e":549.5},{"d":57.9938,"e":463.3},{"d":58.5768,"e":409.4},{"d":59.1084,"e":421.3},{"d":59.9721,"e":366.1},{"d":61.0107,"e":286.4},{"d":61.6053,"e":281.5},{"d":62.4753,"e":236.5},{"d":63.1939,"e":236.5},{"d":64.0177,"e":186.0},{"d":64.2405,"e":163.4},{"d":64.8887,"e":111.9},{"d":65.6266,"e":136.8},{"d":66.248,"e":114.2},{"d":66.7403,"e":89.6},{"d":67.3137,"e":86.6},{"d":68.2287,"e":129.9},{"d":68.8568,"e":67.3},{"d":69.8093,"e":90.6},{"d":70.885,"e":53.5},{"d":71.6857,"e":47.6},{"d":72.5896,"e":49.2},{"d":73.3126,"e":56.8},{"d":74.1939,"e":72.5},{"d":74.6805,"e":61.4},{"d":75.184,"e":79.1},{"d":75.8661,"e":60.0},{"d":76.4816,"e":39.4},{"d":77.3579,"e":89.2},{"d":78.0378,"e":35.1},{"d":78.583,"e":48.2},{"d":79.6483,"e":78.7},{"d":80.4886,"e":47.2},{"d":81.6059,"e":63.0},{"d":82.4805,"e":25.9},{"d":83.3551,"e":15.7},{"d":84.2742,"e":54.8},{"d":84.6934,"e":4.9},{"d":85.4566,"e":22.0},{"d":86.4908,"e":98.8},{"d":87.475,"e":148.3},{"d":88.2321,"e":149.6},{"d":89.1051,"e":75.1},{"d":89.8653,"e":55.8},{"d":90.7809,"e":127.3},{"d":91.2105,"e":119.1},{"d":92.1733,"e":378.3},{"d":92.9468,"e":355.3},{"d":93.7813,"e":326.1},{"d":94.3921,"e":333.0},{"d":95.1099,"e":288.7},{"d":95.3973,"e":291.0},{"d":95.768,"e":285.1},{"d":96.7023,"e":214.9},{"d":97.0279,"e":200.5},{"d":97.8865,"e":155.2},{"d":98.6111,"e":127.6},{"d":99.1108,"e":127.6},{"d":99.5161,"e":67.3},{"d":99.8192,"e":36.4},{"d":100.1109,"e":13.1}],
+    map: [{"lat":40.82841,"lon":-73.95372},{"lat":40.83802,"lon":-73.94879},{"lat":40.84977,"lon":-73.94626},{"lat":40.85138,"lon":-73.94144},{"lat":40.85208,"lon":-73.95403},{"lat":40.85385,"lon":-73.96283},{"lat":40.86982,"lon":-73.95432},{"lat":40.8887,"lon":-73.95524},{"lat":40.89527,"lon":-73.96536},{"lat":40.90707,"lon":-73.95944},{"lat":40.92186,"lon":-73.96257},{"lat":40.94005,"lon":-73.95745},{"lat":40.95482,"lon":-73.94741},{"lat":40.96134,"lon":-73.96137},{"lat":40.97604,"lon":-73.9672},{"lat":40.98833,"lon":-73.97121},{"lat":41.008,"lon":-73.95415},{"lat":41.01924,"lon":-73.94351},{"lat":41.02881,"lon":-73.92687},{"lat":41.03945,"lon":-73.91332},{"lat":41.04292,"lon":-73.89768},{"lat":41.04312,"lon":-73.91738},{"lat":41.06493,"lon":-73.92087},{"lat":41.08017,"lon":-73.91893},{"lat":41.10382,"lon":-73.91759},{"lat":41.10887,"lon":-73.9293},{"lat":41.11792,"lon":-73.94034},{"lat":41.13065,"lon":-73.9237},{"lat":41.129,"lon":-73.91835},{"lat":41.13801,"lon":-73.91647},{"lat":41.1495,"lon":-73.92256},{"lat":41.14676,"lon":-73.93406},{"lat":41.15598,"lon":-73.95886},{"lat":41.16938,"lon":-73.97758},{"lat":41.18164,"lon":-73.9921},{"lat":41.18481,"lon":-74.00835},{"lat":41.18353,"lon":-74.02319},{"lat":41.18082,"lon":-74.03503},{"lat":41.19494,"lon":-74.04051},{"lat":41.20514,"lon":-74.04056},{"lat":41.19749,"lon":-74.05203},{"lat":41.18845,"lon":-74.06188},{"lat":41.17073,"lon":-74.068},{"lat":41.15504,"lon":-74.08187},{"lat":41.13727,"lon":-74.08319},{"lat":41.12847,"lon":-74.08144},{"lat":41.12284,"lon":-74.09649},{"lat":41.11589,"lon":-74.1135},{"lat":41.09312,"lon":-74.12199},{"lat":41.08433,"lon":-74.11822},{"lat":41.06392,"lon":-74.12195},{"lat":41.04853,"lon":-74.1247},{"lat":41.02834,"lon":-74.12722},{"lat":41.01493,"lon":-74.12538},{"lat":41.01039,"lon":-74.10738},{"lat":41.0154,"lon":-74.09976},{"lat":40.99955,"lon":-74.09191},{"lat":40.98705,"lon":-74.08857},{"lat":40.98245,"lon":-74.06855},{"lat":41.00297,"lon":-74.05324},{"lat":41.00573,"lon":-74.02035},{"lat":41.01858,"lon":-74.00969},{"lat":41.01486,"lon":-73.99598},{"lat":41.00458,"lon":-73.98178},{"lat":40.99287,"lon":-73.96603},{"lat":40.98167,"lon":-73.97247},{"lat":40.96853,"lon":-73.99128},{"lat":40.95719,"lon":-74.01409},{"lat":40.95298,"lon":-74.03599},{"lat":40.94565,"lon":-74.01937},{"lat":40.94451,"lon":-73.98931},{"lat":40.92883,"lon":-73.97765},{"lat":40.91598,"lon":-73.96641},{"lat":40.90326,"lon":-73.9625},{"lat":40.88664,"lon":-73.94946},{"lat":40.86658,"lon":-73.95484},{"lat":40.85436,"lon":-73.96291},{"lat":40.851,"lon":-73.94851},{"lat":40.85039,"lon":-73.9406},{"lat":40.83548,"lon":-73.94434},{"lat":40.83401,"lon":-73.9495},{"lat":40.82982,"lon":-73.95284},{"lat":40.82841,"lon":-73.95372}]
+  }
+};
+
+// ─── Stop colors ────────────────────────────────────────────────────────────
+const STOP_COLORS = ['#FF3366','#FF7A00','#FFD600','#00C566','#0090FF','#A855F7'];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let activeRoute = '40', activeView = 'elev';
+let W = 0, H = 0;
+
+// ─── Route / view switching ──────────────────────────────────────────────────
+function setRoute(id) {
+  activeRoute = id;
+  document.querySelectorAll('.route-btn').forEach(b => b.classList.toggle('active', b.dataset.route === id));
+  updateStats();
+  buildStops();
+  if (activeView === 'elev') drawElevation(); else drawMap();
+}
+
+function setView(v) {
+  activeView = v;
+  document.getElementById('btn-elev').classList.toggle('active', v === 'elev');
+  document.getElementById('btn-map').classList.toggle('active', v === 'map');
+  document.getElementById('elev-panel').classList.toggle('active', v === 'elev');
+  document.getElementById('map-panel').classList.toggle('active', v === 'map');
+  if (v === 'elev') {
+    drawElevation();
+  } else {
+    drawMap();
+    // Leaflet needs a size hint after the panel becomes visible
+    setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 100);
+  }
+}
+
+function updateStats() {
+  const s = ROUTES[activeRoute].stats;
+  document.getElementById('stat-dist').textContent  = s.dist;
+  document.getElementById('stat-gain').textContent  = s.gain;
+  document.getElementById('stat-peak').textContent  = s.peak;
+  document.getElementById('stat-stops').textContent = s.stops;
+}
+
+// ─── Stop cards ──────────────────────────────────────────────────────────────
+function buildStops() {
+  const wpts = [...ROUTES[activeRoute].waypoints].sort((a,b) => a.d - b.d);
+  const grid = document.getElementById('stops-grid');
+  grid.innerHTML = '';
+  wpts.forEach((w, i) => {
+    const c = STOP_COLORS[i % STOP_COLORS.length];
+    const isDual = w.alsoFinish; // doubles as both mid-stop and final stop for shorter routes
+
+    const card = document.createElement('div');
+    card.className = 'stop-card';
+
+    let badgePill = '';
+    if (w.t === 'gear')   badgePill = `<div class="stop-badge-pill" style="background:rgba(255,51,102,0.12);color:#FF3366;border:1px solid rgba(255,51,102,0.25)">Bike Shop</div>`;
+    else if (w.t === 'toilet') badgePill = `<div class="stop-badge-pill" style="background:rgba(0,144,255,0.12);color:#0090FF;border:1px solid rgba(0,144,255,0.25)">Restroom</div>`;
+    else                  badgePill = `<div class="stop-badge-pill" style="background:rgba(0,197,102,0.12);color:#00C566;border:1px solid rgba(0,197,102,0.25)">Rest Stop</div>`;
+
+    const dualBadge = isDual
+      ? `<div class="dual-badge">⟳ Also final rest stop for 40 &amp; 65 mi riders</div>` : '';
+
+    card.innerHTML = `
+      <div class="stop-badge" style="background:${c}22;color:${c};border:1px solid ${c}33">${w.icon}</div>
+      <div class="stop-info">
+        ${badgePill}
+        <div class="stop-name">${w.n}</div>
+        ${dualBadge}
+        <div class="stop-meta">
+          <span class="stop-mi" style="color:${c}">${w.d.toFixed(1)} mi</span>
+          <span>${Math.round(w.e)} ft elev.</span>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ─── ELEVATION CHART ─────────────────────────────────────────────────────────
+const canvas   = document.getElementById('chart');
+const ctx      = canvas.getContext('2d');
+const tooltip  = document.getElementById('tooltip');
+const hairline = document.getElementById('hairline');
+const ttDist   = document.getElementById('tt-dist');
+const ttEle    = document.getElementById('tt-ele');
+const ttName   = document.getElementById('tt-name');
+const PAD = {top:22, right:16, bottom:42, left:54};
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function resizeCanvas() {
+  W = canvas.parentElement.clientWidth;
+  H = Math.round(W * 0.40);
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  canvas.width = W*dpr(); canvas.height = H*dpr();
+  ctx.scale(dpr(), dpr());
+}
+
+function drawElevation() {
+  resizeCanvas();
+  const route = ROUTES[activeRoute];
+  const pts = route.elevation;
+  const wpts = [...route.waypoints].sort((a,b) => a.d - b.d);
+  const TOTAL = pts[pts.length-1].d;
+  const EMAX  = activeRoute === '100' ? 900 : 450;
+
+  ctx.clearRect(0,0,W,H);
+
+  function toX(d) { return PAD.left + (d/TOTAL)*(W-PAD.left-PAD.right); }
+  function toY(e) { return PAD.top  + (1-e/EMAX)*(H-PAD.top-PAD.bottom); }
+
+  // Grid
+  const yTicks = activeRoute==='100' ? [0,200,400,600,800] : [0,100,200,300,400];
+  yTicks.forEach(e => {
+    const y=toY(e);
+    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD.left,y); ctx.lineTo(W-PAD.right,y); ctx.stroke();
+    ctx.fillStyle='rgba(238,234,255,0.3)'; ctx.font='9.5px Inter,sans-serif'; ctx.textAlign='right';
+    ctx.fillText(e+"'", PAD.left-6, y+3.5);
+  });
+
+  const step = activeRoute==='40' ? 10 : activeRoute==='65' ? 10 : 20;
+  const maxMi = Math.ceil(TOTAL/step)*step;
+  for (let mi=0; mi<=maxMi; mi+=step) {
+    const x=toX(mi);
+    if (x > W-PAD.right+2) continue;
+    ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD.top); ctx.lineTo(x,H-PAD.bottom); ctx.stroke();
+    ctx.fillStyle='rgba(238,234,255,0.3)'; ctx.font='9.5px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(mi+' mi', x, H-PAD.bottom+14);
+  }
+
+  function buildPath() {
+    ctx.beginPath();
+    ctx.moveTo(toX(pts[0].d), toY(pts[0].e));
+    for (let i=1; i<pts.length; i++) {
+      const xp=toX(pts[i-1].d),yp=toY(pts[i-1].e),xc=toX(pts[i].d),yc=toY(pts[i].e);
+      ctx.bezierCurveTo((xp+xc)/2,yp,(xp+xc)/2,yc,xc,yc);
+    }
+  }
+
+  const lastX=toX(pts[pts.length-1].d);
+
+  const gFill=ctx.createLinearGradient(PAD.left,0,W-PAD.right,0);
+  gFill.addColorStop(0,'rgba(255,51,102,0.28)'); gFill.addColorStop(0.2,'rgba(255,122,0,0.28)');
+  gFill.addColorStop(0.4,'rgba(255,214,0,0.28)'); gFill.addColorStop(0.6,'rgba(0,197,102,0.28)');
+  gFill.addColorStop(0.8,'rgba(0,144,255,0.28)'); gFill.addColorStop(1,'rgba(168,85,247,0.28)');
+  buildPath(); ctx.lineTo(lastX,H-PAD.bottom); ctx.lineTo(toX(0),H-PAD.bottom); ctx.closePath();
+  ctx.fillStyle=gFill; ctx.fill();
+
+  const gFade=ctx.createLinearGradient(0,PAD.top,0,H-PAD.bottom);
+  gFade.addColorStop(0,'rgba(7,7,15,0)'); gFade.addColorStop(1,'rgba(7,7,15,0.5)');
+  buildPath(); ctx.lineTo(lastX,H-PAD.bottom); ctx.lineTo(toX(0),H-PAD.bottom); ctx.closePath();
+  ctx.fillStyle=gFade; ctx.fill();
+
+  const gLine=ctx.createLinearGradient(PAD.left,0,W-PAD.right,0);
+  gLine.addColorStop(0,'#FF3366'); gLine.addColorStop(0.2,'#FF7A00'); gLine.addColorStop(0.4,'#FFD600');
+  gLine.addColorStop(0.6,'#00C566'); gLine.addColorStop(0.8,'#0090FF'); gLine.addColorStop(1,'#A855F7');
+  buildPath(); ctx.strokeStyle=gLine; ctx.lineWidth=2.5; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.setLineDash([]); ctx.stroke();
+
+  // Waypoints
+  wpts.forEach((w, i) => {
+    const x=toX(w.d), y=toY(w.e), c=STOP_COLORS[i%STOP_COLORS.length];
+    ctx.setLineDash([3,5]); ctx.strokeStyle=c+'55'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,y+6); ctx.lineTo(x,H-PAD.bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.fillStyle=c+'1a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);  ctx.fillStyle=c+'44'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.fillStyle=c; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
+    if(W>480) { ctx.fillStyle=c; ctx.font='bold 8px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,x,y-13); }
+  });
+
+  // Hover
+  canvas._toX = toX; canvas._toY = toY; canvas._pts = pts; canvas._wpts = wpts; canvas._TOTAL = TOTAL;
+}
+
+function getNearestPt(mx) {
+  const pts=canvas._pts; if(!pts) return null;
+  let best=null,bestD=Infinity;
+  pts.forEach(p=>{ const dx=Math.abs(canvas._toX(p.d)-mx); if(dx<bestD){bestD=dx;best=p;} });
+  return best;
+}
+function getNearbyWpt(d) {
+  const wpts=canvas._wpts,TOTAL=canvas._TOTAL; if(!wpts) return null;
+  const thr=TOTAL*0.02;
+  for(const w of wpts) if(Math.abs(w.d-d)<thr) return w;
+  return null;
+}
+
+function onMove(e) {
+  if(activeView!=='elev') return;
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  const pt=getNearestPt(mx); if(!pt) return;
+  const x=canvas._toX(pt.d), y=canvas._toY(pt.e), nearby=getNearbyWpt(pt.d);
+  ttDist.textContent=pt.d.toFixed(1)+' miles';
+  ttEle.textContent=Math.round(pt.e)+' ft';
+  ttName.textContent=nearby?nearby.n:'';
+  const hue=Math.round((pt.d/canvas._TOTAL)*280);
+  ttEle.style.background=`linear-gradient(90deg,hsl(${hue},90%,65%),hsl(${hue+40},90%,65%))`;
+  ttEle.style.webkitBackgroundClip='text'; ttEle.style.webkitTextFillColor='transparent'; ttEle.style.backgroundClip='text';
+  let left=x; if(left-90<PAD.left)left=PAD.left+90; if(left+90>W-PAD.right)left=W-PAD.right-90;
+  tooltip.style.left=left+'px'; tooltip.style.top=Math.max(PAD.top,y-80)+'px'; tooltip.classList.add('show');
+  hairline.style.left=x+'px'; hairline.style.top=PAD.top+'px'; hairline.style.height=(H-PAD.top-PAD.bottom)+'px'; hairline.classList.add('show');
+}
+function onLeave() { tooltip.classList.remove('show'); hairline.classList.remove('show'); }
+canvas.addEventListener('mousemove',onMove);
+canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e);},{passive:false});
+canvas.addEventListener('mouseleave',onLeave);
+canvas.addEventListener('touchend',onLeave);
+
+// ─── MAP (Leaflet) ────────────────────────────────────────────────────────────
+// Per-route center + zoom for Leaflet
+const ROUTE_VIEW = {
+  '40':  { center: [40.935, -73.940], zoom: 11 },
+  '65':  { center: [40.990, -73.940], zoom: 10 },
+  '100': { center: [41.025, -74.010], zoom: 9  },
+};
+
+let leafletMap = null;
+let routeLayer = null;
+let markerLayers = [];
+
+function initLeaflet() {
+  leafletMap = L.map('leaflet-map', { zoomControl: true, attributionControl: true });
+
+  function hideLoader() {
+    const el = document.getElementById('map-loading');
+    if (el) el.style.display = 'none';
+  }
+
+  // Provider list — tried in order, first to fire tileload wins
+  const providers = [
+    {
+      url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+      opts: { attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 20 }
+    },
+    {
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      opts: { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', subdomains: 'abc', maxZoom: 19 }
+    },
+    {
+      url: 'https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+      opts: { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19 }
+    }
+  ];
+
+  let providerIdx = 0;
+  let currentLayer = null;
+  let loaded = false;
+
+  function tryProvider(idx) {
+    if (idx >= providers.length) return;
+    if (currentLayer) leafletMap.removeLayer(currentLayer);
+    const p = providers[idx];
+    currentLayer = L.tileLayer(p.url, p.opts);
+    currentLayer.on('tileload', () => {
+      if (!loaded) { loaded = true; hideLoader(); }
+    });
+    currentLayer.on('tileerror', () => {
+      if (!loaded) tryProvider(idx + 1);
+    });
+    currentLayer.addTo(leafletMap);
+  }
+
+  tryProvider(0);
+
+  // Safety: hide loader after 4s regardless
+  setTimeout(hideLoader, 4000);
+}
+
+function drawMap() {
+  if (!leafletMap) initLeaflet();
+
+  const route = ROUTES[activeRoute];
+  const view  = ROUTE_VIEW[activeRoute];
+  const wpts  = [...route.waypoints].sort((a,b) => a.d - b.d);
+
+  // ── Remove ALL previously drawn route/marker layers ──────────────────────
+  markerLayers.forEach(layer => leafletMap.removeLayer(layer));
+  markerLayers = [];
+  if (routeLayer) { leafletMap.removeLayer(routeLayer); routeLayer = null; }
+
+  leafletMap.setView(view.center, view.zoom);
+
+  // ── Rainbow route (6 colour segments) ────────────────────────────────────
+  const latLons  = route.map.map(p => [p.lat, p.lon]);
+  const PRIDE    = ['#FF3366','#FF7A00','#FFD600','#00C566','#0090FF','#A855F7'];
+  const segCount = 6;
+  const segSize  = Math.floor(latLons.length / segCount);
+
+  for (let s = 0; s < segCount; s++) {
+    const from = s * segSize;
+    const to   = s === segCount - 1 ? latLons.length : (s + 1) * segSize + 1;
+    const seg  = latLons.slice(from, to);
+    const glow = L.polyline(seg, { color: PRIDE[s], weight: 10, opacity: 0.18 }).addTo(leafletMap);
+    const line = L.polyline(seg, { color: PRIDE[s], weight: 3.5, opacity: 1.0  }).addTo(leafletMap);
+    markerLayers.push(glow, line);
+  }
+
+  // ── Start / finish marker ─────────────────────────────────────────────────
+  const startIcon = L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:#FFD600;border:2px solid #07070f;box-shadow:0 0 8px rgba(255,214,0,0.6)"></div>`,
+    iconSize: [14,14], iconAnchor: [7,7]
+  });
+  const startM = L.marker([route.map[0].lat, route.map[0].lon], { icon: startIcon })
+    .bindTooltip('START / FINISH', { permanent: false, direction: 'right', className: 'map-tip' })
+    .addTo(leafletMap);
+  markerLayers.push(startM);
+
+  // ── Waypoint markers ──────────────────────────────────────────────────────
+  wpts.forEach((w, i) => {
+    const c = STOP_COLORS[i % STOP_COLORS.length];
+    const shortName = w.n.replace('Rest Stop — ','').replace('Rest Stop - ','').split(',')[0];
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:22px;height:22px;border-radius:50%;background:${c};border:2px solid #07070f;display:flex;align-items:center;justify-content:center;font-family:Unbounded,sans-serif;font-size:9px;font-weight:700;color:#07070f;box-shadow:0 0 10px ${c}88">${i+1}</div>`,
+      iconSize: [22,22], iconAnchor: [11,11]
+    });
+    const m = L.marker([w.lat, w.lon], { icon })
+      .bindTooltip(`<strong>${shortName}</strong><br>${w.d.toFixed(1)} mi · ${Math.round(w.e)} ft`, {
+        direction: 'right', className: 'map-tip'
+      })
+      .addTo(leafletMap);
+    markerLayers.push(m);
+  });
+
+  setTimeout(() => leafletMap.invalidateSize(), 50);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+updateStats();
+buildStops();
+drawElevation();
+window.addEventListener('resize', () => {
+  if (activeView === 'elev') drawElevation();
+});
+</script>
+</body>
+</html>

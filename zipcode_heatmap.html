@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NYC + NJ Zip Code Heatmap</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f1e8;
+    --paper-dark: #ebe4d4;
+    --accent: #c8442a;
+    --rule: #1a1a1a;
+    --muted: #6b6356;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+  aside {
+    background: var(--paper);
+    border-right: 2px solid var(--rule);
+    padding: 28px 26px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .masthead {
+    border-bottom: 4px double var(--rule);
+    padding-bottom: 14px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 30px;
+    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .lede {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #2a2a2a;
+    margin-top: 10px;
+    font-family: Georgia, 'Times New Roman', serif;
+  }
+  section.panel {
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+  }
+  .panel h2 {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  textarea {
+    width: 100%;
+    height: 130px;
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    border: 1px solid var(--rule);
+    background: #fffefb;
+    resize: vertical;
+    color: var(--ink);
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  button {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: 1px solid var(--rule);
+    cursor: pointer;
+    transition: all 120ms ease;
+    font-family: inherit;
+  }
+  button.primary { background: var(--ink); color: var(--paper); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+  button.secondary { background: transparent; color: var(--ink); }
+  button.secondary:hover { background: var(--paper-dark); }
+
+  .toggle-row {
+    display: flex;
+    margin-top: 10px;
+    border: 1px solid var(--rule);
+  }
+  .toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 700;
+    user-select: none;
+    background: transparent;
+    transition: background 120ms ease;
+  }
+  .toggle + .toggle { border-left: 1px solid var(--rule); }
+  .toggle:has(input:checked) { background: var(--ink); color: var(--paper); }
+  .toggle input { display: none; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .stat {
+    border: 1px solid var(--rule);
+    padding: 10px 12px;
+    background: #fffefb;
+  }
+  .stat .num {
+    font-family: Georgia, serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat .lbl {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .legend-panel { display: flex; flex-direction: column; gap: 8px; }
+  .legend-bar {
+    height: 14px;
+    background: linear-gradient(to right,
+      #f5f1e8, #f4d9b8, #ec9966, #d8542a, #8e1a08);
+    border: 1px solid var(--rule);
+  }
+  .legend-bar.reach {
+    background: linear-gradient(to right,
+      #0a4d3a, #2d8a55, #7cc270, #cfe07a, #f0d04a, #e8893f, #a32a1c);
+  }
+  .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .top-list { font-family: Georgia, serif; font-size: 13px; }
+  .top-list li {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px dotted #c5bdad;
+  }
+  .top-list li:last-child { border-bottom: 0; }
+  .top-list .zip { font-family: 'Courier New', monospace; font-size: 12px; padding-right: 8px; line-height: 1.3; }
+  .top-list .ct { font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+  .hint {
+    font-family: Georgia, serif;
+    font-size: 11px;
+    font-style: italic;
+    color: var(--muted);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 9px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    border: 1px solid var(--rule);
+    background: #fffefb;
+    color: var(--ink);
+  }
+  input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .reach-results {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--rule);
+    background: #fffefb;
+  }
+  .reach-headline {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dotted #c5bdad;
+  }
+  .reach-num {
+    font-family: Georgia, serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .reach-lbl {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .reach-bands { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+  .reach-band {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-family: Georgia, serif;
+  }
+  .reach-band .bar-bg {
+    flex: 1;
+    display: block;
+    height: 8px;
+    background: var(--paper-dark);
+    border: 1px solid var(--rule);
+    position: relative;
+  }
+  .reach-band .bar-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+  .reach-band .pct {
+    width: 38px;
+    text-align: right;
+    font-weight: 700;
+  }
+  .reach-band .lbl-band { width: 60px; font-family: 'Courier New', monospace; font-size: 10px; }
+  .reach-meta {
+    font-family: Georgia, serif;
+    font-size: 10px;
+    font-style: italic;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .colophon {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    line-height: 1.5;
+  }
+
+  main {
+    position: relative;
+    background: var(--paper-dark);
+  }
+  #map { height: 100%; width: 100%; background: var(--paper-dark); }
+  .map-frame {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    border: 1px solid var(--rule);
+    z-index: 500;
+  }
+  .map-title {
+    position: absolute;
+    top: 16px; left: 16px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 8px 14px;
+    z-index: 600;
+    font-family: Georgia, serif;
+    font-size: 13px;
+    font-style: italic;
+  }
+  .map-title strong { font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; display: block; color: var(--muted); margin-bottom: 2px; }
+
+  .loading {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 700;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 14px 20px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .leaflet-container { background: var(--paper-dark) !important; font-family: inherit; }
+  .leaflet-tooltip {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before,
+  .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { display: none; }
+
+  @media (max-width: 800px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    aside { border-right: 0; border-bottom: 2px solid var(--rule); max-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <div class="masthead">
+    <div class="eyebrow">A Cartographic Index</div>
+    <h1>The Tri-State <em>Heatmap</em></h1>
+    <p class="lede">A frequency atlas of zip codes across the five boroughs and northern New Jersey. Paste a list to render.</p>
+  </div>
+
+  <section class="panel">
+    <h2>① Input</h2>
+    <textarea id="zipInput" placeholder="10001&#10;10002&#10;07030&#10;10001&#10;11201&#10;..."></textarea>
+    <div class="btn-row">
+      <button class="primary" id="renderBtn">Render Heatmap</button>
+      <button class="secondary" id="sampleBtn">Sample</button>
+    </div>
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="radio" name="grain" value="zip" checked /> <span>Zip</span>
+      </label>
+      <label class="toggle">
+        <input type="radio" name="grain" value="hood" /> <span>Hood</span>
+      </label>
+      <label class="toggle">
+        <input type="radio" name="grain" value="zip3" /> <span>ZIP3</span>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>② Summary</h2>
+    <div class="stats">
+      <div class="stat"><div class="num" id="totalCount">0</div><div class="lbl">Total Entries</div></div>
+      <div class="stat"><div class="num" id="uniqueCount">0</div><div class="lbl" id="uniqueLbl">Unique Zips</div></div>
+      <div class="stat"><div class="num" id="maxCount">0</div><div class="lbl">Max Frequency</div></div>
+      <div class="stat"><div class="num" id="matchedCount">0</div><div class="lbl">Mapped</div></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 id="legendTitle">③ Intensity Scale</h2>
+    <div class="legend-panel">
+      <div class="legend-bar" id="legendBar"></div>
+      <div class="legend-labels">
+        <span id="legendMin">0</span>
+        <span id="legendMid">→</span>
+        <span id="legendMax">—</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>④ Top Frequencies</h2>
+    <ol class="top-list" id="topList"><li><span class="zip">—</span><span class="ct">—</span></li></ol>
+  </section>
+
+  <section class="panel">
+    <h2>⑤ Transit Reachability</h2>
+    <p class="hint">Origin address (NYC). Computes weighted travel-time score using subway proximity.</p>
+    <input type="text" id="originInput" placeholder="e.g., 30 Rockefeller Plaza, NY" />
+    <div class="btn-row">
+      <button class="primary" id="reachBtn">Compute Score</button>
+      <button class="secondary" id="clearReachBtn">Clear</button>
+    </div>
+    <div id="reachResults" class="reach-results" style="display:none;">
+      <div class="reach-headline">
+        <div class="reach-num" id="reachAvg">—</div>
+        <div class="reach-lbl">weighted avg minutes</div>
+      </div>
+      <div class="reach-bands" id="reachBands"></div>
+      <div class="reach-meta" id="reachMeta"></div>
+    </div>
+    <div class="toggle-row" style="margin-top:10px;">
+      <label class="toggle">
+        <input type="radio" name="colormode" value="freq" checked /> <span>Color: Freq</span>
+      </label>
+      <label class="toggle">
+        <input type="radio" name="colormode" value="reach" /> <span>Color: Time</span>
+      </label>
+    </div>
+  </section>
+
+  <div class="colophon">
+    Boundaries: NYC Dept. of City Planning &amp; U.S. Census Bureau ZCTA. Rendered with Leaflet over OpenStreetMap.
+  </div>
+</aside>
+
+<main>
+  <div class="map-title"><strong>Folio I</strong>NY · NJ Postal Districts</div>
+  <div class="map-frame"></div>
+  <div id="map"></div>
+  <div class="loading" id="loading">Loading boundaries…</div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // Fallback to jsDelivr if unpkg failed
+  if (typeof L === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>');
+  }
+</script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<script>
+  if (typeof turf === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"><\/script>');
+  }
+</script>
+<script>
+  if (typeof L === 'undefined') {
+    document.body.innerHTML = '<div style="padding:40px;font-family:Georgia,serif;max-width:600px;margin:40px auto;"><h2>Leaflet failed to load</h2><p>The map library could not be loaded from any CDN. This usually means a network connection issue or a content blocker. Please check your internet connection and reload the page.</p></div>';
+    throw new Error('Leaflet not available');
+  }
+  // --- Map setup ----------------------------------------------------
+  const map = L.map('map', { zoomControl: true, attributionControl: true })
+    .setView([40.74, -73.97], 11);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 18,
+    opacity: 0.55
+  }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18,
+    pane: 'shadowPane'
+  }).addTo(map);
+
+  // --- Data sources -------------------------------------------------
+  // Public GeoJSON sources for NYC and NJ ZCTA polygons
+  const NYC_URL = 'https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/ny_new_york_zip_codes_geo.min.json';
+  const NJ_URL  = 'https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/nj_new_jersey_zip_codes_geo.min.json';
+
+  // NYC NTAs (2020) via NYC Open Data Socrata GeoJSON endpoint
+  const NTA_URL = 'https://data.cityofnewyork.us/resource/9nt8-h7nd.geojson?$limit=500';
+
+  // NJ municipalities GeoJSON
+  const NJ_MUNI_URL = 'https://raw.githubusercontent.com/njam-data/new-jersey-municipalities/main/data/new-jersey-municipalities.geojson';
+
+  // MTA Subway stations (NY State Open Data)
+  const SUBWAY_URL = 'https://data.ny.gov/resource/39hk-dx4f.geojson?$limit=1000';
+
+  // Walking speed (km/h) and avg subway speed (km/h) for proxy calc
+  const WALK_KMH = 4.5;
+  const SUBWAY_KMH = 30; // realistic average including stops/transfers
+  const TRANSFER_PENALTY_MIN = 4; // flat penalty for taking the subway at all
+
+  // Restrict NJ to areas near NYC. Northwest corner clipped at Hackensack
+  // (~40.886 N, -74.044 W) to drop everything farther out.
+  const NJ_BBOX = { minLat: 40.40, maxLat: 40.90, minLng: -74.08, maxLng: -73.85 };
+
+  // Restrict NY: drop Long Island (east of Queens/Nassau line) and anything
+  // north of Yorkville-ish. Keeps the five boroughs + a sliver of Westchester.
+  const NY_BBOX = { minLat: 40.45, maxLat: 40.92, minLng: -74.30, maxLng: -73.70 };
+
+  function inBox(feature, box) {
+    try {
+      let coord;
+      const g = feature.geometry;
+      if (g.type === 'Polygon') coord = g.coordinates[0][0];
+      else if (g.type === 'MultiPolygon') coord = g.coordinates[0][0][0];
+      else return false;
+      const [lng, lat] = coord;
+      return lat >= box.minLat && lat <= box.maxLat &&
+             lng >= box.minLng && lng <= box.maxLng;
+    } catch (e) { return false; }
+  }
+
+  function inNJBox(feature) { return inBox(feature, NJ_BBOX); }
+  function inNYBox(feature) { return inBox(feature, NY_BBOX); }
+
+  let geoLayer = null;
+  let allFeatures = [];      // zip-level features
+  let zip3Features = [];     // dissolved zip3-level features
+  let hoodFeatures = [];     // NTA + NJ municipality features
+  let counts = {};           // zip-level counts
+  let zip3Counts = {};       // zip3-level counts
+  let hoodCounts = {};       // hood-level counts (keyed by hood id)
+  let zipToHood = {};        // mapping zip -> hood id (computed once)
+  let maxCount = 0;
+  let grain = 'zip';         // 'zip', 'hood', or 'zip3'
+  let colorMode = 'freq';    // 'freq' or 'reach'
+
+  // Reachability state
+  let stations = [];         // [{lat, lng, name}]
+  let originLatLng = null;
+  let originMarker = null;
+  let zipScores = {};        // zip -> minutes
+  let maxScore = 0;
+  let minScore = 0;
+
+  // --- Color scale (sequential, paper-warm to deep red) -------------
+  const palette = ['#f5f1e8', '#f4d9b8', '#ec9966', '#d8542a', '#8e1a08'];
+  // Reach palette: deep teal-green (very fast) -> bright green -> yellow ->
+  // orange -> deep red (slow). More stops at the low end for finer
+  // differentiation among quick-to-reach zips.
+  const reachPalette = ['#0a4d3a', '#2d8a55', '#7cc270', '#cfe07a', '#f0d04a', '#e8893f', '#a32a1c'];
+
+  function colorFor(count) {
+    if (!count || maxCount === 0) return 'transparent';
+    const t = Math.min(1, count / maxCount);
+    return interp(palette, t);
+  }
+  function colorForReach(minutes) {
+    if (minutes == null || maxScore === minScore) return 'transparent';
+    const t = Math.max(0, Math.min(1, (minutes - minScore) / (maxScore - minScore)));
+    return interp(reachPalette, t);
+  }
+  function interp(pal, t) {
+    const idx = t * (pal.length - 1);
+    const i = Math.floor(idx);
+    const f = idx - i;
+    if (i >= pal.length - 1) return pal[pal.length - 1];
+    return mix(pal[i], pal[i + 1], f);
+  }
+  function mix(a, b, t) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
+    const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
+    const r = Math.round(ar + (br - ar) * t);
+    const g = Math.round(ag + (bg - ag) * t);
+    const bl = Math.round(ab + (bb - ab) * t);
+    return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
+  }
+
+  function updateLegend() {
+    const bar = document.getElementById('legendBar');
+    const title = document.getElementById('legendTitle');
+    const minEl = document.getElementById('legendMin');
+    const midEl = document.getElementById('legendMid');
+    const maxEl = document.getElementById('legendMax');
+    if (colorMode === 'reach' && Object.keys(zipScores).length) {
+      bar.classList.add('reach');
+      title.textContent = '③ Transit Time (min)';
+      minEl.textContent = Math.round(minScore);
+      midEl.textContent = Math.round((minScore + maxScore) / 2);
+      maxEl.textContent = Math.round(maxScore);
+    } else {
+      bar.classList.remove('reach');
+      title.textContent = '③ Intensity Scale';
+      minEl.textContent = '0';
+      midEl.textContent = '→';
+      maxEl.textContent = maxCount || '—';
+    }
+  }
+
+  function styleFeature(feature) {
+    const key = getKey(feature);
+    const c = activeCounts()[key] || 0;
+
+    // In reach color mode (zip grain only), color by score for any zip with score
+    if (colorMode === 'reach' && grain === 'zip') {
+      const zip = getZip(feature);
+      const s = zipScores[zip];
+      if (s != null) {
+        return {
+          fillColor: colorForReach(s),
+          fillOpacity: c > 0 ? 0.9 : 0.55,
+          color: '#1a1a1a',
+          weight: c > 0 ? 1.2 : 0.4,
+          opacity: 0.7
+        };
+      }
+    }
+
+    return {
+      fillColor: c > 0 ? colorFor(c) : '#fffefb',
+      fillOpacity: c > 0 ? 0.85 : 0.25,
+      color: '#1a1a1a',
+      weight: c > 0 ? 0.8 : 0.3,
+      opacity: 0.7
+    };
+  }
+
+  function getZip(feature) {
+    return (feature.properties.ZCTA5CE10 || feature.properties.postalCode ||
+            feature.properties.ZIPCODE || feature.properties.zip || '').toString();
+  }
+
+  function getKey(feature) {
+    if (grain === 'zip3') return feature.properties.zip3 || getZip(feature).slice(0, 3);
+    if (grain === 'hood') return feature.properties.hoodId;
+    return getZip(feature);
+  }
+
+  function getLabel(feature) {
+    if (grain === 'zip3') return (feature.properties.zip3 || getZip(feature).slice(0, 3)) + 'xx';
+    if (grain === 'hood') return feature.properties.hoodName || feature.properties.hoodId || '';
+    return getZip(feature);
+  }
+
+  function activeCounts() {
+    if (grain === 'zip3') return zip3Counts;
+    if (grain === 'hood') return hoodCounts;
+    return counts;
+  }
+
+  function onEachFeature(feature, layer) {
+    const key = getKey(feature);
+    const subname = feature.properties.PO_NAME || '';
+    const zip = getZip(feature);
+    layer.bindTooltip(() => {
+      const c = activeCounts()[key] || 0;
+      const cDisplay = (grain === 'hood' && Math.abs(c - Math.round(c)) > 0.05)
+                       ? c.toFixed(1) : Math.round(c);
+      const label = getLabel(feature);
+      const sub = (grain === 'zip' && subname) ? ' · ' + subname : '';
+      const score = (grain === 'zip' && zip && zipScores[zip] != null)
+        ? `<br/>~${Math.round(zipScores[zip])} min by transit` : '';
+      return `<strong>${label}</strong>${sub}<br/>Count: ${cDisplay}${score}`;
+    }, { sticky: true, direction: 'top' });
+    layer.on({
+      mouseover: e => e.target.setStyle({ weight: 2.5, color: '#c8442a', fillOpacity: 0.95 }),
+      mouseout: e => geoLayer.resetStyle(e.target)
+    });
+  }
+
+  // --- Loading ------------------------------------------------------
+  async function loadBoundaries() {
+    document.getElementById('loading').textContent = 'Loading boundaries…';
+    try {
+      const [nyResp, njResp] = await Promise.all([fetch(NYC_URL), fetch(NJ_URL)]);
+      const ny = await nyResp.json();
+      const nj = await njResp.json();
+      const nyFiltered = { type: 'FeatureCollection',
+        features: ny.features.filter(inNYBox) };
+      const njFiltered = { type: 'FeatureCollection',
+        features: nj.features.filter(inNJBox) };
+      allFeatures = [...nyFiltered.features, ...njFiltered.features];
+
+      drawLayer();
+      document.getElementById('loading').textContent = 'Loading neighborhoods…';
+      // Show zip layer immediately, then load hood data in background
+      await new Promise(r => setTimeout(r, 30));
+      await loadHoodFeatures();
+      await loadSubwayStations();
+
+      document.getElementById('loading').textContent = 'Building ZIP3 regions…';
+      await new Promise(r => setTimeout(r, 30));
+      zip3Features = buildZip3Features(allFeatures);
+
+      document.getElementById('loading').style.display = 'none';
+    } catch (err) {
+      document.getElementById('loading').textContent = 'Boundary load failed. Check connection.';
+      console.error(err);
+    }
+  }
+
+  async function loadHoodFeatures() {
+    try {
+      const [ntaResp, muniResp] = await Promise.all([fetch(NTA_URL), fetch(NJ_MUNI_URL)]);
+      const nta = await ntaResp.json();
+      const muni = await muniResp.json();
+
+      // NTAs: keep only residential ones (NTAType = 0). Non-zero codes are
+      // parks, airports, cemeteries, Rikers, and other special non-residential areas.
+      const ntaFeats = (nta.features || nta).filter(f => {
+        const t = f.properties.ntatype != null ? f.properties.ntatype
+                : f.properties.NTAType != null ? f.properties.NTAType
+                : null;
+        // If we can't read the type field, fall back to a name check
+        if (t == null) {
+          const name = (f.properties.ntaname || f.properties.NTAName || '').toLowerCase();
+          return !/(^|[^a-z])(park|airport|cemetery|rikers)([^a-z]|$)/.test(name)
+              || /park slope|sunset park|forest park|park avenue|jackson|prospect lefferts|crown/i.test(name);
+        }
+        return String(t) === '0' || t === 0;
+      }).map(f => ({
+        ...f,
+        properties: {
+          ...f.properties,
+          hoodId: 'NTA-' + (f.properties.nta2020 || f.properties.NTA2020),
+          hoodName: f.properties.ntaname || f.properties.NTAName,
+          source: 'nta'
+        }
+      }));
+
+      // NJ municipalities: filter to bounding box, tag with hoodId
+      const muniFeats = (muni.features || []).filter(inNJBox).map(f => {
+        const name = f.properties.MUN || f.properties.NAME || f.properties.name || f.properties.mun_name;
+        const id = f.properties.MUN_CODE || f.properties.GNIS_ID || name;
+        return {
+          ...f,
+          properties: {
+            ...f.properties,
+            hoodId: 'NJM-' + id,
+            hoodName: name,
+            source: 'nj_muni'
+          }
+        };
+      });
+
+      hoodFeatures = [...ntaFeats, ...muniFeats];
+      buildZipToHoodMap();
+    } catch (err) {
+      console.warn('Could not load hood boundaries:', err);
+    }
+  }
+
+  function buildZipToHoodMap() {
+    // For each zip feature, compute its area of overlap with every hood
+    // and store the proportional weights. A single zip can contribute
+    // fractionally to multiple hoods (e.g., 10024 -> UWS-Central 0.7, UWS-South 0.3).
+    // Falls back to point-in-polygon then nearest-hood if intersection fails.
+    zipToHood = {};
+
+    // Pre-compute hood bboxes and centroids
+    const hoodInfo = hoodFeatures.map(hf => {
+      try {
+        const bb = turf.bbox(hf);
+        const c = turf.centroid(hf);
+        return { hf, bb, c };
+      } catch (e) { return null; }
+    }).filter(Boolean);
+
+    function bboxOverlap(a, b) {
+      // bbox: [minX, minY, maxX, maxY]
+      return !(a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1]);
+    }
+
+    allFeatures.forEach(zf => {
+      const zip = getZip(zf);
+      if (!zip) return;
+
+      // Try area-weighted assignment first
+      const weights = {};
+      let totalArea = 0;
+      let zipBB;
+      try { zipBB = turf.bbox(zf); } catch (e) { zipBB = null; }
+
+      if (zipBB) {
+        for (const { hf, bb } of hoodInfo) {
+          if (!bboxOverlap(zipBB, bb)) continue;
+          try {
+            const inter = turf.intersect(zf, hf);
+            if (inter) {
+              const a = turf.area(inter);
+              if (a > 0) {
+                weights[hf.properties.hoodId] = a;
+                totalArea += a;
+              }
+            }
+          } catch (e) { /* skip pair */ }
+        }
+      }
+
+      if (totalArea > 0) {
+        // Normalize. Drop slivers under 5% to avoid edge-effect noise.
+        const normalized = {};
+        Object.entries(weights).forEach(([hid, a]) => {
+          const w = a / totalArea;
+          if (w >= 0.05) normalized[hid] = w;
+        });
+        const sum = Object.values(normalized).reduce((s, v) => s + v, 0);
+        if (sum > 0) {
+          Object.keys(normalized).forEach(k => { normalized[k] /= sum; });
+          zipToHood[zip] = normalized;
+          return;
+        }
+      }
+
+      // Fallback 1: point-in-polygon at centroid
+      let zipC;
+      try { zipC = turf.centroid(zf); } catch (e) { return; }
+      for (const { hf } of hoodInfo) {
+        try {
+          if (turf.booleanPointInPolygon(zipC, hf)) {
+            zipToHood[zip] = { [hf.properties.hoodId]: 1 };
+            return;
+          }
+        } catch (e) { /* skip */ }
+      }
+
+      // Fallback 2: nearest hood by centroid distance
+      if (hoodInfo.length) {
+        let bestId = null, bestD = Infinity;
+        const [zLng, zLat] = zipC.geometry.coordinates;
+        for (const { hf, c } of hoodInfo) {
+          const [hLng, hLat] = c.geometry.coordinates;
+          const dLat = zLat - hLat, dLng = zLng - hLng;
+          const d = dLat * dLat + dLng * dLng;
+          if (d < bestD) { bestD = d; bestId = hf.properties.hoodId; }
+        }
+        if (bestId) zipToHood[zip] = { [bestId]: 1 };
+      }
+    });
+  }
+
+  // --- Subway / Reachability ----------------------------------------
+  async function loadSubwayStations() {
+    try {
+      const resp = await fetch(SUBWAY_URL);
+      const data = await resp.json();
+      stations = (data.features || []).map(f => {
+        const c = f.geometry && f.geometry.coordinates;
+        if (!c) return null;
+        return {
+          lat: c[1],
+          lng: c[0],
+          name: f.properties.stop_name || f.properties.name || ''
+        };
+      }).filter(Boolean);
+    } catch (err) {
+      console.warn('Could not load subway stations:', err);
+    }
+  }
+
+  // Haversine distance in km
+  function haversineKm(a, b) {
+    const R = 6371;
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+    const h = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function nearestStation(p) {
+    let best = null, bestD = Infinity;
+    for (const s of stations) {
+      const d = haversineKm(p, s);
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    return { station: best, distKm: bestD };
+  }
+
+  // Estimate transit minutes from origin to a destination point.
+  // walk_to_station + subway_haversine_at_30kmh + transfer_penalty + walk_from_station.
+  // If origin or dest is closer to walk than to take the subway, we just use walking.
+  function transitMinutes(origin, dest) {
+    if (!origin || !dest || stations.length === 0) return null;
+    const directKm = haversineKm(origin, dest);
+    const walkOnlyMin = (directKm / WALK_KMH) * 60;
+
+    const o = nearestStation(origin);
+    const d = nearestStation(dest);
+    if (!o.station || !d.station) return walkOnlyMin;
+
+    const subwayKm = haversineKm(o.station, d.station);
+    const walkOMin = (o.distKm / WALK_KMH) * 60;
+    const walkDMin = (d.distKm / WALK_KMH) * 60;
+    const subwayMin = (subwayKm / SUBWAY_KMH) * 60 + TRANSFER_PENALTY_MIN;
+    const transitTotal = walkOMin + subwayMin + walkDMin;
+
+    return Math.min(walkOnlyMin, transitTotal);
+  }
+
+  async function geocode(address) {
+    // Bias toward NYC and use jsonv2; Nominatim asks for a custom UA but
+    // browser fetches set their own. Polite single request.
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' +
+                encodeURIComponent(address + ', New York');
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data || !data.length) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon),
+             label: data[0].display_name };
+  }
+
+  async function computeReachability() {
+    const addr = document.getElementById('originInput').value.trim();
+    if (!addr) { alert('Enter an address.'); return; }
+    if (stations.length === 0) { alert('Subway data not loaded yet.'); return; }
+
+    const btn = document.getElementById('reachBtn');
+    btn.disabled = true; btn.textContent = 'Geocoding…';
+
+    const geo = await geocode(addr);
+    if (!geo) {
+      btn.disabled = false; btn.textContent = 'Compute Score';
+      alert('Could not geocode that address.');
+      return;
+    }
+    originLatLng = geo;
+
+    btn.textContent = 'Scoring…';
+    await new Promise(r => setTimeout(r, 30));
+
+    // Compute transit minutes for every zip with a count > 0
+    zipScores = {};
+    const zipFeatByZip = {};
+    allFeatures.forEach(f => { zipFeatByZip[getZip(f)] = f; });
+
+    for (const zip of Object.keys(counts)) {
+      const f = zipFeatByZip[zip];
+      if (!f) continue;
+      try {
+        const c = turf.centroid(f);
+        const dest = { lat: c.geometry.coordinates[1], lng: c.geometry.coordinates[0] };
+        const m = transitMinutes(originLatLng, dest);
+        if (m != null) zipScores[zip] = m;
+      } catch (e) { /* skip */ }
+    }
+
+    // Weighted average
+    let totalW = 0, weightedSum = 0;
+    Object.entries(counts).forEach(([z, n]) => {
+      if (zipScores[z] != null) { totalW += n; weightedSum += n * zipScores[z]; }
+    });
+    const avg = totalW ? weightedSum / totalW : 0;
+
+    // Coverage bands
+    const bands = [15, 30, 45, 60];
+    const bandPct = bands.map(b => {
+      let inBand = 0;
+      Object.entries(counts).forEach(([z, n]) => {
+        if (zipScores[z] != null && zipScores[z] <= b) inBand += n;
+      });
+      return totalW ? (inBand / totalW) * 100 : 0;
+    });
+
+    // Score range for color scaling
+    const scoreVals = Object.values(zipScores);
+    minScore = scoreVals.length ? Math.min(...scoreVals) : 0;
+    maxScore = scoreVals.length ? Math.max(...scoreVals) : 0;
+
+    // Origin marker
+    if (originMarker) map.removeLayer(originMarker);
+    originMarker = L.marker([originLatLng.lat, originLatLng.lng], {
+      title: geo.label,
+      icon: L.divIcon({
+        className: 'origin-pin',
+        html: '<div style="width:14px;height:14px;background:#0a0a0a;border:3px solid #c8442a;border-radius:50%;box-shadow:0 0 0 2px #f5f1e8;"></div>',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      })
+    }).bindTooltip('Origin: ' + geo.label.split(',').slice(0, 2).join(','), { direction: 'top' });
+    originMarker.addTo(map);
+
+    // Render results UI
+    document.getElementById('reachResults').style.display = 'block';
+    document.getElementById('reachAvg').textContent = avg ? avg.toFixed(1) : '—';
+    const bandEl = document.getElementById('reachBands');
+    bandEl.innerHTML = bands.map((b, i) => `
+      <div class="reach-band">
+        <span class="lbl-band">≤ ${b} min</span>
+        <span class="bar-bg"><span class="bar-fill" style="width:${bandPct[i].toFixed(1)}%"></span></span>
+        <span class="pct">${bandPct[i].toFixed(0)}%</span>
+      </div>
+    `).join('');
+    document.getElementById('reachMeta').textContent =
+      `Origin: ${geo.label.split(',').slice(0, 3).join(',')}`;
+
+    btn.disabled = false; btn.textContent = 'Compute Score';
+
+    // Re-render with reach colors if that mode is selected
+    if (geoLayer && grain === 'zip') geoLayer.setStyle(styleFeature);
+    updateLegend();
+  }
+
+  function clearReachability() {
+    zipScores = {};
+    minScore = 0; maxScore = 0;
+    originLatLng = null;
+    if (originMarker) { map.removeLayer(originMarker); originMarker = null; }
+    document.getElementById('reachResults').style.display = 'none';
+    document.getElementById('originInput').value = '';
+    if (geoLayer) geoLayer.setStyle(styleFeature);
+    updateLegend();
+  }
+
+  function buildZip3Features(features) {
+    // Group features by their zip3 prefix
+    const groups = {};
+    features.forEach(f => {
+      const zip = getZip(f);
+      if (!zip || zip.length < 3) return;
+      const z3 = zip.slice(0, 3);
+      (groups[z3] = groups[z3] || []).push(f);
+    });
+    // Dissolve each group into a single (Multi)Polygon using turf.union
+    const dissolved = [];
+    Object.entries(groups).forEach(([z3, feats]) => {
+      let merged = feats[0];
+      try {
+        for (let i = 1; i < feats.length; i++) {
+          // turf.union can fail on bad geometries; skip those gracefully
+          try {
+            const u = turf.union(merged, feats[i]);
+            if (u) merged = u;
+          } catch (e) { /* skip problematic pair */ }
+        }
+        dissolved.push({
+          type: 'Feature',
+          properties: { zip3: z3 },
+          geometry: merged.geometry
+        });
+      } catch (e) { console.warn('dissolve failed for', z3, e); }
+    });
+    return dissolved;
+  }
+
+  function drawLayer() {
+    if (geoLayer) map.removeLayer(geoLayer);
+    let features;
+    if (grain === 'zip3') features = zip3Features;
+    else if (grain === 'hood') features = hoodFeatures;
+    else features = allFeatures;
+    geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
+      style: styleFeature,
+      onEachFeature: onEachFeature
+    }).addTo(map);
+    if (geoLayer.getBounds().isValid()) {
+      map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] });
+    }
+  }
+
+  // --- Frequency processing -----------------------------------------
+  function parseZips(text) {
+    // Match 4- or 5-digit numbers as whole tokens; pad 4-digit ones with leading 0 (NJ zips)
+    const matches = text.match(/\b\d{4,5}\b/g) || [];
+    return matches.map(m => m.length === 4 ? '0' + m : m);
+  }
+
+  function computeCounts(zips) {
+    const c = {};
+    zips.forEach(z => { c[z] = (c[z] || 0) + 1; });
+    return c;
+  }
+
+  function render() {
+    const text = document.getElementById('zipInput').value;
+    const zips = parseZips(text);
+    counts = computeCounts(zips);
+    // Roll up to zip3 counts
+    zip3Counts = {};
+    Object.entries(counts).forEach(([z, n]) => {
+      const z3 = z.slice(0, 3);
+      zip3Counts[z3] = (zip3Counts[z3] || 0) + n;
+    });
+    // Roll up to hood counts using proportional area weights.
+    // A zip that overlaps multiple hoods contributes a fraction to each.
+    hoodCounts = {};
+    Object.entries(counts).forEach(([z, n]) => {
+      const wmap = zipToHood[z];
+      if (!wmap) return;
+      Object.entries(wmap).forEach(([hid, w]) => {
+        hoodCounts[hid] = (hoodCounts[hid] || 0) + n * w;
+      });
+    });
+
+    const active = activeCounts();
+    const values = Object.values(active);
+    maxCount = values.length ? Math.max(...values) : 0;
+
+    // Stats
+    document.getElementById('totalCount').textContent = zips.length;
+    document.getElementById('uniqueCount').textContent = Object.keys(active).length;
+    const lbl = grain === 'zip3' ? 'Unique ZIP3'
+              : grain === 'hood' ? 'Unique Hoods'
+              : 'Unique Zips';
+    document.getElementById('uniqueLbl').textContent = lbl;
+    document.getElementById('maxCount').textContent = maxCount;
+
+    let matched = 0;
+    let features;
+    if (grain === 'zip3') features = zip3Features;
+    else if (grain === 'hood') features = hoodFeatures;
+    else features = allFeatures;
+    if (features.length) {
+      const featKeys = new Set(features.map(getKey));
+      Object.keys(active).forEach(k => { if (featKeys.has(k)) matched++; });
+    }
+    document.getElementById('matchedCount').textContent = matched;
+
+    updateLegend();
+
+    // Top 10 list
+    const sorted = Object.entries(active).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const ol = document.getElementById('topList');
+    // Build a map of hoodId -> name for nice labels
+    const hoodNames = {};
+    if (grain === 'hood') {
+      hoodFeatures.forEach(f => { hoodNames[f.properties.hoodId] = f.properties.hoodName; });
+    }
+    ol.innerHTML = sorted.length
+      ? sorted.map(([k, n]) => {
+          let label;
+          if (grain === 'zip3') label = `${k}xx`;
+          else if (grain === 'hood') label = hoodNames[k] || k;
+          else label = k;
+          // Hood counts can be fractional (area-weighted); show 1 decimal when needed
+          const display = (grain === 'hood' && Math.abs(n - Math.round(n)) > 0.05)
+                          ? n.toFixed(1) : Math.round(n);
+          return `<li><span class="zip">${label}</span><span class="ct">${display}</span></li>`;
+        }).join('')
+      : '<li><span class="zip">—</span><span class="ct">—</span></li>';
+
+    if (geoLayer) geoLayer.setStyle(styleFeature);
+  }
+
+  document.getElementById('renderBtn').addEventListener('click', render);
+  document.querySelectorAll('input[name="grain"]').forEach(input => {
+    input.addEventListener('change', e => {
+      grain = e.target.value;
+      drawLayer();
+      render();
+    });
+  });
+  document.querySelectorAll('input[name="colormode"]').forEach(input => {
+    input.addEventListener('change', e => {
+      colorMode = e.target.value;
+      if (colorMode === 'reach' && grain !== 'zip') {
+        // force back to zip grain — reach colors only meaningful at zip level
+        grain = 'zip';
+        const zipRadio = document.querySelector('input[name="grain"][value="zip"]');
+        if (zipRadio) zipRadio.checked = true;
+        drawLayer();
+        render();
+      } else if (geoLayer) {
+        geoLayer.setStyle(styleFeature);
+      }
+      updateLegend();
+    });
+  });
+  document.getElementById('reachBtn').addEventListener('click', computeReachability);
+  document.getElementById('clearReachBtn').addEventListener('click', clearReachability);
+  document.getElementById('originInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') computeReachability();
+  });
+  document.getElementById('sampleBtn').addEventListener('click', () => {
+    document.getElementById('zipInput').value =
+      ['10001','10001','10001','10002','10003','10011','10011','10013','10014',
+       '11201','11201','11215','11217','11222','11237',
+       '07030','07030','07302','07304','07086','07087','07024','07047',
+       '10456','10458','10463','11354','11368','11375',
+       '10301','10314'].join('\n');
+    render();
+  });
+
+  loadBoundaries();
+</script>
+</body>
+</html>
