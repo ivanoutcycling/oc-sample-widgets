@@ -179,11 +179,11 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 </div>
 
 <div class="view-toggle">
-  <button class="view-btn active" id="btn-elev" onclick="setView('elev')">
+  <button class="view-btn" id="btn-elev" onclick="setView('elev')">
     <svg viewBox="0 0 14 10" fill="none"><polyline points="0,9 3,4 6,7 9,2 14,5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
     Elevation
   </button>
-  <button class="view-btn" id="btn-map" onclick="setView('map')">
+  <button class="view-btn active" id="btn-map" onclick="setView('map')">
     <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="6" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 10.5 C7 10.5 2.5 7.5 2.5 5.5 a4.5 4.5 0 0 1 9 0 C11.5 7.5 7 10.5 7 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     Map
   </button>
@@ -199,7 +199,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 <div class="panel-wrap">
   <div class="panel" id="main-panel">
     <!-- Elevation view -->
-    <div class="elev-panel active" id="elev-panel">
+    <div class="elev-panel" id="elev-panel">
       <canvas id="chart"></canvas>
       <div id="hairline"></div>
       <div id="tooltip"><div class="tt-inner">
@@ -209,7 +209,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
       </div></div>
     </div>
   <!-- Map view -->
-    <div class="map-panel" id="map-panel">
+    <div class="map-panel active" id="map-panel">
       <div id="leaflet-map" style="width:100%;height:440px;border-radius:13px;overflow:hidden;position:relative;">
         <div id="map-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#0f0f1c;border-radius:13px;z-index:5;font-family:Inter,sans-serif;font-size:12px;color:rgba(238,234,255,0.4);">Loading map…</div>
       </div>
@@ -278,7 +278,7 @@ const ROUTES = {
 const STOP_COLORS = ['#FF3366','#FF7A00','#FFD600','#00C566','#0090FF','#A855F7'];
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let activeRoute = '40', activeView = 'elev';
+let activeRoute = '40', activeView = 'map';
 let W = 0, H = 0;
 
 // ─── Route / view switching ──────────────────────────────────────────────────
@@ -604,7 +604,7 @@ function drawMap() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 updateStats();
 buildStops();
-drawElevation();
+drawMap();
 window.addEventListener('resize', () => {
   if (activeView === 'elev') drawElevation();
 });
