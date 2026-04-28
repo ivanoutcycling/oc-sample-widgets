@@ -251,7 +251,7 @@ const ROUTES = {
     waypoints: [
       { d:4.367,  e:329.7, lat:40.86121, lon:-73.95918, n:'Strictly Bicycles',                                    icon:'🔧', t:'gear' },
       { d:15.955, e:51.5,  lat:40.99061, lon:-73.96898, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
-      { d:22.867, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true },
+      { d:22.867, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true, returnD: 64.93,  returnE: 3.3 },
       { d:30.988, e:155.2, lat:41.13036, lon:-73.92261, n:'Rest Stop — Rockland Lake State Park',                 icon:'🍌', t:'food', alsoFinish: true },
     ],
     elevation: [{"d":0.0,"e":13.1},{"d":0.2466,"e":19.0},{"d":0.4041,"e":63.0},{"d":0.6738,"e":62.7},{"d":0.867,"e":92.8},{"d":1.1525,"e":135.8},{"d":1.6948,"e":176.8},{"d":2.2172,"e":184.4},{"d":2.3554,"e":196.9},{"d":2.7599,"e":233.6},{"d":3.5325,"e":294.6},{"d":3.6743,"e":291.3},{"d":3.8126,"e":290.0},{"d":4.2488,"e":323.5},{"d":4.7499,"e":338.3},{"d":5.1862,"e":339.6},{"d":5.7548,"e":338.3},{"d":6.4998,"e":379.9},{"d":7.0434,"e":287.7},{"d":7.2365,"e":212.6},{"d":7.6642,"e":147.6},{"d":8.1297,"e":110.6},{"d":8.3996,"e":116.5},{"d":8.6689,"e":133.2},{"d":9.4684,"e":102.7},{"d":9.7404,"e":86.9},{"d":10.027,"e":50.2},{"d":10.3005,"e":55.8},{"d":10.4606,"e":52.8},{"d":10.751,"e":52.5},{"d":10.9166,"e":57.7},{"d":11.0993,"e":53.8},{"d":11.3752,"e":57.4},{"d":11.7058,"e":75.1},{"d":12.0385,"e":66.9},{"d":12.5899,"e":72.5},{"d":12.8965,"e":57.1},{"d":13.332,"e":44.6},{"d":13.9795,"e":50.9},{"d":14.295,"e":40.4},{"d":14.7225,"e":28.9},{"d":15.2731,"e":31.5},{"d":15.5053,"e":29.2},{"d":16.0933,"e":93.5},{"d":16.8332,"e":89.9},{"d":17.4001,"e":87.6},{"d":18.0758,"e":60.7},{"d":18.4382,"e":37.4},{"d":18.9103,"e":42.0},{"d":19.6653,"e":46.3},{"d":19.9709,"e":50.5},{"d":20.2838,"e":16.4},{"d":20.8524,"e":3.6},{"d":21.1331,"e":1.6},{"d":21.5563,"e":7.2},{"d":22.0092,"e":0.0},{"d":22.2948,"e":0.0},{"d":22.7214,"e":8.2},{"d":23.221,"e":7.5},{"d":23.796,"e":12.5},{"d":24.3781,"e":24.0},{"d":24.9492,"e":30.5},{"d":25.5206,"e":14.4},{"d":25.7548,"e":51.8},{"d":26.2972,"e":32.2},{"d":26.8796,"e":89.9},{"d":27.6384,"e":106.6},{"d":28.0028,"e":178.8},{"d":28.2804,"e":252.0},{"d":28.6714,"e":367.1},{"d":29.0629,"e":395.7},{"d":29.4634,"e":246.1},{"d":29.842,"e":210.6},{"d":30.3755,"e":210.6},{"d":30.9155,"e":155.2},{"d":31.0723,"e":156.2},{"d":31.3367,"e":195.5},{"d":31.5956,"e":198.2},{"d":31.8838,"e":190.9},{"d":32.1737,"e":183.4},{"d":32.5218,"e":210.3},{"d":32.9084,"e":178.5},{"d":33.2219,"e":168.0},{"d":33.4513,"e":149.6},{"d":33.724,"e":162.4},{"d":34.1533,"e":142.1},{"d":34.601,"e":175.5},{"d":35.3376,"e":88.3},{"d":35.9108,"e":99.4},{"d":36.5303,"e":122.4},{"d":37.2105,"e":144.7},{"d":37.9338,"e":133.5},{"d":38.2145,"e":93.2},{"d":38.8807,"e":143.7},{"d":39.6063,"e":94.5},{"d":40.1057,"e":94.5},{"d":40.6324,"e":72.2},{"d":41.1156,"e":149.6},{"d":41.506,"e":194.2},{"d":41.9462,"e":146.7},{"d":42.3149,"e":91.5},{"d":42.8323,"e":72.8},{"d":43.2425,"e":73.2},{"d":43.4939,"e":109.6},{"d":43.8539,"e":57.4},{"d":44.4122,"e":57.7},{"d":44.8855,"e":64.6},{"d":45.3151,"e":74.5},{"d":45.8286,"e":81.4},{"d":46.2711,"e":74.1},{"d":46.8771,"e":57.1},{"d":47.4216,"e":96.1},{"d":47.96,"e":73.2},{"d":48.4557,"e":56.8},{"d":48.854,"e":42.3},{"d":49.2994,"e":40.4},{"d":49.9862,"e":91.9},{"d":50.6005,"e":31.5},{"d":50.8694,"e":34.8},{"d":51.3697,"e":29.9},{"d":51.7561,"e":55.8},{"d":52.1695,"e":38.7},{"d":52.7627,"e":41.3},{"d":53.2881,"e":33.8},{"d":53.8783,"e":38.1},{"d":54.5504,"e":39.0},{"d":55.3357,"e":45.6},{"d":55.5999,"e":55.4},{"d":56.3561,"e":82.0},{"d":57.0163,"e":131.2},{"d":57.2605,"e":105.3},{"d":57.7972,"e":177.5},{"d":58.6109,"e":357.3},{"d":59.4505,"e":341.5},{"d":60.0177,"e":315.3},{"d":60.525,"e":338.9},{"d":61.0406,"e":327.1},{"d":61.4928,"e":288.7},{"d":61.6359,"e":290.7},{"d":61.7673,"e":290.4},{"d":62.3851,"e":258.2},{"d":62.9567,"e":215.6},{"d":63.0421,"e":209.0},{"d":63.3891,"e":139.4},{"d":63.6099,"e":91.9},{"d":63.7303,"e":39.7},{"d":64.0804,"e":12.8},{"d":64.4372,"e":16.4},{"d":64.7465,"e":15.7},{"d":64.93,"e":3.3},{"d":65.1196,"e":15.1},{"d":65.4636,"e":13.1}],
@@ -264,7 +264,7 @@ const ROUTES = {
     waypoints: [
       { d:4.411,  e:329.7, lat:40.86121, lon:-73.95918, n:'Strictly Bicycles',                                    icon:'🔧', t:'gear' },
       { d:15.96,  e:49.9,  lat:40.99055, lon:-73.96908, n:'Rest Stop — Highland Field, Harrington Park NJ',       icon:'🍌', t:'food' },
-      { d:21.276, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true },
+      { d:21.276, e:3.6,   lat:41.04057, lon:-73.91167, n:'Rest Stop — Goswick Pavilion, Piermont NY',            icon:'🍌', t:'food', alsoStart: true, returnD: 84.6934, returnE: 4.9 },
       { d:31.006, e:155.8, lat:41.13033, lon:-73.92249, n:'Rest Stop — Rockland Lake State Park',                 icon:'🍌', t:'food', alsoFinish: true },
       { d:51.484, e:636.8, lat:41.13054, lon:-74.07697, n:'Rest Stop — Manny Welder Park, Monsey NY',             icon:'🍌', t:'food' },
       { d:62.454, e:235.6, lat:41.01704, lon:-74.13103, n:'Borough Park Restroom',                               icon:'🚻', t:'toilet' },
@@ -440,6 +440,17 @@ function drawElevation() {
     ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.fillStyle=c; ctx.fill();
     ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);  ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
     if(W>480) { ctx.fillStyle=c; ctx.font='bold 8px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,x,y-13); }
+    // Return pass: draw a second marker where the same stop is visited again
+    if (w.returnD !== undefined) {
+      const rx=toX(w.returnD), ry=toY(w.returnE);
+      ctx.setLineDash([3,5]); ctx.strokeStyle=c+'55'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(rx,ry+6); ctx.lineTo(rx,H-PAD.bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(rx,ry,10,0,Math.PI*2); ctx.fillStyle=c+'1a'; ctx.fill();
+      ctx.beginPath(); ctx.arc(rx,ry,6,0,Math.PI*2);  ctx.fillStyle=c+'44'; ctx.fill();
+      ctx.beginPath(); ctx.arc(rx,ry,4,0,Math.PI*2);  ctx.fillStyle=c; ctx.fill();
+      ctx.beginPath(); ctx.arc(rx,ry,4,0,Math.PI*2);  ctx.strokeStyle='rgba(7,7,15,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
+      if(W>480) { ctx.fillStyle=c; ctx.font='bold 8px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(i+1,rx,ry-13); }
+    }
   });
 
   // Hover
@@ -455,7 +466,10 @@ function getNearestPt(mx) {
 function getNearbyWpt(d) {
   const wpts=canvas._wpts,TOTAL=canvas._TOTAL; if(!wpts) return null;
   const thr=TOTAL*0.02;
-  for(const w of wpts) if(Math.abs(w.d-d)<thr) return w;
+  for(const w of wpts) {
+    if(Math.abs(w.d-d)<thr) return w;
+    if(w.returnD !== undefined && Math.abs(w.returnD-d)<thr) return w;
+  }
   return null;
 }
 
