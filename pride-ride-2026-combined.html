@@ -329,6 +329,13 @@ function highlightWpt(idx, redrawCanvas) {
       el.style.background  = '';
     }
   });
+  wptMarkers.forEach((m, i) => {
+    const el = m.getElement();
+    if (!el) return;
+    el.style.transition = 'transform 0.15s';
+    el.style.transform  = (idx !== null && i === idx) ? 'scale(1.5)' : '';
+    el.style.zIndex     = (idx !== null && i === idx) ? '1000' : '';
+  });
   if (redrawCanvas && activeView === 'elev') drawElevation();
 }
 
@@ -524,6 +531,7 @@ const ROUTE_VIEW = {
 let leafletMap = null;
 let routeLayer = null;
 let markerLayers = [];
+let wptMarkers = [];
 
 function initLeaflet() {
   leafletMap = L.map('leaflet-map', { zoomControl: true, attributionControl: true });
@@ -583,6 +591,7 @@ function drawMap() {
   // ── Remove ALL previously drawn route/marker layers ──────────────────────
   markerLayers.forEach(layer => leafletMap.removeLayer(layer));
   markerLayers = [];
+  wptMarkers = [];
   if (routeLayer) { leafletMap.removeLayer(routeLayer); routeLayer = null; }
 
   leafletMap.setView(view.center, view.zoom);
@@ -627,7 +636,10 @@ function drawMap() {
         direction: 'right', className: 'map-tip'
       })
       .addTo(leafletMap);
+    m.on('mouseover', () => highlightWpt(i, false));
+    m.on('mouseout',  () => highlightWpt(null, false));
     markerLayers.push(m);
+    wptMarkers.push(m);
   });
 
   setTimeout(() => leafletMap.invalidateSize(), 50);
