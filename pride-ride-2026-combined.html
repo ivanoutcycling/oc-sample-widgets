@@ -339,7 +339,7 @@ function buildStops() {
   grid.innerHTML = '';
   wpts.forEach((w, i) => {
     const c = STOP_COLORS[i % STOP_COLORS.length];
-    const isDual = w.alsoFinish; // doubles as both mid-stop and final stop for shorter routes
+    const isDual = false;
 
     const card = document.createElement('div');
     card.className = 'stop-card';
