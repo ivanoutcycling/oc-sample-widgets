@@ -265,7 +265,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { getStorage, ref as stRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 // ── Firebase config — fill in your project values ──
 const FIREBASE_CONFIG = {
@@ -281,10 +280,7 @@ let fb = null;
 if (!FIREBASE_CONFIG.apiKey.startsWith('YOUR_')) {
   try {
     const app = initializeApp(FIREBASE_CONFIG);
-    fb = {
-      db: getDatabase(app), st: getStorage(app),
-      dbRef, dbSet, dbGet, dbRemove, stRef, uploadBytes, getDownloadURL
-    };
+    fb = { db: getDatabase(app), dbRef, dbSet, dbGet, dbRemove };
   } catch(e) { console.warn('Firebase init failed, using localStorage', e); }
 }
 
@@ -568,16 +564,6 @@ function makeThumb(src) {
   });
 }
 
-// ── Firebase upload ──
-async function uploadFile(file, path) {
-  if (!fb) return null;
-  try {
-    const ref = fb.stRef(fb.st, path);
-    await fb.uploadBytes(ref, file);
-    return fb.getDownloadURL(ref);
-  } catch(e) { console.warn('Upload failed', e); return null; }
-}
-
 // ── Save annotation ──
 async function saveAnnotation() {
   if (!pendingAnnotation) return;
@@ -588,15 +574,13 @@ async function saveAnnotation() {
     lon: pendingAnnotation.lon,
     note: document.getElementById('ann-note').value,
     crossStreets: document.getElementById('ann-cross').value,
-    photoURL: null, thumb: null
+    thumb: null
   };
 
   const photoFile = document.getElementById('ann-photo-input').files[0];
   if (photoFile) {
     const src = await readFileAsDataURL(photoFile);
     ann.thumb = await makeThumb(src);
-    const url = await uploadFile(photoFile, `sessions/${sessionId}/annotations/${ann.id}`);
-    ann.photoURL = url || ann.thumb;
   }
 
   annotations.push(ann);
@@ -630,8 +614,8 @@ function openAnnotationDetail(id) {
   if (ann.note) document.getElementById('ann-detail-note').textContent = ann.note;
 
   const imgEl = document.getElementById('ann-detail-img');
-  if (ann.photoURL || ann.thumb) {
-    imgEl.src = ann.photoURL || ann.thumb;
+  if (ann.thumb) {
+    imgEl.src = ann.thumb;
     imgEl.style.display = 'block';
   } else {
     imgEl.style.display = 'none';
