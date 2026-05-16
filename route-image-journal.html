@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pride Ride 2026 — Route Annotation Journal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f0f6;--surface:#ffffff;--card:#f7f7fb;--border:rgba(0,0,0,0.09);
+  --text:#111128;--muted:rgba(17,17,40,0.52);--dimmer:rgba(17,17,40,0.3);
+  --accent:#3B82F6;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── Layout ── */
+.shell{display:flex;flex-direction:column;max-width:1100px;margin:0 auto;padding:0 0 40px}
+
+/* ── Header ── */
+.header{padding:28px 32px 16px}
+.accent-bar{height:3px;background:var(--accent);border-radius:2px;margin-bottom:20px;box-shadow:0 0 16px rgba(59,130,246,0.2)}
+.eyebrow{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:5px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;opacity:0.6}
+.title{font-family:'Unbounded',sans-serif;font-size:clamp(22px,4vw,38px);font-weight:900;line-height:0.95;letter-spacing:-0.5px;color:var(--text);margin-bottom:0}
+
+/* ── Session bar ── */
+.session-bar{margin:12px 32px 0;border-radius:10px;background:var(--surface);border:1.5px solid var(--border);padding:11px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.session-bar:hover{border-color:rgba(59,130,246,0.4);box-shadow:0 0 0 3px rgba(59,130,246,0.08)}
+.session-bar-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;margin-right:10px}
+.session-bar-name{font-size:13px;font-weight:600;color:var(--text)}
+.session-bar-hint{font-size:9px;color:var(--dimmer);display:flex;align-items:center;gap:4px}
+.session-bar-hint svg{width:11px;height:11px;opacity:0.5}
+.subtitle{font-size:11px;font-weight:300;color:var(--muted)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 32px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none;box-shadow:0 1px 2px rgba(0,0,0,0.05)}
+.btn:hover{color:var(--text);border-color:rgba(0,0,0,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.09)}
+.btn.active-mode{background:rgba(224,104,0,0.08);border-color:rgba(224,104,0,0.4);color:#C06000}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+.btn-toggle{padding:7px 12px;font-size:10px}
+.btn-toggle.on{background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.35);color:var(--accent)}
+.separator{width:1px;height:24px;background:var(--border);margin:0 2px}
+
+/* ── Map ── */
+.content{padding:0 32px;height:620px}
+.map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border);height:100%}
+#map{width:100%;height:100%}
+
+/* Leaflet customization */
+.leaflet-control-zoom a{background:#fff!important;color:#444!important;border-color:rgba(0,0,0,0.15)!important}
+.leaflet-control-zoom a:hover{background:#f5f5f5!important}
+.leaflet-control-attribution{background:rgba(255,255,255,0.75)!important;color:rgba(0,0,0,0.45)!important;font-size:8px!important}
+.leaflet-control-attribution a{color:rgba(0,0,0,0.6)!important}
+
+/* Waypoint popup — keep dark for map contrast */
+.wpt-popup{font-family:'Inter',sans-serif}
+.wpt-popup-name{font-size:11px;font-weight:600;color:#eeeaff;margin-bottom:4px;line-height:1.4}
+.wpt-popup-type{display:inline-block;font-size:8.5px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:4px;letter-spacing:0.5px}
+.wpt-popup-type.food{background:rgba(0,197,102,0.15);color:#00C566;border:1px solid rgba(0,197,102,0.25)}
+.wpt-popup-type.toilet{background:rgba(0,144,255,0.15);color:#0090FF;border:1px solid rgba(0,144,255,0.25)}
+.leaflet-popup-content-wrapper{background:rgba(13,13,30,0.96)!important;border:1px solid rgba(255,255,255,0.1)!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,0.4)!important;color:#eeeaff!important;backdrop-filter:blur(12px)}
+.leaflet-popup-tip-container{display:none}
+.leaflet-popup-close-button{color:rgba(238,234,255,0.4)!important;font-size:16px!important;top:8px!important;right:10px!important}
+.leaflet-popup-close-button:hover{color:#eeeaff!important}
+
+/* Mode banner */
+.mode-banner{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,122,0,0.95);color:#fff;font-size:12px;font-weight:600;padding:10px 20px;border-radius:40px;z-index:3000;box-shadow:0 4px 20px rgba(255,122,0,0.4);pointer-events:none;white-space:nowrap}
+.mode-banner.show{display:block}
+
+
+/* ── Annotation dialog ── */
+.ann-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.ann-overlay.open{display:flex}
+.ann-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,0.15);flex-shrink:0}
+.ann-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
+.ann-field{margin-bottom:14px}
+.ann-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;display:block;margin-bottom:5px}
+.ann-select,.ann-input,.ann-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:border-color 0.15s}
+.ann-select:focus,.ann-input:focus,.ann-textarea:focus{border-color:rgba(59,130,246,0.5)}
+.ann-select option{background:var(--surface);color:var(--text)}
+.ann-textarea{resize:vertical;min-height:80px;line-height:1.5}
+.ann-cross-row{display:flex;gap:8px}
+.ann-cross-row .ann-input{flex:1}
+.ann-find-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:#3B82F6;cursor:pointer;white-space:nowrap;transition:all 0.15s;flex-shrink:0}
+.ann-find-btn:hover{background:rgba(59,130,246,0.18)}
+.ann-status{font-size:10px;color:var(--muted);margin-top:4px;min-height:14px}
+.ann-pos-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.ann-pos-display{font-size:9px;font-family:'DM Mono',monospace;color:var(--dimmer);flex:1}
+.ann-pos-display.unset{color:#FF7A00}
+.ann-reposition-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 10px;border-radius:7px;border:1px solid rgba(255,122,0,0.35);background:rgba(255,122,0,0.08);color:#FF7A00;cursor:pointer;white-space:nowrap;transition:all 0.15s;flex-shrink:0}
+.ann-reposition-btn:hover{background:rgba(255,122,0,0.15)}
+.ann-photo-input{width:100%;font-size:11px;color:var(--muted)}
+.ann-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.ann-cancel-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.ann-cancel-btn:hover{color:var(--text);border-color:rgba(0,0,0,0.22)}
+.ann-save-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s}
+.ann-save-btn:hover:not(:disabled){opacity:0.88}
+.ann-save-btn:disabled{opacity:0.35;cursor:not-allowed}
+
+/* ── Annotation detail overlay ── */
+.ann-detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.ann-detail-overlay.open{display:flex}
+.ann-detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.15)}
+.ann-detail-icon{font-size:36px;margin-bottom:8px;display:block}
+.ann-detail-type{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px;display:block}
+.ann-detail-row{margin-bottom:12px}
+.ann-detail-val{font-size:11px;color:var(--muted);line-height:1.5}
+.ann-detail-img{width:100%;border-radius:10px;margin-bottom:16px;object-fit:cover;max-height:220px}
+.ann-detail-actions{display:flex;gap:8px;justify-content:space-between;margin-top:20px}
+.ann-delete-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.06);color:#FF5050;cursor:pointer;transition:all 0.15s}
+.ann-delete-btn:hover{background:rgba(255,80,80,0.12)}
+
+/* ── Session name dialog ── */
+.sname-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:4000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.sname-overlay.open{display:flex}
+.sname-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:380px;width:100%;padding:28px;box-shadow:0 16px 48px rgba(0,0,0,0.12)}
+.sname-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
+.sname-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:11px 13px;outline:none;transition:border-color 0.15s;margin-bottom:14px}
+.sname-input:focus{border-color:rgba(59,130,246,0.5)}
+.sname-create-btn{width:100%;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s}
+.sname-create-btn:hover{opacity:0.88}
+
+/* ── Session browser ── */
+.sbrowser-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:3500;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.sbrowser-overlay.open{display:flex}
+.sbrowser-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:560px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.12);flex-shrink:0}
+.sbrowser-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.sbrowser-header h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text)}
+.sbrowser-new-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:7px 14px;border-radius:7px;border:1px solid rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:#3B82F6;cursor:pointer;transition:all 0.15s}
+.sbrowser-new-btn:hover{background:rgba(59,130,246,0.18)}
+.session-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color 0.15s}
+.session-card.current{border-color:#3B82F6;background:rgba(59,130,246,0.05)}
+.session-card-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.session-card-meta{font-size:9px;font-family:'DM Mono',monospace;color:var(--dimmer)}
+.session-card-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.session-open-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.session-open-btn:hover{color:var(--text);border-color:rgba(0,0,0,0.22)}
+.session-del-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,80,80,0.25);background:transparent;color:rgba(220,60,60,0.7);cursor:pointer;transition:all 0.15s}
+.session-del-btn:hover{background:rgba(255,80,80,0.08);color:#E03030}
+.sbrowser-close-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;margin-top:16px;transition:all 0.15s}
+.sbrowser-close-btn:hover{color:var(--text)}
+
+@media(max-width:600px){
+  .header,.toolbar,.content{padding-left:16px;padding-right:16px}
+  .session-bar{margin-left:16px;margin-right:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="accent-bar"></div>
+    <div class="eyebrow">Route Annotation Journal</div>
+    <div class="title">Pride Ride 2026</div>
+  </div>
+
+  <!-- Session bar (clickable — opens session browser) -->
+  <div class="session-bar" onclick="openSessionBrowser()">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="session-bar-label">Session</span>
+      <span class="session-bar-name" id="session-bar-name">Loading…</span>
+    </div>
+    <div class="session-bar-hint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Browse sessions
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="btn" onclick="openSessionBrowser()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Sessions
+    </button>
+    <div class="separator"></div>
+    <button class="btn" id="btn-annotate-map" onclick="enterMapAnnotationMode()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Annotate on Map
+    </button>
+    <button class="btn" id="btn-annotate-streets" onclick="openAnnotationByStreets()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Annotate by Streets
+    </button>
+    <div class="separator"></div>
+    <button class="btn btn-toggle on" id="toggle-route" onclick="toggleLayer('route')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6l6 6-6 6"/></svg>
+      Route
+    </button>
+    <button class="btn btn-toggle on" id="toggle-stops" onclick="toggleLayer('stops')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+      Stops
+    </button>
+    <button class="btn btn-toggle on" id="toggle-annotations" onclick="toggleLayer('annotations')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Annotations
+    </button>
+    <div class="separator"></div>
+    <button class="btn" onclick="fitRoute()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+      Fit Route
+    </button>
+    <button class="btn" onclick="shareSession()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share
+    </button>
+    <button class="btn" onclick="downloadSession()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download
+    </button>
+    <span id="share-toast" style="display:none;font-size:10px;color:#00C566;font-weight:600">✓ Link copied!</span>
+    <button class="btn" style="color:#FF5050;border-color:rgba(255,80,80,0.3)" onclick="clearSession()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      Clear All
+    </button>
+  </div>
+
+  <!-- Map -->
+  <div class="content">
+    <div class="map-wrap">
+      <div id="map"></div>
+    </div>
+  </div>
+
+</div><!-- end shell -->
+
+<!-- Session name dialog (new session) -->
+<div class="sname-overlay" id="sname-overlay">
+  <div class="sname-panel">
+    <h3>Name This Session</h3>
+    <input class="sname-input" id="sname-input" type="text" placeholder="e.g. Pre-ride Scouting Run"
+           onkeydown="if(event.key==='Enter') confirmSessionName()">
+    <button class="sname-create-btn" onclick="confirmSessionName()">Create Session</button>
+  </div>
+</div>
+
+<!-- Session browser -->
+<div class="sbrowser-overlay" id="sbrowser-overlay" onclick="sbrowserBgClick(event)">
+  <div class="sbrowser-panel">
+    <div class="sbrowser-header">
+      <h3>Sessions</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="sbrowser-upload-input" accept=".json,application/json" style="display:none" onchange="handleUploadSession(event)">
+        <button class="sbrowser-new-btn" onclick="document.getElementById('sbrowser-upload-input').click()">↑ Import</button>
+        <button class="sbrowser-new-btn" onclick="newSessionFromBrowser()">+ New Session</button>
+      </div>
+    </div>
+    <div id="sbrowser-list"></div>
+    <button class="sbrowser-close-btn" onclick="closeSessionBrowser()">Close</button>
+  </div>
+</div>
+
+<!-- Mode banner (map-click annotation) -->
+<div class="mode-banner" id="mode-banner">📍 Click anywhere near the route to place an annotation</div>
+
+<!-- Annotation dialog (shared by both flows) -->
+<div class="ann-overlay" id="annotation-overlay" onclick="annOverlayBgClick(event)">
+  <div class="ann-panel">
+    <h3 id="ann-dialog-title">Add Annotation</h3>
+
+    <!-- Cross-streets (shown prominently when opened via streets button) -->
+    <div class="ann-field" id="ann-streets-field">
+      <label class="ann-label">Cross Streets</label>
+      <div class="ann-cross-row">
+        <input class="ann-input" id="ann-cross" type="text" placeholder="e.g. Piermont Ave &amp; Main St, Nyack NY">
+        <button class="ann-find-btn" onclick="geocodeAndSnap()">Find</button>
+      </div>
+      <div class="ann-status" id="ann-geocode-status"></div>
+    </div>
+
+    <!-- Pin position + reposition button -->
+    <div class="ann-pos-row">
+      <div class="ann-pos-display" id="ann-pos-display">No position set — use cross streets or reposition</div>
+      <button class="ann-reposition-btn" onclick="startRepositionFromDialog()">Move pin on map</button>
+    </div>
+
+    <div class="ann-field">
+      <label class="ann-label">Type</label>
+      <select class="ann-select" id="ann-type">
+        <option value="dangerous_turn">⚠️ Dangerous Turn</option>
+        <option value="railroad">🚂 Railroad Crossing</option>
+        <option value="route_bug">🐛 Route Bug</option>
+        <option value="rest_stop">🚻 Bathroom / Rest Stop</option>
+        <option value="road_crossing">🚦 Dangerous Road Crossing</option>
+      </select>
+    </div>
+
+    <div class="ann-field">
+      <label class="ann-label">Note</label>
+      <textarea class="ann-textarea" id="ann-note" placeholder="Describe the hazard or point of interest…"></textarea>
+    </div>
+
+    <div class="ann-field">
+      <label class="ann-label">Photo (optional)</label>
+      <input class="ann-photo-input" id="ann-photo-input" type="file" accept="image/*">
+    </div>
+
+    <div class="ann-actions">
+      <button class="ann-cancel-btn" onclick="closeAnnotationDialog()">Cancel</button>
+      <button class="ann-save-btn" id="ann-save-btn" onclick="saveAnnotation()" disabled>Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Annotation detail overlay -->
+<div class="ann-detail-overlay" id="ann-detail-overlay" onclick="annDetailBgClick(event)">
+  <div class="ann-detail-panel">
+    <span class="ann-detail-icon" id="ann-detail-icon"></span>
+    <span class="ann-detail-type" id="ann-detail-type"></span>
+    <img class="ann-detail-img" id="ann-detail-img" src="" alt="" style="display:none">
+    <div class="ann-detail-row">
+      <div class="ann-label">Location</div>
+      <div class="ann-detail-val" id="ann-detail-coords"></div>
+    </div>
+    <div class="ann-detail-row" id="ann-detail-cross-row">
+      <div class="ann-label">Cross Streets</div>
+      <div class="ann-detail-val" id="ann-detail-cross"></div>
+    </div>
+    <div class="ann-detail-row" id="ann-detail-note-row">
+      <div class="ann-label">Note</div>
+      <div class="ann-detail-val" id="ann-detail-note"></div>
+    </div>
+    <div class="ann-detail-actions">
+      <button class="ann-delete-btn" id="ann-detail-delete">Delete</button>
+      <button class="ann-cancel-btn" onclick="closeAnnotationDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ── Firebase config — fill in your project values ──
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAoRc4QRDsXTf7xPISXeEy6TEhqnl5LCEU",
+  authDomain: "ride-annotator.firebaseapp.com",
+  databaseURL: "https://ride-annotator-default-rtdb.firebaseio.com",
+  projectId: "ride-annotator",
+  storageBucket: "ride-annotator.firebasestorage.app",
+  messagingSenderId: "692274107391",
+  appId: "1:692274107391:web:409d15436032b812a24dca"
+};
+
+let fb = null;
+if (!FIREBASE_CONFIG.apiKey.startsWith('YOUR_')) {
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    fb = { db: getDatabase(app), dbRef, dbSet, dbGet, dbRemove };
+  } catch(e) { console.warn('Firebase init failed, using localStorage', e); }
+}
+
+// ── Data ──
+const GPX_DATA = {"track":[[40.82841,-73.95372,4.0],[40.82842,-73.95372,3.9],[40.82982,-73.95284,3.7],[40.83153,-73.95168,3.7],[40.83216,-73.95139,3.3],[40.833,-73.95078,4.3],[40.83363,-73.95054,3.4],[40.83451,-73.95,2.1],[40.83636,-73.94901,12.8],[40.83649,-73.94874,13.2],[40.83521,-73.94569,26.8],[40.83551,-73.94547,30.6],[40.83756,-73.94686,38.3],[40.83807,-73.94665,40.9],[40.83802,-73.94456,45.0],[40.83961,-73.9433,44.1],[40.84282,-73.94202,52.1],[40.84434,-73.94096,54.9],[40.8475,-73.93966,60.4],[40.84931,-73.93893,61.2],[40.84974,-73.94078,56.5],[40.85048,-73.94105,57.9],[40.85058,-73.94155,58.8],[40.85035,-73.94154,59.3],[40.85005,-73.9412,60.1],[40.84983,-73.94144,60.7],[40.84996,-73.94285,62.7],[40.85078,-73.94741,69.5],[40.85186,-73.95293,77.8],[40.85295,-73.95845,86.1],[40.85381,-73.96232,91.1],[40.85428,-73.96275,88.8],[40.85499,-73.96255,89.1],[40.85451,-73.96271,88.8],[40.85399,-73.96254,88.8],[40.85379,-73.96251,88.8],[40.8542,-73.96286,88.7],[40.85388,-73.96282,88.7],[40.85419,-73.96347,88.2],[40.85698,-73.96196,91.1],[40.85889,-73.96118,98.0],[40.85996,-73.96053,99.2],[40.86119,-73.9592,100.7],[40.86323,-73.95701,101.8],[40.86539,-73.95541,102.5],[40.86639,-73.95488,103.3],[40.86816,-73.95471,103.4],[40.87001,-73.95424,106.5],[40.87173,-73.95311,103.5],[40.87352,-73.95177,100.3],[40.87579,-73.9509,106.3],[40.87879,-73.95,103.9],[40.88024,-73.95077,103.7],[40.88246,-73.95217,107.4],[40.88571,-73.95006,113.7],[40.88733,-73.95285,114.1],[40.8887,-73.95524,108.1],[40.88966,-73.9574,109.7],[40.88933,-73.95903,97.0],[40.89048,-73.96015,85.7],[40.8912,-73.96225,72.7],[40.89115,-73.96264,68.0],[40.89163,-73.96319,62.1],[40.89254,-73.96437,58.1],[40.89297,-73.96573,49.9],[40.89527,-73.96536,46.2],[40.89784,-73.96421,44.2],[40.90045,-73.96273,45.8],[40.90217,-73.96317,33.7],[40.90326,-73.9625,31.6],[40.90376,-73.9619,32.1],[40.90439,-73.96154,33.6],[40.90533,-73.96037,35.9],[40.90626,-73.95998,38.1],[40.90707,-73.95944,40.6],[40.90861,-73.95859,40.6],[40.91121,-73.96186,36.3],[40.91367,-73.9628,31.9],[40.91639,-73.96325,29.7],[40.9172,-73.96365,33.2],[40.91813,-73.96344,31.0],[40.92002,-73.96337,26.0],[40.92071,-73.96324,27.3],[40.92186,-73.96257,25.9],[40.92287,-73.9621,27.9],[40.9252,-73.96123,28.8],[40.92765,-73.96038,27.7],[40.92992,-73.95965,21.8],[40.93271,-73.95855,17.7],[40.9343,-73.95703,17.0],[40.93569,-73.95643,17.5],[40.93772,-73.95713,15.9],[40.94005,-73.95745,16.9],[40.94196,-73.95713,18.2],[40.94255,-73.95697,20.1],[40.94394,-73.9558,25.1],[40.94554,-73.95464,22.9],[40.94727,-73.95363,18.7],[40.94832,-73.95322,17.4],[40.94908,-73.95288,20.9],[40.95173,-73.95031,24.4],[40.95482,-73.94741,27.9],[40.95533,-73.94881,22.0],[40.95545,-73.94989,22.2],[40.95635,-73.95145,18.8],[40.95658,-73.95252,23.1],[40.95767,-73.95453,17.7],[40.95767,-73.9567,20.9],[40.9585,-73.9576,22.4],[40.96024,-73.96074,15.6],[40.96134,-73.96137,12.6],[40.96381,-73.96013,12.7],[40.96697,-73.9587,14.5],[40.96876,-73.96,15.3],[40.96941,-73.95991,14.0],[40.97085,-73.95936,11.6],[40.97177,-73.96006,11.6],[40.97295,-73.96148,12.6],[40.97498,-73.96465,17.0],[40.97604,-73.9672,9.2],[40.97634,-73.96764,8.8],[40.97825,-73.96852,9.8],[40.98167,-73.9714,8.9],[40.9827,-73.97238,10.2],[40.98406,-73.97256,8.9],[40.98469,-73.97214,8.9],[40.98537,-73.97089,8.9],[40.98548,-73.96986,8.9],[40.98833,-73.97121,11.2],[40.99033,-73.96946,13.5],[40.99187,-73.96692,28.5],[40.99482,-73.96474,27.4],[40.99788,-73.96257,28.4],[41.00042,-73.96061,28.7],[41.00287,-73.95809,24.7],[41.00441,-73.95623,21.9],[41.006,-73.95518,25.4],[41.0086,-73.95388,26.3],[41.01154,-73.95281,24.2],[41.01429,-73.95131,22.2],[41.0169,-73.95086,18.9],[41.01949,-73.95021,17.3],[41.02055,-73.94895,14.3],[41.02061,-73.94761,11.5],[41.02059,-73.94677,11.4],[41.02043,-73.94578,14.5],[41.01886,-73.94278,13.8],[41.01724,-73.93969,12.8],[41.01883,-73.93786,10.9],[41.0215,-73.93429,12.3],[41.02418,-73.93045,13.5],[41.02625,-73.92911,14.7],[41.02784,-73.92896,16.3],[41.02778,-73.92859,15.7],[41.02875,-73.92716,11.8],[41.0288,-73.92602,7.3],[41.02903,-73.92546,5.8],[41.02832,-73.92472,11.6],[41.02807,-73.92281,27.5],[41.02813,-73.92205,32.6],[41.02772,-73.92049,36.6],[41.02727,-73.91903,41.4],[41.02791,-73.91917,42.8],[41.02869,-73.91845,46.3],[41.02923,-73.91676,44.9],[41.02974,-73.91622,48.0],[41.02987,-73.91632,49.0],[41.02931,-73.91666,45.2],[41.02884,-73.91816,45.7],[41.02898,-73.91902,48.3],[41.03062,-73.91997,51.3],[41.03218,-73.92054,36.4],[41.0339,-73.91833,13.7],[41.03469,-73.91814,10.6],[41.03653,-73.91708,1.1],[41.03749,-73.91581,1.1],[41.03865,-73.91498,2.2],[41.03907,-73.91377,1.0],[41.03974,-73.91317,0.7],[41.04048,-73.91281,1.2],[41.04067,-73.91001,2.4],[41.04095,-73.90622,2.3],[41.04194,-73.9051,1.7],[41.04219,-73.90465,0.1],[41.04263,-73.89971,0.0],[41.04283,-73.89794,0.0],[41.043,-73.89723,0.0],[41.04276,-73.89816,0.0],[41.04255,-73.90062,0.0],[41.04218,-73.90474,0.3],[41.04128,-73.90563,1.8],[41.04092,-73.90647,2.3],[41.0406,-73.91114,1.2],[41.04035,-73.91305,1.3],[41.03959,-73.91322,0.5],[41.03894,-73.91406,0.8],[41.03814,-73.9161,1.8],[41.03633,-73.91792,0.8],[41.03501,-73.91959,5.8],[41.03389,-73.92231,10.4],[41.03221,-73.92476,16.3],[41.03129,-73.92576,16.0],[41.03132,-73.92682,17.1],[41.03191,-73.92794,20.3],[41.0328,-73.92866,22.2],[41.03374,-73.92812,26.6],[41.03507,-73.92774,32.3],[41.03702,-73.92828,35.1],[41.03899,-73.92844,37.4],[41.04072,-73.92919,41.7],[41.04138,-73.9301,41.8],[41.04205,-73.93241,35.3],[41.04321,-73.93362,35.6],[41.0436,-73.93475,36.1],[41.04342,-73.93627,24.6],[41.0442,-73.93744,26.2],[41.04435,-73.93876,23.0],[41.04467,-73.93998,22.7],[41.04599,-73.94225,23.8],[41.04702,-73.94395,23.7],[41.04757,-73.94528,22.0],[41.04741,-73.94555,21.6],[41.04695,-73.94607,20.6],[41.04709,-73.94757,25.7],[41.04905,-73.94909,33.3],[41.0495,-73.94898,33.7],[41.05001,-73.94952,36.7],[41.05117,-73.94972,36.8],[41.05138,-73.95031,38.5],[41.05174,-73.95014,37.6],[41.05314,-73.9506,38.3],[41.05551,-73.9523,42.4],[41.05799,-73.95527,48.1],[41.06003,-73.9574,57.6],[41.0627,-73.95761,60.2],[41.06604,-73.95827,65.5],[41.06823,-73.95847,62.1],[41.06986,-73.95895,49.4],[41.07183,-73.96037,39.1],[41.07408,-73.96107,36.2],[41.07614,-73.96253,27.7],[41.07766,-73.9634,22.1],[41.07945,-73.96264,20.2],[41.08133,-73.96182,20.2],[41.08411,-73.96236,20.1],[41.08682,-73.96307,19.1],[41.08781,-73.96346,22.3],[41.08895,-73.96483,30.0],[41.0901,-73.96511,31.4],[41.09264,-73.96521,24.3],[41.09334,-73.96484,24.0],[41.09438,-73.96593,22.8],[41.09409,-73.9695,19.1],[41.09394,-73.9724,20.5],[41.09724,-73.9735,28.3],[41.09862,-73.97361,29.1],[41.10059,-73.97295,29.4],[41.10249,-73.97243,25.6],[41.10407,-73.97199,26.8],[41.10519,-73.9682,21.1],[41.10556,-73.96639,23.6],[41.10645,-73.96531,30.2],[41.10675,-73.9643,29.3],[41.10767,-73.96198,26.9],[41.10828,-73.96141,26.3],[41.11111,-73.96097,34.6],[41.11394,-73.96101,31.6],[41.1173,-73.96109,31.9],[41.11889,-73.96182,26.2],[41.12122,-73.96121,35.0],[41.12249,-73.96029,33.4],[41.12444,-73.95883,33.9],[41.12552,-73.95817,32.7],[41.12608,-73.95622,37.2],[41.12711,-73.95351,42.0],[41.12732,-73.95169,44.0],[41.12544,-73.95106,45.0],[41.12402,-73.95038,37.9],[41.1216,-73.94994,38.7],[41.12056,-73.9498,38.7],[41.11782,-73.94932,41.7],[41.11787,-73.94543,48.0],[41.11841,-73.94126,58.9],[41.11969,-73.93929,59.4],[41.12179,-73.93621,65.1],[41.12353,-73.93383,66.2],[41.12436,-73.93197,71.6],[41.12515,-73.92951,63.6],[41.12745,-73.92768,59.1],[41.12991,-73.92628,51.6],[41.13061,-73.92408,47.6],[41.13056,-73.92311,46.7],[41.13033,-73.92249,47.5],[41.13061,-73.92327,46.5],[41.13091,-73.92448,47.5],[41.13323,-73.92761,48.4],[41.13466,-73.92928,46.6],[41.13599,-73.92994,47.6],[41.13719,-73.92997,47.9],[41.14078,-73.9288,45.8],[41.14423,-73.92775,47.4],[41.14564,-73.92699,46.3],[41.14761,-73.92553,46.5],[41.14857,-73.92521,47.2],[41.14848,-73.92572,45.5],[41.14767,-73.92639,45.5],[41.14744,-73.92707,47.1],[41.14778,-73.92935,51.2],[41.14779,-73.93046,52.1],[41.14642,-73.93202,47.3],[41.14634,-73.93257,46.8],[41.14708,-73.93466,42.9],[41.14906,-73.93743,43.4],[41.14984,-73.93858,44.0],[41.15031,-73.94068,50.3],[41.15087,-73.94383,58.4],[41.15081,-73.94592,52.4],[41.15203,-73.94881,55.9],[41.15389,-73.95286,27.0],[41.15543,-73.9572,26.9],[41.15651,-73.96113,26.8],[41.1574,-73.96537,28.3],[41.1572,-73.96827,28.0],[41.15941,-73.96899,31.8],[41.16229,-73.96908,31.2],[41.16471,-73.96972,31.7],[41.16598,-73.97225,33.4],[41.16825,-73.97274,31.9],[41.16957,-73.97531,28.7],[41.16944,-73.97889,29.5],[41.16969,-73.98404,36.2],[41.16992,-73.98786,53.7],[41.17274,-73.98747,56.7],[41.17402,-73.98748,56.8],[41.17558,-73.99037,60.1],[41.17645,-73.99108,63.8],[41.17843,-73.99126,63.9],[41.18024,-73.99194,59.9],[41.183,-73.99228,43.5],[41.18543,-73.99214,32.5],[41.18625,-73.9923,39.4],[41.18581,-73.99522,40.6],[41.18568,-73.9979,46.1],[41.18541,-73.99916,42.7],[41.18503,-74.00165,49.9],[41.18476,-74.00396,43.0],[41.18503,-74.00586,52.2],[41.18465,-74.00909,62.7],[41.18453,-74.01131,64.2],[41.18448,-74.01289,64.9],[41.1837,-74.01343,67.3],[41.1835,-74.01435,72.7],[41.1839,-74.01555,77.4],[41.18372,-74.01682,88.7],[41.18427,-74.01935,102.4],[41.18408,-74.02191,111.0],[41.18336,-74.02369,125.1],[41.18308,-74.02491,132.6],[41.18312,-74.0261,143.7],[41.18257,-74.02761,142.8],[41.18144,-74.0279,136.8],[41.17994,-74.02926,144.5],[41.17931,-74.0307,148.3],[41.17893,-74.03284,153.5],[41.17844,-74.03296,155.2],[41.1753,-74.03212,159.8],[41.17844,-74.03296,155.2],[41.17953,-74.03369,151.0],[41.18193,-74.03609,166.7],[41.18323,-74.03661,163.5],[41.18493,-74.03643,147.9],[41.18629,-74.03721,138.6],[41.18569,-74.04025,129.2],[41.18455,-74.04427,119.7],[41.18321,-74.04819,119.3],[41.18301,-74.04986,121.0],[41.18264,-74.05147,129.6],[41.18292,-74.05452,141.4],[41.18368,-74.05766,133.7],[41.18504,-74.05945,133.3],[41.18572,-74.06078,135.9],[41.18608,-74.06284,136.6],[41.18627,-74.06472,132.4],[41.18597,-74.06725,128.2],[41.18512,-74.06793,123.5],[41.18343,-74.06835,125.3],[41.18237,-74.06884,126.2],[41.1812,-74.07059,125.8],[41.17971,-74.073,127.2],[41.17868,-74.0743,128.5],[41.17838,-74.07614,126.9],[41.17761,-74.07802,124.3],[41.17532,-74.08113,138.4],[41.17372,-74.0824,134.2],[41.17164,-74.08399,135.7],[41.17059,-74.08495,133.7],[41.16984,-74.08454,139.3],[41.16903,-74.08451,143.9],[41.16699,-74.08393,152.5],[41.16473,-74.08311,156.7],[41.16204,-74.08197,165.7],[41.16159,-74.07676,170.3],[41.16123,-74.0724,164.5],[41.16225,-74.06954,172.0],[41.16445,-74.06923,173.7],[41.16707,-74.0686,174.2],[41.16807,-74.06574,164.1],[41.16769,-74.0619,148.9],[41.16745,-74.05789,149.8],[41.16733,-74.05502,143.4],[41.16751,-74.05353,138.1],[41.16733,-74.04933,130.5],[41.16707,-74.04582,135.2],[41.16687,-74.04191,141.4],[41.16722,-74.04117,144.7],[41.16798,-74.03886,158.5],[41.16862,-74.03606,151.7],[41.16912,-74.03483,162.0],[41.16839,-74.03409,168.3],[41.16581,-74.03365,168.2],[41.16408,-74.03338,170.0],[41.16149,-74.03426,177.1],[41.16185,-74.03763,180.5],[41.16174,-74.03846,179.1],[41.1606,-74.03951,170.6],[41.15987,-74.04034,163.8],[41.15955,-74.04118,159.9],[41.15896,-74.04246,159.3],[41.15713,-74.04307,156.2],[41.15506,-74.04327,157.4],[41.15131,-74.04311,157.5],[41.15057,-74.04663,145.4],[41.15082,-74.05043,150.6],[41.1498,-74.05177,152.9],[41.14931,-74.05425,164.3],[41.1507,-74.05435,167.1],[41.15402,-74.05416,174.7],[41.15675,-74.05426,167.0],[41.15693,-74.05837,187.9],[41.15719,-74.06304,190.6],[41.15742,-74.06649,180.2],[41.15766,-74.06995,163.6],[41.15795,-74.07179,161.6],[41.15815,-74.07477,158.5],[41.15698,-74.07715,158.7],[41.15552,-74.08095,153.5],[41.15446,-74.08335,149.9],[41.1544,-74.08352,149.8],[41.15429,-74.0834,148.0],[41.15221,-74.08142,159.4],[41.1514,-74.08113,162.0],[41.1488,-74.08178,158.9],[41.14651,-74.08238,154.4],[41.1423,-74.08278,165.5],[41.13812,-74.08312,167.5],[41.13582,-74.08293,172.7],[41.134,-74.08287,176.9],[41.13296,-74.08335,178.5],[41.1314,-74.08479,179.4],[41.12997,-74.08568,181.7],[41.12744,-74.08606,183.0],[41.12442,-74.08644,188.2],[41.12111,-74.08688,190.4],[41.11838,-74.08778,183.9],[41.11537,-74.089,175.1],[41.1122,-74.08959,178.7],[41.109,-74.09006,175.4],[41.10778,-74.08979,175.1],[41.10628,-74.08835,169.9],[41.10336,-74.08459,174.2],[41.10175,-74.08298,172.3],[41.0996,-74.08229,168.8],[41.09589,-74.08203,156.1],[41.09279,-74.08255,139.6],[41.09048,-74.08263,126.6],[41.08955,-74.08233,116.7],[41.08843,-74.08031,106.4],[41.08702,-74.08026,102.5],[41.0865,-74.07892,104.0],[41.08478,-74.07957,101.7],[41.08248,-74.08104,98.8],[41.07986,-74.0813,95.7],[41.0776,-74.08158,91.4],[41.07423,-74.08243,80.9],[41.07284,-74.0828,78.8],[41.07189,-74.08387,80.5],[41.07072,-74.08597,81.2],[41.06909,-74.08723,80.6],[41.06609,-74.08837,77.3],[41.06414,-74.08907,73.7],[41.06213,-74.0909,71.9],[41.06051,-74.09178,70.9],[41.05816,-74.09225,70.1],[41.0554,-74.09369,61.4],[41.05251,-74.09603,62.3],[41.05117,-74.09713,62.4],[41.04868,-74.09815,60.7],[41.04696,-74.09851,59.7],[41.04456,-74.09854,58.6],[41.04158,-74.09843,55.6],[41.03886,-74.09822,51.9],[41.03681,-74.09861,49.1],[41.03602,-74.0994,46.0],[41.03461,-74.0996,44.5],[41.0329,-74.09957,42.4],[41.03192,-74.09934,43.0],[41.03113,-74.09599,47.2],[41.03017,-74.09575,46.6],[41.03001,-74.09684,44.1],[41.02954,-74.09708,43.5],[41.02965,-74.09827,41.6],[41.0294,-74.09719,43.3],[41.02996,-74.09699,43.5],[41.02998,-74.09639,44.7],[41.02981,-74.09525,47.7],[41.02702,-74.09615,51.7],[41.02497,-74.09677,49.2],[41.02224,-74.0972,42.3],[41.01921,-74.09729,49.0],[41.01723,-74.09704,54.8],[41.01385,-74.09587,42.3],[41.01159,-74.09542,40.3],[41.01022,-74.09523,40.7],[41.00851,-74.09472,39.3],[41.0063,-74.09344,40.0],[41.00508,-74.09326,37.6],[41.0024,-74.09314,33.9],[41.00315,-74.09119,47.5],[41.00514,-74.08976,66.5],[41.00532,-74.08705,63.6],[41.00503,-74.08335,58.2],[41.00457,-74.07834,77.4],[41.00612,-74.07631,81.8],[41.00588,-74.07497,73.3],[41.00637,-74.07288,64.6],[41.00712,-74.07086,57.2],[41.00664,-74.06843,43.1],[41.00602,-74.06594,39.3],[41.00484,-74.062,39.6],[41.00354,-74.05945,33.2],[41.00318,-74.05765,31.7],[41.00292,-74.05215,24.8],[41.00268,-74.04673,20.1],[41.00259,-74.04376,16.8],[41.00266,-74.04065,17.6],[41.00275,-74.03819,19.6],[41.00299,-74.03407,27.7],[41.00315,-74.03087,17.0],[41.00378,-74.02622,17.3],[41.00435,-74.02158,22.0],[41.00608,-74.02033,22.1],[41.00814,-74.02063,13.8],[41.00883,-74.01881,13.6],[41.00943,-74.0138,19.5],[41.01058,-74.01055,20.7],[41.01191,-74.00932,11.6],[41.01268,-74.00899,11.8],[41.01432,-74.00958,17.3],[41.01637,-74.00965,24.9],[41.01925,-74.0097,26.6],[41.02087,-74.00726,20.2],[41.02142,-74.00236,22.0],[41.02141,-74.00106,21.2],[41.02092,-74.00037,18.6],[41.01989,-74.00008,18.8],[41.01748,-73.99952,19.7],[41.01559,-73.99895,18.4],[41.01496,-73.99797,18.9],[41.01486,-73.99598,17.9],[41.01458,-73.99502,20.8],[41.01372,-73.99424,27.4],[41.01212,-73.99299,32.8],[41.00971,-73.9903,22.3],[41.00707,-73.98765,20.1],[41.00469,-73.98646,20.1],[41.00386,-73.98548,17.3],[41.00385,-73.98407,17.9],[41.00458,-73.98178,17.4],[41.0051,-73.9801,16.2],[41.00386,-73.97881,12.9],[41.0019,-73.97688,12.6],[41.00123,-73.9751,12.0],[41.00064,-73.97314,11.7],[41.0003,-73.96912,14.2],[40.99905,-73.96758,14.0],[40.99568,-73.96588,18.5],[40.99287,-73.96603,27.2],[40.99076,-73.96871,16.6],[40.98914,-73.97162,12.6],[40.98778,-73.97384,11.0],[40.98753,-73.97514,9.6],[40.986,-73.97521,10.8],[40.98473,-73.975,11.0],[40.98392,-73.97398,8.7],[40.98324,-73.97253,9.4],[40.98167,-73.97247,9.6],[40.97813,-73.97286,16.1],[40.97527,-73.97318,17.7],[40.97084,-73.97368,16.6],[40.96923,-73.97686,19.9],[40.96852,-73.97965,23.8],[40.96855,-73.983,22.5],[40.96863,-73.98581,14.9],[40.96839,-73.98775,11.4],[40.96853,-73.99128,8.6],[40.96696,-73.99303,12.2],[40.96369,-73.99326,22.4],[40.96022,-73.99352,26.4],[40.9566,-73.99381,25.3],[40.95656,-73.99696,18.7],[40.95679,-74.00219,19.2],[40.95699,-74.00743,9.7],[40.95684,-74.01087,9.2],[40.95719,-74.01409,8.5],[40.958,-74.0182,7.9],[40.95784,-74.0188,7.9],[40.95627,-74.01941,8.8],[40.95387,-74.01834,9.2],[40.95387,-74.02349,8.2],[40.9539,-74.02781,6.5],[40.95417,-74.03109,11.1],[40.95517,-74.03501,27.6],[40.9533,-74.03584,26.1],[40.95142,-74.03669,24.8],[40.95019,-74.03303,19.5],[40.94848,-74.03196,15.3],[40.94781,-74.03136,14.0],[40.94711,-74.02952,16.5],[40.94651,-74.02894,16.2],[40.94627,-74.02709,5.9],[40.94593,-74.025,1.8],[40.94579,-74.02297,3.7],[40.94563,-74.01846,8.7],[40.94455,-74.01623,9.2],[40.94098,-74.01623,9.8],[40.94025,-74.01313,12.7],[40.94021,-74.00819,17.3],[40.94018,-74.00311,16.2],[40.9403,-73.99841,22.1],[40.94044,-73.99526,27.5],[40.94063,-73.99139,29.0],[40.94088,-73.98604,34.8],[40.94108,-73.98186,49.1],[40.9385,-73.98225,45.2],[40.93698,-73.98057,41.5],[40.93694,-73.9793,39.0],[40.93661,-73.97852,38.6],[40.93524,-73.97731,43.5],[40.93128,-73.97752,45.6],[40.92721,-73.97772,44.6],[40.92393,-73.9779,44.0],[40.92154,-73.97801,44.8],[40.92145,-73.97735,43.5],[40.92156,-73.97427,22.5],[40.92149,-73.97168,20.4],[40.92144,-73.96896,14.2],[40.91966,-73.96578,15.0],[40.91818,-73.96587,15.8],[40.91448,-73.96679,17.3],[40.91307,-73.96526,25.9],[40.91096,-73.96142,36.7],[40.90848,-73.95871,40.4],[40.90685,-73.95951,40.3],[40.90596,-73.96014,37.8],[40.9051,-73.96058,35.5],[40.90415,-73.9617,32.4],[40.90353,-73.96211,32.0],[40.90217,-73.96317,33.7],[40.90045,-73.96273,45.8],[40.89757,-73.962,54.1],[40.89505,-73.95764,98.8],[40.89326,-73.95456,116.2],[40.89193,-73.95274,115.3],[40.89098,-73.95221,115.0],[40.8896,-73.95192,112.5],[40.88787,-73.95154,116.8],[40.88571,-73.95006,113.7],[40.8832,-73.95168,108.3],[40.88052,-73.95126,104.1],[40.87916,-73.94979,103.3],[40.87641,-73.95075,106.5],[40.87368,-73.95168,100.4],[40.87218,-73.95275,101.4],[40.87036,-73.95407,106.5],[40.86815,-73.95471,103.4],[40.86621,-73.95493,103.3],[40.86539,-73.95541,102.5],[40.86323,-73.95701,101.8],[40.86119,-73.9592,100.7],[40.85981,-73.96066,98.6],[40.85826,-73.96129,97.5],[40.85646,-73.96229,89.5],[40.85407,-73.96353,88.0],[40.85435,-73.96296,88.3],[40.85414,-73.96284,88.4],[40.85379,-73.96246,88.5],[40.85407,-73.96262,88.7],[40.85462,-73.96269,88.9],[40.85497,-73.96258,88.5],[40.85416,-73.96271,89.2],[40.85377,-73.9622,91.0],[40.85273,-73.95734,85.5],[40.85165,-73.95183,78.7],[40.85056,-73.94631,71.9],[40.84983,-73.94215,66.8],[40.84986,-73.94136,65.8],[40.8501,-73.94121,65.4],[40.85038,-73.94158,64.7],[40.85061,-73.9415,64.3],[40.85043,-73.9408,63.4],[40.85126,-73.9395,62.5],[40.85133,-73.94095,53.0],[40.85221,-73.94147,43.6],[40.85271,-73.9415,40.3],[40.85147,-73.94274,33.9],[40.8508,-73.94354,29.6],[40.85087,-73.94377,27.4],[40.85123,-73.94334,26.2],[40.85155,-73.94358,18.6],[40.8513,-73.94493,15.5],[40.85018,-73.94603,14.9],[40.84824,-73.94652,3.3],[40.84695,-73.94633,3.8],[40.8454,-73.94601,2.9],[40.84412,-73.94602,2.4],[40.843,-73.94604,4.3],[40.84244,-73.94612,5.0],[40.83997,-73.94745,5.6],[40.83861,-73.94834,4.2],[40.83808,-73.94867,5.6],[40.83774,-73.94898,5.5],[40.83704,-73.94919,13.2],[40.83642,-73.94944,2.4],[40.83537,-73.9497,1.0],[40.83451,-73.95,2.1],[40.83363,-73.95054,3.4],[40.833,-73.95078,4.3],[40.83216,-73.95139,3.3],[40.83153,-73.95168,3.7],[40.82982,-73.95284,3.7],[40.82841,-73.95372,4.0]],"waypoints":[{"lat":40.99055,"lon":-73.96908,"name":"Rest Stop - Hoelscher Field (Harrington Park NJ)","type":"food","cmt":"food"},{"lat":41.13033,"lon":-73.922489,"name":"Rest Stop - Rockland Lake State Park (south entrance restroom)","type":"food","cmt":"food"},{"lat":41.165808,"lon":-74.033648,"name":"Rest Stop - Eugene Levy Memorial Park (New City NY)","type":"food","cmt":"food"},{"lat":41.029667,"lon":-74.098283,"name":"Rindlaub Park (restrooms only)","type":"toilet","cmt":"restroom"},{"lat":41.029232,"lon":-73.916756,"name":"Rest Stop - Tallman State Park","type":"food","cmt":"food"},{"lat":40.861194,"lon":-73.959202,"name":"Porta Potty in parking lot - Strictly Bicycles","type":"toilet","cmt":"restroom"}]};
+const TRACK = GPX_DATA.track;
+const WAYPOINTS = GPX_DATA.waypoints;
+
+const ANN_ICONS  = {dangerous_turn:'⚠️', railroad:'🚂', route_bug:'🐛', rest_stop:'🚻', road_crossing:'🚦'};
+const ANN_LABELS = {dangerous_turn:'Dangerous Turn', railroad:'Railroad Crossing', route_bug:'Route Bug', rest_stop:'Bathroom / Rest Stop', road_crossing:'Dangerous Road Crossing'};
+
+// ── Session ID ──
+const _params = new URLSearchParams(location.search);
+let sessionId = _params.get('session');
+let sessionName = 'Untitled Session';
+
+// ── State ──
+let annotations = [];
+// annotationMode: null | 'map' | 'reposition'
+let annotationMode = null;
+// pendingAnnotation: {lat, lon} | null — current pin position for the open dialog
+let pendingAnnotation = null;
+// dialogState — snapshot of form fields saved while user is repositioning on map
+let savedDialogState = null;
+let layersVisible = {route: true, stops: true, annotations: true};
+let routeLayer, stopLayer, annotationLayer;
+
+// ── Map setup ──
+const map = L.map('map', {
+  center: [41.0, -73.97],
+  zoom: 11,
+  zoomControl: true,
+  attributionControl: true
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// ── Route ──
+routeLayer = L.layerGroup().addTo(map);
+function drawRoute() {
+  routeLayer.clearLayers();
+  if (!layersVisible.route) return;
+  L.polyline(TRACK.map(p => [p[0], p[1]]), {
+    color: '#3B82F6', weight: 4, opacity: 0.85, smoothFactor: 1.5
+  }).addTo(routeLayer);
+  const start = TRACK[0], end = TRACK[TRACK.length - 1];
+  L.circleMarker([start[0], start[1]], {radius: 7, fillColor: '#00C566', color: '#fff', weight: 2, fillOpacity: 1})
+    .bindTooltip('<span style="font-size:10px">🚦 Start — Washington Heights</span>', {className: 'map-tip'})
+    .addTo(routeLayer);
+  L.circleMarker([end[0], end[1]], {radius: 7, fillColor: '#3B82F6', color: '#fff', weight: 2, fillOpacity: 1})
+    .bindTooltip('<span style="font-size:10px">🏁 Finish</span>', {className: 'map-tip'})
+    .addTo(routeLayer);
+}
+drawRoute();
+
+// ── Waypoints ──
+stopLayer = L.layerGroup().addTo(map);
+function drawStops() {
+  stopLayer.clearLayers();
+  if (!layersVisible.stops) return;
+  WAYPOINTS.forEach(w => {
+    const isFood = w.type === 'food';
+    const icon = isFood ? '🍽️' : '🚻';
+    const color = isFood ? '#00C566' : '#0090FF';
+    const marker = L.circleMarker([w.lat, w.lon], {
+      radius: 9, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.92
+    }).addTo(stopLayer);
+    marker.bindPopup(`
+      <div class="wpt-popup" style="min-width:180px;padding:2px 0">
+        <div style="font-size:16px;margin-bottom:6px">${icon}</div>
+        <div class="wpt-popup-name">${w.name}</div>
+        <span class="wpt-popup-type ${w.type}">${isFood ? 'Rest Stop + Food' : 'Restroom'}</span>
+      </div>
+    `, {maxWidth: 240});
+    marker.bindTooltip(`<span style="font-size:10px">${icon} ${w.name.replace('Rest Stop - ', '')}</span>`, {className: 'map-tip'});
+  });
+}
+drawStops();
+
+// ── Annotation markers ──
+annotationLayer = L.layerGroup().addTo(map);
+function drawAnnotationMarkers() {
+  annotationLayer.clearLayers();
+  if (!layersVisible.annotations) return;
+  for (const ann of annotations) {
+    L.marker([ann.lat, ann.lon], {
+      icon: L.divIcon({
+        html: `<div style="font-size:24px;line-height:1;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.7));cursor:pointer">${ANN_ICONS[ann.type] || '📍'}</div>`,
+        iconSize: [30, 30], iconAnchor: [15, 15], className: ''
+      })
+    }).on('click', () => openAnnotationDetail(ann.id)).addTo(annotationLayer);
+  }
+}
+
+// ── Route snapping ──
+function snapToRoute(lat, lon) {
+  let best = null, bestDist = Infinity;
+  for (const [tlat, tlon] of TRACK) {
+    const d = Math.hypot(lat - tlat, lon - tlon);
+    if (d < bestDist) { bestDist = d; best = [tlat, tlon]; }
+  }
+  return best;
+}
+
+// ── Map click dispatch ──
+map.on('click', e => {
+  if (annotationMode === 'map') {
+    const [slat, slon] = snapToRoute(e.latlng.lat, e.latlng.lng);
+    exitMapMode();
+    openAnnotationDialog(slat, slon, false);
+  } else if (annotationMode === 'reposition') {
+    const [slat, slon] = snapToRoute(e.latlng.lat, e.latlng.lng);
+    exitMapMode();
+    pendingAnnotation = {lat: slat, lon: slon};
+    restoreDialogState();
+    updatePosDisplay();
+  }
+});
+
+function fitRoute() {
+  const bounds = L.latLngBounds(TRACK.map(p => [p[0], p[1]]));
+  map.fitBounds(bounds, {padding: [20, 20]});
+}
+fitRoute();
+
+// ── Map annotation mode ──
+function enterMapAnnotationMode() {
+  annotationMode = 'map';
+  document.getElementById('mode-banner').classList.add('show');
+  map.getContainer().style.cursor = 'crosshair';
+  document.getElementById('btn-annotate-map').classList.add('active-mode');
+}
+
+function exitMapMode() {
+  annotationMode = null;
+  document.getElementById('mode-banner').classList.remove('show');
+  map.getContainer().style.cursor = '';
+  document.getElementById('btn-annotate-map').classList.remove('active-mode');
+}
+
+// ── Open dialog (shared by both flows) ──
+// showStreetsFirst: if true, cross-streets field is shown prominently at top;
+//                   if false (map-click flow), it's collapsed / secondary.
+function openAnnotationDialog(lat, lon, showStreetsFirst) {
+  pendingAnnotation = lat != null ? {lat, lon} : null;
+
+  document.getElementById('ann-type').value = 'dangerous_turn';
+  document.getElementById('ann-note').value = '';
+  document.getElementById('ann-cross').value = '';
+  document.getElementById('ann-photo-input').value = '';
+  document.getElementById('ann-geocode-status').textContent = '';
+
+  const streetsField = document.getElementById('ann-streets-field');
+  if (showStreetsFirst) {
+    streetsField.style.display = '';
+    document.getElementById('ann-dialog-title').textContent = 'Annotate by Streets';
+  } else {
+    streetsField.style.display = 'none';
+    document.getElementById('ann-dialog-title').textContent = 'Add Annotation';
+  }
+
+  updatePosDisplay();
+  document.getElementById('annotation-overlay').classList.add('open');
+}
+
+// ── "Annotate by Streets" toolbar button ──
+function openAnnotationByStreets() {
+  openAnnotationDialog(null, null, true);
+}
+
+// ── Position display + Save button enable/disable ──
+function updatePosDisplay() {
+  const el = document.getElementById('ann-pos-display');
+  const saveBtn = document.getElementById('ann-save-btn');
+  if (pendingAnnotation) {
+    el.textContent = `${pendingAnnotation.lat.toFixed(5)}, ${pendingAnnotation.lon.toFixed(5)}`;
+    el.classList.remove('unset');
+    saveBtn.disabled = false;
+  } else {
+    el.textContent = 'No position set — use cross streets or "Move pin on map"';
+    el.classList.add('unset');
+    saveBtn.disabled = true;
+  }
+}
+
+// ── Geocode and snap ──
+async function geocodeAndSnap() {
+  const query = document.getElementById('ann-cross').value.trim();
+  if (!query) return;
+  const statusEl = document.getElementById('ann-geocode-status');
+  statusEl.style.color = '';
+  statusEl.textContent = 'Searching…';
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+    const r = await fetch(url, {headers: {'Accept-Language': 'en'}});
+    const j = await r.json();
+    if (!j.length) {
+      statusEl.textContent = 'Not found — try adding a city or state';
+      statusEl.style.color = '#FF7A00';
+      return;
+    }
+    const [slat, slon] = snapToRoute(parseFloat(j[0].lat), parseFloat(j[0].lon));
+    pendingAnnotation = {lat: slat, lon: slon};
+    statusEl.textContent = '✓ Snapped to route';
+    statusEl.style.color = '#00C566';
+    updatePosDisplay();
+    map.setView([slat, slon], 15, {animate: true});
+  } catch(e) {
+    statusEl.textContent = 'Error — check connection';
+    statusEl.style.color = '#FF5050';
+  }
+}
+
+// ── Reposition on map from within dialog ──
+function saveDialogState() {
+  savedDialogState = {
+    type: document.getElementById('ann-type').value,
+    note: document.getElementById('ann-note').value,
+    cross: document.getElementById('ann-cross').value
+  };
+}
+
+function restoreDialogState() {
+  if (!savedDialogState) return;
+  document.getElementById('ann-type').value = savedDialogState.type;
+  document.getElementById('ann-note').value = savedDialogState.note;
+  document.getElementById('ann-cross').value = savedDialogState.cross;
+  savedDialogState = null;
+  document.getElementById('annotation-overlay').classList.add('open');
+}
+
+function startRepositionFromDialog() {
+  saveDialogState();
+  document.getElementById('annotation-overlay').classList.remove('open');
+  annotationMode = 'reposition';
+  const banner = document.getElementById('mode-banner');
+  banner.textContent = '📍 Click anywhere near the route to reposition the pin';
+  banner.classList.add('show');
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+function closeAnnotationDialog() {
+  document.getElementById('annotation-overlay').classList.remove('open');
+  pendingAnnotation = null;
+  savedDialogState = null;
+  if (annotationMode) exitMapMode();
+}
+
+function annOverlayBgClick(e) {
+  if (e.target === document.getElementById('annotation-overlay')) closeAnnotationDialog();
+}
+
+// ── File / thumbnail helpers ──
+function readFileAsDataURL(file) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.readAsDataURL(file);
+  });
+}
+
+function makeThumb(src) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      const s = 80, ratio = Math.min(s / img.width, s / img.height);
+      c.width = img.width * ratio; c.height = img.height * ratio;
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = src;
+  });
+}
+
+// ── Save annotation ──
+async function saveAnnotation() {
+  if (!pendingAnnotation) return;
+  const ann = {
+    id: 'ann_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+    type: document.getElementById('ann-type').value,
+    lat: pendingAnnotation.lat,
+    lon: pendingAnnotation.lon,
+    note: document.getElementById('ann-note').value,
+    crossStreets: document.getElementById('ann-cross').value,
+    thumb: null
+  };
+
+  const photoFile = document.getElementById('ann-photo-input').files[0];
+  if (photoFile) {
+    const src = await readFileAsDataURL(photoFile);
+    ann.thumb = await makeThumb(src);
+  }
+
+  annotations.push(ann);
+  drawAnnotationMarkers();
+  updateAnnStat();
+
+  if (fb) {
+    try { await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${ann.id}`), ann); }
+    catch(e) { console.warn('DB write failed', e); }
+  }
+  saveAnnotationsLocal();
+  updateSessionCount();
+  closeAnnotationDialog();
+  map.setView([ann.lat, ann.lon], 15, {animate: true});
+}
+
+// ── Annotation detail ──
+function openAnnotationDetail(id) {
+  const ann = annotations.find(a => a.id === id);
+  if (!ann) return;
+
+  document.getElementById('ann-detail-icon').textContent = ANN_ICONS[ann.type] || '📍';
+  document.getElementById('ann-detail-type').textContent = ANN_LABELS[ann.type] || ann.type;
+  document.getElementById('ann-detail-coords').textContent = `${ann.lat.toFixed(5)}, ${ann.lon.toFixed(5)}`;
+
+  const crossRow = document.getElementById('ann-detail-cross-row');
+  crossRow.style.display = ann.crossStreets ? 'block' : 'none';
+  if (ann.crossStreets) document.getElementById('ann-detail-cross').textContent = ann.crossStreets;
+
+  const noteRow = document.getElementById('ann-detail-note-row');
+  noteRow.style.display = ann.note ? 'block' : 'none';
+  if (ann.note) document.getElementById('ann-detail-note').textContent = ann.note;
+
+  const imgEl = document.getElementById('ann-detail-img');
+  if (ann.thumb) {
+    imgEl.src = ann.thumb;
+    imgEl.style.display = 'block';
+  } else {
+    imgEl.style.display = 'none';
+  }
+
+  document.getElementById('ann-detail-delete').onclick = () => deleteAnnotation(id);
+  document.getElementById('ann-detail-overlay').classList.add('open');
+}
+
+function closeAnnotationDetail() {
+  document.getElementById('ann-detail-overlay').classList.remove('open');
+}
+
+function annDetailBgClick(e) {
+  if (e.target === document.getElementById('ann-detail-overlay')) closeAnnotationDetail();
+}
+
+async function deleteAnnotation(id) {
+  annotations = annotations.filter(a => a.id !== id);
+  drawAnnotationMarkers();
+  updateAnnStat();
+  if (fb) {
+    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${id}`)); } catch(e) {}
+  }
+  saveAnnotationsLocal();
+  updateSessionCount();
+  closeAnnotationDetail();
+}
+
+// ── Layer toggles ──
+function toggleLayer(name) {
+  layersVisible[name] = !layersVisible[name];
+  const btn = document.getElementById('toggle-' + name);
+  if (btn) btn.classList.toggle('on', layersVisible[name]);
+  if (name === 'route') drawRoute();
+  if (name === 'stops') drawStops();
+  if (name === 'annotations') drawAnnotationMarkers();
+}
+
+// ── Clear session ──
+async function clearSession() {
+  if (!confirm('Delete all annotations in this session? This cannot be undone.')) return;
+  annotations = [];
+  drawAnnotationMarkers();
+  updateAnnStat();
+  localStorage.removeItem('pr26_annotations');
+  if (fb) {
+    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`)); } catch(e) {}
+  }
+  updateSessionCount();
+}
+
+// ── Share ──
+function shareSession() {
+  navigator.clipboard.writeText(location.href).then(() => {
+    const t = document.getElementById('share-toast');
+    t.style.display = 'inline';
+    setTimeout(() => t.style.display = 'none', 2500);
+  }).catch(() => prompt('Copy this link to share:', location.href));
+}
+
+// ── Download session ──
+function downloadSession() {
+  const data = {
+    sessionId,
+    sessionName,
+    exportedAt: new Date().toISOString(),
+    annotations
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const slug = sessionName.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-|-$/g, '');
+  a.download = `${slug || 'session'}-${sessionId.slice(0, 8)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Upload / import session ──
+async function handleUploadSession(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+    if (!Array.isArray(data.annotations)) throw new Error('Missing annotations array');
+  } catch(err) {
+    alert('Could not read file: ' + err.message);
+    return;
+  }
+
+  const importedName = data.sessionName || file.name.replace(/\.json$/i, '') || 'Imported Session';
+  await createNamedSession(importedName);
+  annotations = data.annotations;
+  drawAnnotationMarkers();
+
+  if (fb) {
+    for (const ann of annotations) {
+      try { await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${ann.id}`), ann); } catch(_) {}
+    }
+  }
+  saveAnnotationsLocal();
+  updateSessionCount();
+  closeSessionBrowser();
+}
+
+// ── Persistence ──
+function saveAnnotationsLocal() {
+  try { localStorage.setItem('pr26_annotations', JSON.stringify(annotations)); } catch(e) {}
+}
+
+function updateAnnStat() { /* stats strip removed */ }
+
+// ── Keyboard ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (annotationMode) { exitMapMode(); restoreDialogState(); return; }
+    if (document.getElementById('annotation-overlay').classList.contains('open')) {
+      closeAnnotationDialog(); return;
+    }
+    if (document.getElementById('ann-detail-overlay').classList.contains('open')) {
+      closeAnnotationDetail(); return;
+    }
+  }
+});
+
+// ── Session index helpers ──
+async function writeSessionIndex() {
+  if (!fb) return;
+  try {
+    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}`), {
+      name: sessionName,
+      createdAt: Date.now(),
+      annotationCount: annotations.length
+    });
+  } catch(e) { console.warn('sessionIndex write failed', e); }
+}
+
+async function updateSessionCount() {
+  if (!fb) return;
+  try {
+    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/annotationCount`), annotations.length);
+  } catch(e) {}
+}
+
+function setSessionNameDisplay(name) {
+  sessionName = name;
+  const el = document.getElementById('session-bar-name');
+  if (el) el.textContent = name;
+}
+
+// ── New session name dialog ──
+function confirmSessionName() {
+  const val = document.getElementById('sname-input').value.trim();
+  createNamedSession(val || 'Untitled Session');
+}
+
+async function createNamedSession(name) {
+  setSessionNameDisplay(name);
+  sessionId = (crypto.randomUUID?.() ??
+    Date.now().toString(36) + Math.random().toString(36).slice(2));
+  history.replaceState(null, '', '?session=' + sessionId);
+  document.getElementById('sname-overlay').classList.remove('open');
+  await writeSessionIndex();
+  updateAnnStat();
+}
+
+// ── Rename current session ──
+async function renameCurrentSession() {
+  const newName = prompt('Rename this session:', sessionName);
+  if (!newName || !newName.trim()) return;
+  setSessionNameDisplay(newName.trim());
+  if (fb) {
+    try { await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/name`), sessionName); } catch(e) {}
+  }
+}
+
+// ── Session browser ──
+async function openSessionBrowser() {
+  document.getElementById('sbrowser-overlay').classList.add('open');
+  const list = document.getElementById('sbrowser-list');
+  if (!fb) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:24px">Firebase required to browse sessions</div>';
+    return;
+  }
+  list.innerHTML = '<div style="color:var(--dimmer);font-size:11px;text-align:center;padding:24px">Loading…</div>';
+  try {
+    const snap = await fb.dbGet(fb.dbRef(fb.db, 'sessionIndex'));
+    list.innerHTML = '';
+    if (!snap.exists()) {
+      list.innerHTML = '<div style="color:var(--dimmer);font-size:11px;text-align:center;padding:24px">No sessions found</div>';
+      return;
+    }
+    const sessions = Object.entries(snap.val())
+      .map(([id, data]) => ({id, ...data}))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    for (const s of sessions) {
+      const isCurrent = s.id === sessionId;
+      const date = s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '—';
+      const card = document.createElement('div');
+      card.className = 'session-card' + (isCurrent ? ' current' : '');
+      card.innerHTML = `
+        <div class="session-card-info">
+          <div class="session-card-name">${escHtml(s.name || 'Untitled')}</div>
+          <div class="session-card-meta">${s.annotationCount || 0} annotation${s.annotationCount !== 1 ? 's' : ''} · ${date}</div>
+        </div>
+        <div class="session-card-actions">
+          ${isCurrent
+            ? '<span style="font-size:9px;letter-spacing:1px;color:#3B82F6;font-weight:700;font-family:\'DM Mono\',monospace">CURRENT</span>'
+            : `<button class="session-open-btn" onclick="switchToSession('${s.id}')">Open</button>`}
+          <button class="session-del-btn" onclick="deleteSessionEntry('${s.id}')">Delete</button>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+  } catch(e) {
+    list.innerHTML = '<div style="color:#FF5050;font-size:11px;text-align:center;padding:24px">Error loading sessions</div>';
+  }
+}
+
+function closeSessionBrowser() {
+  document.getElementById('sbrowser-overlay').classList.remove('open');
+}
+
+function sbrowserBgClick(e) {
+  if (e.target === document.getElementById('sbrowser-overlay')) closeSessionBrowser();
+}
+
+function newSessionFromBrowser() {
+  closeSessionBrowser();
+  document.getElementById('sname-input').value = '';
+  document.getElementById('sname-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('sname-input').focus(), 50);
+}
+
+function switchToSession(id) {
+  location.href = '?session=' + id;
+}
+
+async function deleteSessionEntry(id) {
+  if (!confirm('Delete this session and all its annotations? This cannot be undone.')) return;
+  if (!fb) return;
+  try {
+    await Promise.all([
+      fb.dbRemove(fb.dbRef(fb.db, `sessionIndex/${id}`)),
+      fb.dbRemove(fb.dbRef(fb.db, `sessions/${id}`))
+    ]);
+    if (id === sessionId) {
+      location.href = location.pathname;
+    } else {
+      openSessionBrowser();
+    }
+  } catch(e) { alert('Error deleting session'); }
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Load session ──
+async function loadSession() {
+  if (fb) {
+    try {
+      const [idxSnap, annSnap] = await Promise.all([
+        fb.dbGet(fb.dbRef(fb.db, `sessionIndex/${sessionId}`)),
+        fb.dbGet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`))
+      ]);
+      if (idxSnap.exists()) {
+        setSessionNameDisplay(idxSnap.val().name || 'Untitled Session');
+      } else {
+        setSessionNameDisplay('Untitled Session');
+        await writeSessionIndex();
+      }
+      if (annSnap.exists()) annotations = Object.values(annSnap.val());
+    } catch(e) {
+      console.warn('Firebase load failed, falling back', e);
+      setSessionNameDisplay('Untitled Session');
+      annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
+    }
+  } else {
+    setSessionNameDisplay('Local session');
+    annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
+  }
+  drawAnnotationMarkers();
+  updateAnnStat();
+}
+
+// Tooltip style
+const _style = document.createElement('style');
+_style.textContent = `.map-tip{background:rgba(7,7,15,0.92)!important;border:1px solid rgba(255,255,255,0.15)!important;border-radius:8px!important;color:#eeeaff!important;font-family:Inter,sans-serif!important;font-size:10px!important;padding:5px 10px!important;box-shadow:none!important}.map-tip::before{display:none!important}`;
+document.head.appendChild(_style);
+
+// ── Expose to window for inline onclick ──
+Object.assign(window, {
+  enterMapAnnotationMode, openAnnotationByStreets,
+  fitRoute, toggleLayer, shareSession, clearSession,
+  downloadSession, handleUploadSession,
+  geocodeAndSnap, startRepositionFromDialog, closeAnnotationDialog, annOverlayBgClick, saveAnnotation,
+  openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation,
+  openSessionBrowser, closeSessionBrowser, sbrowserBgClick,
+  newSessionFromBrowser, switchToSession, deleteSessionEntry, confirmSessionName
+});
+
+if (sessionId) {
+  loadSession();
+} else {
+  setSessionNameDisplay('Select a session…');
+  openSessionBrowser();
+}
+</script>
+</body>
+</html>
