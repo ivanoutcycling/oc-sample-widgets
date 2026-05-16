@@ -174,6 +174,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
       Share
     </button>
     <span id="share-toast" style="display:none;font-size:10px;color:#00C566;font-weight:600">✓ Link copied!</span>
+    <button class="btn" style="color:#FF5050;border-color:rgba(255,80,80,0.3)" onclick="clearSession()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      Clear All
+    </button>
   </div>
 
   <!-- Map -->
@@ -444,10 +448,10 @@ function openAnnotationDialog(lat, lon, showStreetsFirst) {
 
   const streetsField = document.getElementById('ann-streets-field');
   if (showStreetsFirst) {
-    streetsField.style.order = '-1';
+    streetsField.style.display = '';
     document.getElementById('ann-dialog-title').textContent = 'Annotate by Streets';
   } else {
-    streetsField.style.order = '';
+    streetsField.style.display = 'none';
     document.getElementById('ann-dialog-title').textContent = 'Add Annotation';
   }
 
@@ -655,6 +659,18 @@ function toggleLayer(name) {
   if (name === 'annotations') drawAnnotationMarkers();
 }
 
+// ── Clear session ──
+async function clearSession() {
+  if (!confirm('Delete all annotations in this session? This cannot be undone.')) return;
+  annotations = [];
+  drawAnnotationMarkers();
+  updateAnnStat();
+  localStorage.removeItem('pr26_annotations');
+  if (fb) {
+    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`)); } catch(e) {}
+  }
+}
+
 // ── Share ──
 function shareSession() {
   navigator.clipboard.writeText(location.href).then(() => {
@@ -712,7 +728,7 @@ document.head.appendChild(_style);
 // ── Expose to window for inline onclick ──
 Object.assign(window, {
   enterMapAnnotationMode, openAnnotationByStreets,
-  fitRoute, toggleLayer, shareSession,
+  fitRoute, toggleLayer, shareSession, clearSession,
   geocodeAndSnap, startRepositionFromDialog, closeAnnotationDialog, annOverlayBgClick, saveAnnotation,
   openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation
 });
