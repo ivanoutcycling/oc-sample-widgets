@@ -412,7 +412,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 // ── Firebase config ──
 const FIREBASE_CONFIG = {
@@ -991,7 +991,8 @@ async function signOutCoordinator() {
   if (!fbAuth) return;
   if (!confirm('Sign out of coordinator access?')) return;
   await fbSignOut(fbAuth);
-  // onAuthStateChanged fires and sets authenticated = false
+  // Sign in anonymously to restore read access without coordinator privileges
+  signInAnonymously(fbAuth);
   closeSessionBrowser();
 }
 
@@ -1149,15 +1150,24 @@ function _startup() {
 if (fbAuth) {
   let _startupDone = false;
   onAuthStateChanged(fbAuth, user => {
-    authenticated = !!user;
-    if (user && document.getElementById('auth-overlay').classList.contains('open')) {
-      // Sign-in just succeeded — close dialog and run pending callback
+    // Anonymous sign-in satisfies Firebase read rules but is not coordinator access.
+    authenticated = !!(user && !user.isAnonymous);
+    if (user && !user.isAnonymous && document.getElementById('auth-overlay').classList.contains('open')) {
+      // Coordinator sign-in just succeeded — close dialog and run pending callback
       document.getElementById('auth-input').value = '';
       document.getElementById('auth-status').textContent = '';
       document.getElementById('auth-overlay').classList.remove('open');
       if (_pendingAuthCb) { _pendingAuthCb(); _pendingAuthCb = null; }
     }
-    if (!_startupDone) { _startupDone = true; _startup(); }
+    if (!_startupDone) {
+      if (user) {
+        // Have a Firebase user (anonymous or coordinator) — safe to read
+        _startupDone = true; _startup();
+      } else {
+        // No user at all — sign in anonymously so reads succeed
+        signInAnonymously(fbAuth);
+      }
+    }
   });
 } else {
   _startup();
