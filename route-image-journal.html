@@ -291,7 +291,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   <div class="auth-panel">
     <div class="auth-lock">🔒</div>
     <h3>Coordinator Access</h3>
-    <p>Enter the ride coordinator password to manage sessions.</p>
+    <p>Enter your coordinator email and password to manage sessions.</p>
+    <input class="auth-input" id="auth-email-input" type="email" placeholder="Email"
+           onkeydown="if(event.key==='Enter') document.getElementById('auth-input').focus()">
     <input class="auth-input" id="auth-input" type="password" placeholder="Password"
            onkeydown="if(event.key==='Enter') submitAuth()">
     <div class="auth-status" id="auth-status"></div>
@@ -427,7 +429,6 @@ const FIREBASE_CONFIG = {
 
 // Email for the shared coordinator account — create this in Firebase Console →
 // Authentication → Users. The password is never stored here.
-const COORDINATOR_EMAIL = 'coordinator@prideride2026.com';
 
 let fb = null;
 let fbAuth = null;
@@ -954,12 +955,13 @@ function requireAuth(onSuccess) {
   if (authenticated) { onSuccess(); return; }
   _pendingAuthCb = onSuccess;
   document.getElementById('auth-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('auth-input').focus(), 50);
+  setTimeout(() => document.getElementById('auth-email-input').focus(), 50);
 }
 
 async function submitAuth() {
+  const email = document.getElementById('auth-email-input').value.trim();
   const pwd = document.getElementById('auth-input').value;
-  if (!pwd) return;
+  if (!email || !pwd) return;
   const statusEl = document.getElementById('auth-status');
   statusEl.textContent = 'Signing in…';
   if (!fbAuth) {
@@ -967,12 +969,12 @@ async function submitAuth() {
     return;
   }
   try {
-    await signInWithEmailAndPassword(fbAuth, COORDINATOR_EMAIL, pwd);
+    await signInWithEmailAndPassword(fbAuth, email, pwd);
     // onAuthStateChanged fires next and sets authenticated = true,
     // closes the dialog, and runs the pending callback.
   } catch(e) {
     const msg = e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password'
-      ? '✗ Incorrect password'
+      ? '✗ Incorrect email or password'
       : 'Error — check connection';
     statusEl.textContent = msg;
     document.getElementById('auth-input').value = '';
@@ -982,6 +984,7 @@ async function submitAuth() {
 
 function closeAuthDialog() {
   document.getElementById('auth-overlay').classList.remove('open');
+  document.getElementById('auth-email-input').value = '';
   document.getElementById('auth-input').value = '';
   document.getElementById('auth-status').textContent = '';
   _pendingAuthCb = null;
@@ -1154,6 +1157,7 @@ if (fbAuth) {
     authenticated = !!(user && !user.isAnonymous);
     if (user && !user.isAnonymous && document.getElementById('auth-overlay').classList.contains('open')) {
       // Coordinator sign-in just succeeded — close dialog and run pending callback
+      document.getElementById('auth-email-input').value = '';
       document.getElementById('auth-input').value = '';
       document.getElementById('auth-status').textContent = '';
       document.getElementById('auth-overlay').classList.remove('open');
