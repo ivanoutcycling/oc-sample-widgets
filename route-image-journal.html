@@ -3,17 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pride Ride 2026 — Route Image Journal</title>
+<title>Pride Ride 2026 — Route Annotation Journal</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.cjs"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#07070f;--surface:#0f0f1c;--card:#131323;--border:rgba(255,255,255,0.07);
   --text:#eeeaff;--muted:rgba(238,234,255,0.42);--dimmer:rgba(238,234,255,0.16);
-  --r:#FF3366;--o:#FF7A00;--y:#FFD600;--g:#00C566;--b:#0090FF;--v:#A855F7;
+  --y:#FFD600;--g:#00C566;--b:#0090FF;--v:#A855F7;
   --accent:#3B82F6;
 }
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -32,25 +31,15 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .toolbar{display:flex;align-items:center;gap:8px;padding:14px 32px;flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.15);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none}
 .btn:hover{color:var(--text);border-color:rgba(255,255,255,0.28)}
-.btn.primary{background:linear-gradient(135deg,#3B82F6,#0090FF);border-color:transparent;color:#fff}
-.btn.primary:hover{opacity:0.9}
-.btn.annotate-active{background:rgba(255,122,0,0.15);border-color:rgba(255,122,0,0.5);color:#FF7A00}
+.btn.active-mode{background:rgba(255,122,0,0.12);border-color:rgba(255,122,0,0.45);color:#FF7A00}
 .btn svg{width:14px;height:14px;flex-shrink:0}
 .btn-toggle{padding:7px 12px;font-size:10px}
 .btn-toggle.on{background:var(--card);border-color:rgba(255,255,255,0.22);color:var(--text)}
 .separator{width:1px;height:24px;background:var(--border);margin:0 2px}
-.upload-hint{font-size:10px;color:var(--dimmer);margin-left:4px}
-#file-input{display:none}
-
-/* ── Main content area ── */
-.content{display:grid;grid-template-columns:1fr 320px;gap:0;padding:0 32px;height:580px}
-@media(max-width:800px){
-  .content{grid-template-columns:1fr;height:auto}
-  .sidebar{max-height:340px}
-}
 
 /* ── Map ── */
-.map-wrap{border-radius:14px 0 0 14px;overflow:hidden;border:1px solid var(--border);border-right:none;position:relative}
+.content{padding:0 32px;height:620px}
+.map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border);height:100%}
 #map{width:100%;height:100%}
 
 /* Leaflet customization */
@@ -58,68 +47,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .leaflet-control-zoom a:hover{background:#242440!important}
 .leaflet-control-attribution{background:rgba(7,7,15,0.7)!important;color:rgba(238,234,255,0.3)!important;font-size:8px!important}
 .leaflet-control-attribution a{color:rgba(238,234,255,0.45)!important}
-
-/* ── Sidebar ── */
-.sidebar{background:var(--surface);border:1px solid var(--border);border-radius:0 14px 14px 0;display:flex;flex-direction:column;overflow:hidden}
-.sidebar-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
-.sidebar-title{font-family:'Unbounded',sans-serif;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--dimmer)}
-.photo-count{font-size:10px;color:var(--muted);margin-top:2px}
-.photo-list{flex:1;overflow-y:auto;padding:8px}
-.photo-list::-webkit-scrollbar{width:4px}
-.photo-list::-webkit-scrollbar-track{background:transparent}
-.photo-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
-
-/* ── Photo card ── */
-.photo-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;cursor:pointer;transition:border-color 0.15s,transform 0.1s}
-.photo-card:hover{border-color:rgba(255,255,255,0.18);transform:translateY(-1px)}
-.photo-card.active{border-color:#3B82F6;box-shadow:0 0 0 1px rgba(59,130,246,0.3)}
-.photo-thumb-wrap{position:relative;height:120px;overflow:hidden;background:#0a0a18}
-.photo-thumb{width:100%;height:100%;object-fit:cover;display:block}
-.photo-badge{position:absolute;top:6px;left:6px;background:rgba(7,7,15,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:5px;padding:2px 7px;font-size:8px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:0.5px;backdrop-filter:blur(8px)}
-.photo-badge.gps{color:#00C566;border-color:rgba(0,197,102,0.3);background:rgba(0,197,102,0.1)}
-.photo-badge.no-gps{color:#FF7A00;border-color:rgba(255,122,0,0.3);background:rgba(255,122,0,0.1)}
-.photo-meta{padding:10px 12px}
-.photo-filename{font-size:9.5px;font-weight:500;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.photo-coords{font-size:8px;font-family:'DM Mono',monospace;color:var(--dimmer);margin-bottom:6px}
-.photo-note-preview{font-size:9px;color:var(--muted);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.no-note{color:var(--dimmer);font-style:italic;font-size:9px}
-
-/* ── Drop zone ── */
-.drop-zone{border:1.5px dashed rgba(255,255,255,0.12);border-radius:10px;padding:20px 16px;text-align:center;margin:8px;color:var(--dimmer);font-size:11px;transition:all 0.2s;cursor:pointer}
-.drop-zone:hover,.drop-zone.drag-over{border-color:rgba(59,130,246,0.5);background:rgba(59,130,246,0.05);color:var(--muted)}
-.drop-zone svg{width:28px;height:28px;margin-bottom:8px;opacity:0.4}
-.drop-zone p{margin-top:4px;font-size:9px;color:var(--dimmer)}
-
-/* ── Detail panel (modal-style overlay) ── */
-.detail-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.85);z-index:2000;padding:20px;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
-.detail-overlay.open{display:flex}
-.detail-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6)}
-.detail-header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.detail-title{font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.detail-close{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;border-radius:5px;display:flex;align-items:center;transition:color 0.15s}
-.detail-close:hover{color:var(--text)}
-.detail-body{display:flex;flex:1;overflow:hidden}
-.detail-img-wrap{flex:1;overflow:hidden;background:#0a0a18;position:relative}
-.detail-img{width:100%;height:100%;object-fit:contain;display:block}
-.detail-sidebar{width:240px;flex-shrink:0;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;border-left:1px solid var(--border)}
-.detail-meta-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:4px;font-family:'Unbounded',sans-serif}
-.detail-meta-val{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.5}
-.note-area{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:10px;resize:vertical;min-height:100px;outline:none;transition:border-color 0.15s;line-height:1.5}
-.note-area:focus{border-color:rgba(59,130,246,0.5)}
-.note-area::placeholder{color:var(--dimmer)}
-.save-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 14px;border-radius:7px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s;width:100%}
-.save-btn:hover{opacity:0.88}
-.saved-msg{font-size:9.5px;color:#00C566;text-align:center;display:none}
-.goto-btn{font-family:'Inter',sans-serif;font-size:10px;padding:7px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;width:100%;text-align:left;display:flex;align-items:center;gap:6px}
-.goto-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.24)}
-.place-btn{font-family:'Inter',sans-serif;font-size:10px;padding:7px 12px;border-radius:7px;border:1px solid rgba(255,122,0,0.3);background:rgba(255,122,0,0.08);color:#FF7A00;cursor:pointer;transition:all 0.15s;width:100%;text-align:left;display:flex;align-items:center;gap:6px}
-.place-btn:hover{background:rgba(255,122,0,0.14)}
-
-/* ── Map markers ── */
-.photo-marker-div{width:44px;height:44px;border-radius:50%;border:2.5px solid #3B82F6;overflow:hidden;cursor:pointer;background:#0a0a18;box-shadow:0 2px 12px rgba(59,130,246,0.45),0 0 0 1px rgba(59,130,246,0.2);transition:transform 0.15s}
-.photo-marker-div:hover{transform:scale(1.12)}
-.photo-marker-div img{width:100%;height:100%;object-fit:cover}
-.photo-marker-div.placing{border-color:#FF7A00;box-shadow:0 2px 12px rgba(255,122,0,0.45)}
 
 /* Waypoint popup */
 .wpt-popup{font-family:'Inter',sans-serif}
@@ -132,9 +59,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .leaflet-popup-close-button{color:rgba(238,234,255,0.4)!important;font-size:16px!important;top:8px!important;right:10px!important}
 .leaflet-popup-close-button:hover{color:#eeeaff!important}
 
-/* Placing / annotation mode banner */
-.placing-banner{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,122,0,0.95);color:#fff;font-size:12px;font-weight:600;padding:10px 20px;border-radius:40px;z-index:3000;box-shadow:0 4px 20px rgba(255,122,0,0.4);pointer-events:none;white-space:nowrap}
-.placing-banner.show{display:block}
+/* Mode banner */
+.mode-banner{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,122,0,0.95);color:#fff;font-size:12px;font-weight:600;padding:10px 20px;border-radius:40px;z-index:3000;box-shadow:0 4px 20px rgba(255,122,0,0.4);pointer-events:none;white-space:nowrap}
+.mode-banner.show{display:block}
 
 /* ── Stats strip ── */
 .stats-strip{display:flex;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:12px 32px 0}
@@ -149,8 +76,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 /* ── Annotation dialog ── */
 .ann-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.85);z-index:3000;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
 .ann-overlay.open{display:flex}
-.ann-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:400px;padding:22px;box-shadow:0 32px 80px rgba(0,0,0,0.6);flex-shrink:0}
-.ann-panel h3{font-family:'Unbounded',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
+.ann-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:420px;padding:22px;box-shadow:0 32px 80px rgba(0,0,0,0.6);flex-shrink:0}
+.ann-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
 .ann-field{margin-bottom:14px}
 .ann-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;display:block;margin-bottom:5px}
 .ann-select,.ann-input,.ann-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:border-color 0.15s}
@@ -159,37 +86,38 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .ann-textarea{resize:vertical;min-height:80px;line-height:1.5}
 .ann-cross-row{display:flex;gap:8px}
 .ann-cross-row .ann-input{flex:1}
-.ann-place-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:#3B82F6;cursor:pointer;white-space:nowrap;transition:all 0.15s;flex-shrink:0}
-.ann-place-btn:hover{background:rgba(59,130,246,0.18)}
-.ann-geocode-status{font-size:10px;color:var(--muted);margin-top:4px;min-height:14px}
-.ann-coords-display{font-size:9px;font-family:'DM Mono',monospace;color:var(--dimmer);margin-top:4px}
+.ann-find-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:#3B82F6;cursor:pointer;white-space:nowrap;transition:all 0.15s;flex-shrink:0}
+.ann-find-btn:hover{background:rgba(59,130,246,0.18)}
+.ann-status{font-size:10px;color:var(--muted);margin-top:4px;min-height:14px}
+.ann-pos-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.ann-pos-display{font-size:9px;font-family:'DM Mono',monospace;color:var(--dimmer);flex:1}
+.ann-pos-display.unset{color:#FF7A00}
+.ann-reposition-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 10px;border-radius:7px;border:1px solid rgba(255,122,0,0.35);background:rgba(255,122,0,0.08);color:#FF7A00;cursor:pointer;white-space:nowrap;transition:all 0.15s;flex-shrink:0}
+.ann-reposition-btn:hover{background:rgba(255,122,0,0.15)}
 .ann-photo-input{width:100%;font-size:11px;color:var(--muted)}
 .ann-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
 .ann-cancel-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
 .ann-cancel-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.24)}
 .ann-save-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s}
-.ann-save-btn:hover{opacity:0.88}
+.ann-save-btn:hover:not(:disabled){opacity:0.88}
+.ann-save-btn:disabled{opacity:0.35;cursor:not-allowed}
 
 /* ── Annotation detail overlay ── */
 .ann-detail-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.85);z-index:2500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
 .ann-detail-overlay.open{display:flex}
 .ann-detail-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:0 32px 80px rgba(0,0,0,0.6)}
-.ann-detail-icon{font-size:36px;margin-bottom:10px;display:block}
-.ann-detail-type{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:16px;display:block}
+.ann-detail-icon{font-size:36px;margin-bottom:8px;display:block}
+.ann-detail-type{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px;display:block}
 .ann-detail-row{margin-bottom:12px}
-.ann-detail-row .ann-label{margin-bottom:3px}
 .ann-detail-val{font-size:11px;color:var(--muted);line-height:1.5}
-.ann-detail-img{width:100%;border-radius:10px;margin-bottom:16px;object-fit:cover;max-height:200px}
-.ann-detail-actions{display:flex;gap:8px;justify-content:space-between;margin-top:18px}
+.ann-detail-img{width:100%;border-radius:10px;margin-bottom:16px;object-fit:cover;max-height:220px}
+.ann-detail-actions{display:flex;gap:8px;justify-content:space-between;margin-top:20px}
 .ann-delete-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);color:#FF5050;cursor:pointer;transition:all 0.15s}
 .ann-delete-btn:hover{background:rgba(255,80,80,0.15)}
 
 @media(max-width:600px){
-  .header,.toolbar,.stats-strip{padding-left:16px;padding-right:16px}
-  .content{padding:0 16px}
+  .header,.toolbar,.stats-strip,.content{padding-left:16px;padding-right:16px}
   .stats-strip{margin-left:16px;margin-right:16px}
-  .detail-body{flex-direction:column}
-  .detail-sidebar{width:100%;border-left:none;border-top:1px solid var(--border);max-height:220px}
 }
 </style>
 </head>
@@ -200,9 +128,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   <!-- Header -->
   <div class="header">
     <div class="accent-bar"></div>
-    <div class="eyebrow">Route Image Journal</div>
+    <div class="eyebrow">Route Annotation Journal</div>
     <div class="title">Pride Ride 2026</div>
-    <div class="subtitle">100 mi · Washington Heights → Hudson Valley · Drop photos to place them on the route</div>
+    <div class="subtitle">100 mi · Washington Heights → Hudson Valley · Annotate the route with hazards, notes &amp; stops</div>
   </div>
 
   <!-- Stats -->
@@ -210,19 +138,18 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     <div class="stat"><div class="stat-val">100</div><div class="stat-label">Miles</div></div>
     <div class="stat"><div class="stat-val">~7,200</div><div class="stat-label">Ft Climb</div></div>
     <div class="stat"><div class="stat-val">6</div><div class="stat-label">Rest Stops</div></div>
-    <div class="stat"><div class="stat-val" id="photo-stat">0</div><div class="stat-label">Photos</div></div>
+    <div class="stat"><div class="stat-val" id="ann-stat">0</div><div class="stat-label">Annotations</div></div>
   </div>
 
   <!-- Toolbar -->
   <div class="toolbar">
-    <button class="btn primary" onclick="document.getElementById('file-input').click()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Add Photos
-    </button>
-    <input type="file" id="file-input" multiple accept="image/*" onchange="handleFileSelect(this.files)">
-    <button class="btn" id="btn-annotate" onclick="enterAnnotationMode()">
+    <button class="btn" id="btn-annotate-map" onclick="enterMapAnnotationMode()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      Annotate
+      Annotate on Map
+    </button>
+    <button class="btn" id="btn-annotate-streets" onclick="openAnnotationByStreets()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Annotate by Streets
     </button>
     <div class="separator"></div>
     <button class="btn btn-toggle on" id="toggle-route" onclick="toggleLayer('route')">
@@ -232,10 +159,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     <button class="btn btn-toggle on" id="toggle-stops" onclick="toggleLayer('stops')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
       Stops
-    </button>
-    <button class="btn btn-toggle on" id="toggle-photos" onclick="toggleLayer('photos')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      Photos
     </button>
     <button class="btn btn-toggle on" id="toggle-annotations" onclick="toggleLayer('annotations')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -251,83 +174,40 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
       Share
     </button>
     <span id="share-toast" style="display:none;font-size:10px;color:#00C566;font-weight:600">✓ Link copied!</span>
-    <span class="upload-hint" id="upload-hint"></span>
   </div>
 
-  <!-- Map + Sidebar -->
+  <!-- Map -->
   <div class="content">
     <div class="map-wrap">
       <div id="map"></div>
-    </div>
-    <div class="sidebar">
-      <div class="sidebar-head">
-        <div class="sidebar-title">Photo Journal</div>
-        <div class="photo-count" id="photo-count">Drop photos or use Add Photos above</div>
-      </div>
-      <div class="photo-list" id="photo-list">
-        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <div>Drag &amp; drop photos here</div>
-          <p>GPS coordinates are auto-detected from photo metadata</p>
-        </div>
-      </div>
     </div>
   </div>
 
 </div><!-- end shell -->
 
-<!-- Photo detail overlay -->
-<div class="detail-overlay" id="detail-overlay" onclick="closeDetail(event)">
-  <div class="detail-panel">
-    <div class="detail-header">
-      <div class="detail-title" id="detail-title"></div>
-      <button class="detail-close" onclick="closeDetailPanel()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="detail-body">
-      <div class="detail-img-wrap">
-        <img class="detail-img" id="detail-img" src="" alt="">
-      </div>
-      <div class="detail-sidebar">
-        <div>
-          <div class="detail-meta-label">Location</div>
-          <div class="detail-meta-val" id="detail-coords">—</div>
-        </div>
-        <div>
-          <div class="detail-meta-label">Date / Time</div>
-          <div class="detail-meta-val" id="detail-datetime">—</div>
-        </div>
-        <div>
-          <button class="goto-btn" id="detail-goto" onclick="gotoPhoto()">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-            Jump to on map
-          </button>
-          <button class="place-btn" id="detail-place" onclick="startPlacing()" style="margin-top:6px">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            Place manually on map
-          </button>
-        </div>
-        <div style="flex:1">
-          <div class="detail-meta-label">Notes</div>
-          <textarea class="note-area" id="note-area" placeholder="Add your notes about this location…" oninput="noteChanged()"></textarea>
-        </div>
-        <div>
-          <button class="save-btn" onclick="saveNote()">Save Note</button>
-          <div class="saved-msg" id="saved-msg">✓ Saved</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Mode banner (map-click annotation) -->
+<div class="mode-banner" id="mode-banner">📍 Click anywhere near the route to place an annotation</div>
 
-<!-- Placing / annotation mode banner -->
-<div class="placing-banner" id="placing-banner">📍 Click on the map to place this photo</div>
-
-<!-- Annotation create dialog -->
-<div class="ann-overlay" id="annotation-overlay" onclick="annOverlayClick(event)">
+<!-- Annotation dialog (shared by both flows) -->
+<div class="ann-overlay" id="annotation-overlay" onclick="annOverlayBgClick(event)">
   <div class="ann-panel">
-    <h3>Add Annotation</h3>
+    <h3 id="ann-dialog-title">Add Annotation</h3>
+
+    <!-- Cross-streets (shown prominently when opened via streets button) -->
+    <div class="ann-field" id="ann-streets-field">
+      <label class="ann-label">Cross Streets</label>
+      <div class="ann-cross-row">
+        <input class="ann-input" id="ann-cross" type="text" placeholder="e.g. Piermont Ave &amp; Main St, Nyack NY">
+        <button class="ann-find-btn" onclick="geocodeAndSnap()">Find</button>
+      </div>
+      <div class="ann-status" id="ann-geocode-status"></div>
+    </div>
+
+    <!-- Pin position + reposition button -->
+    <div class="ann-pos-row">
+      <div class="ann-pos-display" id="ann-pos-display">No position set — use cross streets or reposition</div>
+      <button class="ann-reposition-btn" onclick="startRepositionFromDialog()">Move pin on map</button>
+    </div>
 
     <div class="ann-field">
       <label class="ann-label">Type</label>
@@ -341,15 +221,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     </div>
 
     <div class="ann-field">
-      <label class="ann-label">Cross Streets (geocode &amp; snap to route)</label>
-      <div class="ann-cross-row">
-        <input class="ann-input" id="ann-cross" type="text" placeholder="e.g. Main St &amp; 5th Ave, Nyack NY">
-        <button class="ann-place-btn" onclick="placeAtCrossStreets()">Place</button>
-      </div>
-      <div class="ann-geocode-status" id="ann-geocode-status"></div>
-    </div>
-
-    <div class="ann-field">
       <label class="ann-label">Note</label>
       <textarea class="ann-textarea" id="ann-note" placeholder="Describe the hazard or point of interest…"></textarea>
     </div>
@@ -359,17 +230,15 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
       <input class="ann-photo-input" id="ann-photo-input" type="file" accept="image/*">
     </div>
 
-    <div class="ann-coords-display" id="ann-coords"></div>
-
     <div class="ann-actions">
       <button class="ann-cancel-btn" onclick="closeAnnotationDialog()">Cancel</button>
-      <button class="ann-save-btn" onclick="saveAnnotation()">Save Annotation</button>
+      <button class="ann-save-btn" id="ann-save-btn" onclick="saveAnnotation()" disabled>Save</button>
     </div>
   </div>
 </div>
 
 <!-- Annotation detail overlay -->
-<div class="ann-detail-overlay" id="ann-detail-overlay" onclick="annDetailOverlayClick(event)">
+<div class="ann-detail-overlay" id="ann-detail-overlay" onclick="annDetailBgClick(event)">
   <div class="ann-detail-panel">
     <span class="ann-detail-icon" id="ann-detail-icon"></span>
     <span class="ann-detail-type" id="ann-detail-type"></span>
@@ -413,10 +282,8 @@ if (!FIREBASE_CONFIG.apiKey.startsWith('YOUR_')) {
   try {
     const app = initializeApp(FIREBASE_CONFIG);
     fb = {
-      db: getDatabase(app),
-      st: getStorage(app),
-      dbRef, dbSet, dbGet, dbRemove,
-      stRef, uploadBytes, getDownloadURL
+      db: getDatabase(app), st: getStorage(app),
+      dbRef, dbSet, dbGet, dbRemove, stRef, uploadBytes, getDownloadURL
     };
   } catch(e) { console.warn('Firebase init failed, using localStorage', e); }
 }
@@ -439,14 +306,15 @@ if (!sessionId) {
 }
 
 // ── State ──
-let photos = [];
 let annotations = [];
-let activePhotoId = null;
-let placingPhotoId = null;
-let annotationMode = false;
+// annotationMode: null | 'map' | 'reposition'
+let annotationMode = null;
+// pendingAnnotation: {lat, lon} | null — current pin position for the open dialog
 let pendingAnnotation = null;
-let layersVisible = {route: true, stops: true, photos: true, annotations: true};
-let markerLayer, routeLayer, stopLayer, annotationLayer;
+// dialogState — snapshot of form fields saved while user is repositioning on map
+let savedDialogState = null;
+let layersVisible = {route: true, stops: true, annotations: true};
+let routeLayer, stopLayer, annotationLayer;
 
 // ── Map setup ──
 const map = L.map('map', {
@@ -462,7 +330,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
   maxZoom: 19
 }).addTo(map);
 
-// ── Route (single color) ──
+// ── Route ──
 routeLayer = L.layerGroup().addTo(map);
 function drawRoute() {
   routeLayer.clearLayers();
@@ -480,7 +348,7 @@ function drawRoute() {
 }
 drawRoute();
 
-// ── Waypoint markers ──
+// ── Waypoints ──
 stopLayer = L.layerGroup().addTo(map);
 function drawStops() {
   stopLayer.clearLayers();
@@ -504,38 +372,18 @@ function drawStops() {
 }
 drawStops();
 
-// ── Photo marker layer ──
-markerLayer = L.layerGroup().addTo(map);
-function drawPhotoMarkers() {
-  markerLayer.clearLayers();
-  if (!layersVisible.photos) return;
-  photos.forEach(ph => {
-    if (ph.lat == null || ph.lon == null) return;
-    const div = document.createElement('div');
-    div.className = 'photo-marker-div';
-    const img = document.createElement('img');
-    img.src = ph.thumb || ph.src;
-    div.appendChild(img);
-    const marker = L.marker([ph.lat, ph.lon], {
-      icon: L.divIcon({html: div, className: '', iconSize: [44, 44], iconAnchor: [22, 22]})
-    }).addTo(markerLayer);
-    marker.on('click', () => openDetail(ph.id));
-  });
-}
-
-// ── Annotation marker layer ──
+// ── Annotation markers ──
 annotationLayer = L.layerGroup().addTo(map);
 function drawAnnotationMarkers() {
   annotationLayer.clearLayers();
   if (!layersVisible.annotations) return;
   for (const ann of annotations) {
-    const icon = L.divIcon({
-      html: `<div style="font-size:24px;line-height:1;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.7));cursor:pointer">${ANN_ICONS[ann.type] || '📍'}</div>`,
-      iconSize: [30, 30], iconAnchor: [15, 15], className: ''
-    });
-    L.marker([ann.lat, ann.lon], {icon})
-      .on('click', () => openAnnotationDetail(ann.id))
-      .addTo(annotationLayer);
+    L.marker([ann.lat, ann.lon], {
+      icon: L.divIcon({
+        html: `<div style="font-size:24px;line-height:1;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.7));cursor:pointer">${ANN_ICONS[ann.type] || '📍'}</div>`,
+        iconSize: [30, 30], iconAnchor: [15, 15], className: ''
+      })
+    }).on('click', () => openAnnotationDetail(ann.id)).addTo(annotationLayer);
   }
 }
 
@@ -551,12 +399,16 @@ function snapToRoute(lat, lon) {
 
 // ── Map click dispatch ──
 map.on('click', e => {
-  if (annotationMode) {
+  if (annotationMode === 'map') {
     const [slat, slon] = snapToRoute(e.latlng.lat, e.latlng.lng);
-    exitAnnotationMode();
-    openAnnotationDialog(slat, slon);
-  } else if (placingPhotoId != null) {
-    onMapPlaceClick(e);
+    exitMapMode();
+    openAnnotationDialog(slat, slon, false);
+  } else if (annotationMode === 'reposition') {
+    const [slat, slon] = snapToRoute(e.latlng.lat, e.latlng.lng);
+    exitMapMode();
+    pendingAnnotation = {lat: slat, lon: slon};
+    restoreDialogState();
+    updatePosDisplay();
   }
 });
 
@@ -566,67 +418,131 @@ function fitRoute() {
 }
 fitRoute();
 
-// ── Annotation mode ──
-function enterAnnotationMode() {
-  annotationMode = true;
-  const banner = document.getElementById('placing-banner');
-  banner.textContent = '📍 Click anywhere near the route to place an annotation';
-  banner.classList.add('show');
+// ── Map annotation mode ──
+function enterMapAnnotationMode() {
+  annotationMode = 'map';
+  document.getElementById('mode-banner').classList.add('show');
   map.getContainer().style.cursor = 'crosshair';
-  document.getElementById('btn-annotate').classList.add('annotate-active');
+  document.getElementById('btn-annotate-map').classList.add('active-mode');
 }
 
-function exitAnnotationMode() {
-  annotationMode = false;
-  const banner = document.getElementById('placing-banner');
-  banner.textContent = '📍 Click on the map to place this photo';
-  banner.classList.remove('show');
+function exitMapMode() {
+  annotationMode = null;
+  document.getElementById('mode-banner').classList.remove('show');
   map.getContainer().style.cursor = '';
-  document.getElementById('btn-annotate').classList.remove('annotate-active');
+  document.getElementById('btn-annotate-map').classList.remove('active-mode');
 }
 
-// ── Annotation dialog ──
-function openAnnotationDialog(lat, lon) {
-  pendingAnnotation = {lat, lon};
-  document.getElementById('ann-coords').textContent = `Snapped to: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+// ── Open dialog (shared by both flows) ──
+// showStreetsFirst: if true, cross-streets field is shown prominently at top;
+//                   if false (map-click flow), it's collapsed / secondary.
+function openAnnotationDialog(lat, lon, showStreetsFirst) {
+  pendingAnnotation = lat != null ? {lat, lon} : null;
+
+  document.getElementById('ann-type').value = 'dangerous_turn';
   document.getElementById('ann-note').value = '';
   document.getElementById('ann-cross').value = '';
   document.getElementById('ann-photo-input').value = '';
-  document.getElementById('ann-type').value = 'dangerous_turn';
   document.getElementById('ann-geocode-status').textContent = '';
+
+  const streetsField = document.getElementById('ann-streets-field');
+  if (showStreetsFirst) {
+    streetsField.style.order = '-1';
+    document.getElementById('ann-dialog-title').textContent = 'Annotate by Streets';
+  } else {
+    streetsField.style.order = '';
+    document.getElementById('ann-dialog-title').textContent = 'Add Annotation';
+  }
+
+  updatePosDisplay();
   document.getElementById('annotation-overlay').classList.add('open');
 }
 
-function closeAnnotationDialog() {
-  document.getElementById('annotation-overlay').classList.remove('open');
-  pendingAnnotation = null;
+// ── "Annotate by Streets" toolbar button ──
+function openAnnotationByStreets() {
+  openAnnotationDialog(null, null, true);
 }
 
-function annOverlayClick(e) {
-  if (e.target === document.getElementById('annotation-overlay')) closeAnnotationDialog();
+// ── Position display + Save button enable/disable ──
+function updatePosDisplay() {
+  const el = document.getElementById('ann-pos-display');
+  const saveBtn = document.getElementById('ann-save-btn');
+  if (pendingAnnotation) {
+    el.textContent = `${pendingAnnotation.lat.toFixed(5)}, ${pendingAnnotation.lon.toFixed(5)}`;
+    el.classList.remove('unset');
+    saveBtn.disabled = false;
+  } else {
+    el.textContent = 'No position set — use cross streets or "Move pin on map"';
+    el.classList.add('unset');
+    saveBtn.disabled = true;
+  }
 }
 
-async function placeAtCrossStreets() {
+// ── Geocode and snap ──
+async function geocodeAndSnap() {
   const query = document.getElementById('ann-cross').value.trim();
   if (!query) return;
   const statusEl = document.getElementById('ann-geocode-status');
+  statusEl.style.color = '';
   statusEl.textContent = 'Searching…';
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
     const r = await fetch(url, {headers: {'Accept-Language': 'en'}});
     const j = await r.json();
-    if (!j.length) { statusEl.textContent = 'Location not found — try adding a city name'; return; }
-    const rlat = parseFloat(j[0].lat), rlon = parseFloat(j[0].lon);
-    const [slat, slon] = snapToRoute(rlat, rlon);
+    if (!j.length) {
+      statusEl.textContent = 'Not found — try adding a city or state';
+      statusEl.style.color = '#FF7A00';
+      return;
+    }
+    const [slat, slon] = snapToRoute(parseFloat(j[0].lat), parseFloat(j[0].lon));
     pendingAnnotation = {lat: slat, lon: slon};
-    document.getElementById('ann-coords').textContent = `Snapped to: ${slat.toFixed(5)}, ${slon.toFixed(5)}`;
-    statusEl.textContent = '✓ Placed on route';
+    statusEl.textContent = '✓ Snapped to route';
     statusEl.style.color = '#00C566';
+    updatePosDisplay();
     map.setView([slat, slon], 15, {animate: true});
   } catch(e) {
-    statusEl.textContent = 'Geocoding error — check your connection';
+    statusEl.textContent = 'Error — check connection';
     statusEl.style.color = '#FF5050';
   }
+}
+
+// ── Reposition on map from within dialog ──
+function saveDialogState() {
+  savedDialogState = {
+    type: document.getElementById('ann-type').value,
+    note: document.getElementById('ann-note').value,
+    cross: document.getElementById('ann-cross').value
+  };
+}
+
+function restoreDialogState() {
+  if (!savedDialogState) return;
+  document.getElementById('ann-type').value = savedDialogState.type;
+  document.getElementById('ann-note').value = savedDialogState.note;
+  document.getElementById('ann-cross').value = savedDialogState.cross;
+  savedDialogState = null;
+  document.getElementById('annotation-overlay').classList.add('open');
+}
+
+function startRepositionFromDialog() {
+  saveDialogState();
+  document.getElementById('annotation-overlay').classList.remove('open');
+  annotationMode = 'reposition';
+  const banner = document.getElementById('mode-banner');
+  banner.textContent = '📍 Click anywhere near the route to reposition the pin';
+  banner.classList.add('show');
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+function closeAnnotationDialog() {
+  document.getElementById('annotation-overlay').classList.remove('open');
+  pendingAnnotation = null;
+  savedDialogState = null;
+  if (annotationMode) exitMapMode();
+}
+
+function annOverlayBgClick(e) {
+  if (e.target === document.getElementById('annotation-overlay')) closeAnnotationDialog();
 }
 
 // ── File / thumbnail helpers ──
@@ -643,10 +559,8 @@ function makeThumb(src) {
     const img = new Image();
     img.onload = () => {
       const c = document.createElement('canvas');
-      const s = 80;
-      const ratio = Math.min(s / img.width, s / img.height);
-      c.width = img.width * ratio;
-      c.height = img.height * ratio;
+      const s = 80, ratio = Math.min(s / img.width, s / img.height);
+      c.width = img.width * ratio; c.height = img.height * ratio;
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       res(c.toDataURL('image/jpeg', 0.7));
     };
@@ -654,11 +568,7 @@ function makeThumb(src) {
   });
 }
 
-async function makeThumbFromFile(file) {
-  return makeThumb(await readFileAsDataURL(file));
-}
-
-// ── Firebase upload helper ──
+// ── Firebase upload ──
 async function uploadFile(file, path) {
   if (!fb) return null;
   try {
@@ -678,24 +588,24 @@ async function saveAnnotation() {
     lon: pendingAnnotation.lon,
     note: document.getElementById('ann-note').value,
     crossStreets: document.getElementById('ann-cross').value,
-    photoURL: null,
-    thumb: null
+    photoURL: null, thumb: null
   };
 
   const photoFile = document.getElementById('ann-photo-input').files[0];
   if (photoFile) {
-    ann.thumb = await makeThumbFromFile(photoFile);
+    const src = await readFileAsDataURL(photoFile);
+    ann.thumb = await makeThumb(src);
     const url = await uploadFile(photoFile, `sessions/${sessionId}/annotations/${ann.id}`);
     ann.photoURL = url || ann.thumb;
   }
 
   annotations.push(ann);
   drawAnnotationMarkers();
+  updateAnnStat();
 
   if (fb) {
-    try {
-      await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${ann.id}`), ann);
-    } catch(e) { console.warn('DB write failed', e); }
+    try { await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${ann.id}`), ann); }
+    catch(e) { console.warn('DB write failed', e); }
   }
   saveAnnotationsLocal();
   closeAnnotationDialog();
@@ -712,20 +622,12 @@ function openAnnotationDetail(id) {
   document.getElementById('ann-detail-coords').textContent = `${ann.lat.toFixed(5)}, ${ann.lon.toFixed(5)}`;
 
   const crossRow = document.getElementById('ann-detail-cross-row');
-  if (ann.crossStreets) {
-    document.getElementById('ann-detail-cross').textContent = ann.crossStreets;
-    crossRow.style.display = 'block';
-  } else {
-    crossRow.style.display = 'none';
-  }
+  crossRow.style.display = ann.crossStreets ? 'block' : 'none';
+  if (ann.crossStreets) document.getElementById('ann-detail-cross').textContent = ann.crossStreets;
 
   const noteRow = document.getElementById('ann-detail-note-row');
-  if (ann.note) {
-    document.getElementById('ann-detail-note').textContent = ann.note;
-    noteRow.style.display = 'block';
-  } else {
-    noteRow.style.display = 'none';
-  }
+  noteRow.style.display = ann.note ? 'block' : 'none';
+  if (ann.note) document.getElementById('ann-detail-note').textContent = ann.note;
 
   const imgEl = document.getElementById('ann-detail-img');
   if (ann.photoURL || ann.thumb) {
@@ -743,195 +645,19 @@ function closeAnnotationDetail() {
   document.getElementById('ann-detail-overlay').classList.remove('open');
 }
 
-function annDetailOverlayClick(e) {
+function annDetailBgClick(e) {
   if (e.target === document.getElementById('ann-detail-overlay')) closeAnnotationDetail();
 }
 
 async function deleteAnnotation(id) {
   annotations = annotations.filter(a => a.id !== id);
   drawAnnotationMarkers();
+  updateAnnStat();
   if (fb) {
     try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${id}`)); } catch(e) {}
   }
   saveAnnotationsLocal();
   closeAnnotationDetail();
-}
-
-// ── File handling ──
-async function handleFileSelect(files) {
-  const arr = Array.from(files);
-  document.getElementById('upload-hint').textContent = `Processing ${arr.length} photo(s)…`;
-  for (const file of arr) {
-    await addPhoto(file);
-  }
-  document.getElementById('upload-hint').textContent = '';
-  renderPhotoList();
-  drawPhotoMarkers();
-  updateStats();
-}
-
-async function addPhoto(file) {
-  const id = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  const src = await readFileAsDataURL(file);
-  const thumb = await makeThumb(src);
-
-  let lat = null, lon = null, datetime = null;
-  try {
-    const exif = await exifr.parse(file, {gps: true, pick: ['GPSLatitude','GPSLongitude','DateTimeOriginal','GPS']});
-    if (exif && exif.latitude != null) { lat = exif.latitude; lon = exif.longitude; }
-    if (exif && exif.DateTimeOriginal) {
-      datetime = exif.DateTimeOriginal instanceof Date
-        ? exif.DateTimeOriginal.toLocaleString()
-        : String(exif.DateTimeOriginal);
-    }
-  } catch(e) {}
-
-  const saved = photos.find(p => p.filename === file.name);
-  if (saved && saved.lat != null) { lat = saved.lat; lon = saved.lon; }
-
-  const ph = {id, filename: file.name, src, thumb, lat, lon, datetime, note: ''};
-  photos.push(ph);
-
-  if (lat != null) map.setView([lat, lon], Math.max(map.getZoom(), 14));
-
-  // sync to Firebase in background
-  syncPhoto(ph, file);
-}
-
-async function syncPhoto(ph, file) {
-  try {
-    const url = await uploadFile(file, `sessions/${sessionId}/photos/${ph.id}`);
-    if (url) { ph.storageURL = url; ph.src = url; }
-    if (fb) {
-      await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/photos/${ph.id}`), {
-        id: ph.id, filename: ph.filename,
-        storageURL: ph.storageURL ?? null,
-        thumb: ph.thumb,
-        lat: ph.lat ?? null, lon: ph.lon ?? null,
-        datetime: ph.datetime ?? null,
-        note: ph.note
-      });
-    }
-  } catch(e) { console.warn('syncPhoto failed', e); }
-  savePhotosLocal();
-}
-
-// ── Photo list rendering ──
-function renderPhotoList() {
-  const list = document.getElementById('photo-list');
-  const dz = document.getElementById('drop-zone');
-  list.innerHTML = '';
-  list.appendChild(dz);
-
-  if (photos.length === 0) {
-    document.getElementById('photo-count').textContent = 'No photos yet';
-    return;
-  }
-  document.getElementById('photo-count').textContent = `${photos.length} photo${photos.length !== 1 ? 's' : ''} · click to view & edit notes`;
-
-  photos.forEach(ph => {
-    const card = document.createElement('div');
-    card.className = 'photo-card' + (ph.id === activePhotoId ? ' active' : '');
-    card.onclick = () => openDetail(ph.id);
-    const hasGps = ph.lat != null;
-    card.innerHTML = `
-      <div class="photo-thumb-wrap">
-        <img class="photo-thumb" src="${ph.thumb || ph.src}" alt="${ph.filename}">
-        <div class="photo-badge ${hasGps ? 'gps' : 'no-gps'}">${hasGps ? 'GPS' : 'No GPS'}</div>
-      </div>
-      <div class="photo-meta">
-        <div class="photo-filename">${ph.filename}</div>
-        <div class="photo-coords">${hasGps ? ph.lat.toFixed(5) + ', ' + ph.lon.toFixed(5) : 'No location — click to place'}</div>
-        <div class="photo-note-preview">${ph.note ? ph.note : '<span class="no-note">No notes yet…</span>'}</div>
-      </div>
-    `;
-    list.appendChild(card);
-  });
-}
-
-// ── Detail overlay ──
-function openDetail(id) {
-  const ph = photos.find(p => p.id === id);
-  if (!ph) return;
-  activePhotoId = id;
-  document.getElementById('detail-img').src = ph.src;
-  document.getElementById('detail-title').textContent = ph.filename;
-  document.getElementById('detail-coords').textContent = ph.lat != null
-    ? `${ph.lat.toFixed(6)}, ${ph.lon.toFixed(6)}`
-    : 'No GPS data in this photo';
-  document.getElementById('detail-datetime').textContent = ph.datetime || 'Unknown';
-  document.getElementById('note-area').value = ph.note || '';
-  document.getElementById('detail-goto').style.display = ph.lat != null ? 'flex' : 'none';
-  document.getElementById('saved-msg').style.display = 'none';
-  document.getElementById('detail-overlay').classList.add('open');
-  renderPhotoList();
-}
-
-function closeDetail(e) {
-  if (e.target === document.getElementById('detail-overlay')) closeDetailPanel();
-}
-
-function closeDetailPanel() {
-  document.getElementById('detail-overlay').classList.remove('open');
-  activePhotoId = null;
-  renderPhotoList();
-}
-
-function gotoPhoto() {
-  const ph = photos.find(p => p.id === activePhotoId);
-  if (!ph || ph.lat == null) return;
-  closeDetailPanel();
-  map.setView([ph.lat, ph.lon], 16, {animate: true});
-}
-
-function noteChanged() {
-  document.getElementById('saved-msg').style.display = 'none';
-}
-
-async function saveNote() {
-  const ph = photos.find(p => p.id === activePhotoId);
-  if (!ph) return;
-  ph.note = document.getElementById('note-area').value;
-  if (fb) {
-    try {
-      await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/photos/${ph.id}/note`), ph.note);
-    } catch(e) {}
-  }
-  savePhotosLocal();
-  renderPhotoList();
-  document.getElementById('saved-msg').style.display = 'block';
-  setTimeout(() => document.getElementById('saved-msg').style.display = 'none', 2000);
-}
-
-// ── Manual placement ──
-let _placingId = null;
-function startPlacing() {
-  _placingId = activePhotoId;
-  closeDetailPanel();
-  placingPhotoId = _placingId;
-  const banner = document.getElementById('placing-banner');
-  banner.textContent = '📍 Click on the map to place this photo';
-  banner.classList.add('show');
-  map.getContainer().style.cursor = 'crosshair';
-}
-
-function onMapPlaceClick(e) {
-  if (placingPhotoId == null) return;
-  const ph = photos.find(p => p.id === placingPhotoId);
-  if (ph) {
-    ph.lat = e.latlng.lat;
-    ph.lon = e.latlng.lng;
-    if (fb) {
-      fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/photos/${ph.id}/lat`), ph.lat).catch(() => {});
-      fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/photos/${ph.id}/lon`), ph.lon).catch(() => {});
-    }
-    savePhotosLocal();
-    drawPhotoMarkers();
-    renderPhotoList();
-  }
-  placingPhotoId = null;
-  document.getElementById('placing-banner').classList.remove('show');
-  map.getContainer().style.cursor = '';
 }
 
 // ── Layer toggles ──
@@ -941,69 +667,37 @@ function toggleLayer(name) {
   if (btn) btn.classList.toggle('on', layersVisible[name]);
   if (name === 'route') drawRoute();
   if (name === 'stops') drawStops();
-  if (name === 'photos') drawPhotoMarkers();
   if (name === 'annotations') drawAnnotationMarkers();
 }
 
-// ── Drag and drop ──
-const dropZone = document.getElementById('drop-zone');
-document.body.addEventListener('dragover', e => {
-  e.preventDefault();
-  dropZone.classList.add('drag-over');
-});
-document.body.addEventListener('dragleave', e => {
-  if (e.relatedTarget && document.body.contains(e.relatedTarget)) return;
-  dropZone.classList.remove('drag-over');
-});
-document.body.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  if (files.length) handleFileSelect(files);
-});
-
-// ── Share session ──
+// ── Share ──
 function shareSession() {
   navigator.clipboard.writeText(location.href).then(() => {
     const t = document.getElementById('share-toast');
     t.style.display = 'inline';
     setTimeout(() => t.style.display = 'none', 2500);
-  }).catch(() => {
-    prompt('Copy this link to share your session:', location.href);
-  });
+  }).catch(() => prompt('Copy this link to share:', location.href));
 }
 
 // ── Persistence ──
-function savePhotosLocal() {
-  const slim = photos.map(({id, filename, thumb, lat, lon, datetime, note}) =>
-    ({id, filename, thumb, lat, lon, datetime, note}));
-  try { localStorage.setItem('pr26_photos', JSON.stringify(slim)); } catch(e) {}
-}
-
 function saveAnnotationsLocal() {
   try { localStorage.setItem('pr26_annotations', JSON.stringify(annotations)); } catch(e) {}
 }
 
-function updateStats() {
-  document.getElementById('photo-stat').textContent = photos.length;
+function updateAnnStat() {
+  document.getElementById('ann-stat').textContent = annotations.length;
 }
 
 // ── Keyboard ──
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    if (annotationMode) { exitAnnotationMode(); return; }
-    if (placingPhotoId) {
-      placingPhotoId = null;
-      document.getElementById('placing-banner').classList.remove('show');
-      map.getContainer().style.cursor = '';
-    }
+    if (annotationMode) { exitMapMode(); restoreDialogState(); return; }
     if (document.getElementById('annotation-overlay').classList.contains('open')) {
       closeAnnotationDialog(); return;
     }
     if (document.getElementById('ann-detail-overlay').classList.contains('open')) {
       closeAnnotationDetail(); return;
     }
-    closeDetailPanel();
   }
 });
 
@@ -1011,42 +705,31 @@ document.addEventListener('keydown', e => {
 async function loadSession() {
   if (fb) {
     try {
-      const snap = await fb.dbGet(fb.dbRef(fb.db, `sessions/${sessionId}`));
+      const snap = await fb.dbGet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`));
       if (snap.exists()) {
-        const data = snap.val();
-        photos = Object.values(data.photos ?? {}).map(m => ({...m, src: m.storageURL || m.thumb || ''}));
-        annotations = Object.values(data.annotations ?? {});
-        renderPhotoList();
-        drawPhotoMarkers();
+        annotations = Object.values(snap.val());
         drawAnnotationMarkers();
-        updateStats();
+        updateAnnStat();
         return;
       }
     } catch(e) { console.warn('Firebase load failed, falling back', e); }
   }
-  // localStorage fallback
-  const savedMeta = JSON.parse(localStorage.getItem('pr26_photos') || '[]');
-  if (savedMeta.length > 0) {
-    photos = savedMeta.map(m => ({...m, src: m.thumb || ''}));
-  }
   annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
-  renderPhotoList();
-  drawPhotoMarkers();
   drawAnnotationMarkers();
-  updateStats();
+  updateAnnStat();
 }
 
-// Map tooltip style
+// Tooltip style
 const _style = document.createElement('style');
 _style.textContent = `.map-tip{background:rgba(7,7,15,0.92)!important;border:1px solid rgba(255,255,255,0.15)!important;border-radius:8px!important;color:#eeeaff!important;font-family:Inter,sans-serif!important;font-size:10px!important;padding:5px 10px!important;box-shadow:none!important}.map-tip::before{display:none!important}`;
 document.head.appendChild(_style);
 
-// ── Expose to window (required for inline onclick in module context) ──
+// ── Expose to window for inline onclick ──
 Object.assign(window, {
-  handleFileSelect, fitRoute, toggleLayer, shareSession,
-  closeDetail, closeDetailPanel, gotoPhoto, noteChanged, saveNote, startPlacing,
-  enterAnnotationMode, placeAtCrossStreets, closeAnnotationDialog, saveAnnotation, annOverlayClick,
-  openAnnotationDetail, closeAnnotationDetail, annDetailOverlayClick, deleteAnnotation
+  enterMapAnnotationMode, openAnnotationByStreets,
+  fitRoute, toggleLayer, shareSession,
+  geocodeAndSnap, startRepositionFromDialog, closeAnnotationDialog, annOverlayBgClick, saveAnnotation,
+  openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation
 });
 
 loadSession();
