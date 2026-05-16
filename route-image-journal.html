@@ -322,7 +322,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
       </div>
     </div>
     <div id="sbrowser-list"></div>
-    <button class="sbrowser-close-btn" onclick="closeSessionBrowser()">Close</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+      <button class="sbrowser-close-btn" style="margin-top:0" onclick="closeSessionBrowser()">Close</button>
+      <button onclick="signOutCoordinator()" style="background:none;border:none;font-family:'Inter',sans-serif;font-size:10px;color:var(--dimmer);cursor:pointer;padding:4px 6px;border-radius:4px;transition:color 0.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--dimmer)'">Sign out</button>
+    </div>
   </div>
 </div>
 
@@ -409,8 +412,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-// ── Firebase config — fill in your project values ──
+// ── Firebase config ──
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyAoRc4QRDsXTf7xPISXeEy6TEhqnl5LCEU",
   authDomain: "ride-annotator.firebaseapp.com",
@@ -421,11 +425,17 @@ const FIREBASE_CONFIG = {
   appId: "1:692274107391:web:409d15436032b812a24dca"
 };
 
+// Email for the shared coordinator account — create this in Firebase Console →
+// Authentication → Users. The password is never stored here.
+const COORDINATOR_EMAIL = 'coordinator@prideride2026.com';
+
 let fb = null;
+let fbAuth = null;
 if (!FIREBASE_CONFIG.apiKey.startsWith('YOUR_')) {
   try {
     const app = initializeApp(FIREBASE_CONFIG);
     fb = { db: getDatabase(app), dbRef, dbSet, dbGet, dbRemove };
+    fbAuth = getAuth(app);
   } catch(e) { console.warn('Firebase init failed, using localStorage', e); }
 }
 
@@ -935,14 +945,10 @@ async function createNamedSession(name) {
 }
 
 // ── Auth ──
-// Auth state persists for the browser tab (cleared on tab close).
-let authenticated = sessionStorage.getItem('pr26_auth') === 'ok';
+// Firebase Auth handles token persistence in localStorage automatically.
+// Tokens survive page refreshes; signing out clears them.
+let authenticated = false;
 let _pendingAuthCb = null;
-
-async function _sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
-}
 
 function requireAuth(onSuccess) {
   if (authenticated) { onSuccess(); return; }
@@ -955,28 +961,22 @@ async function submitAuth() {
   const pwd = document.getElementById('auth-input').value;
   if (!pwd) return;
   const statusEl = document.getElementById('auth-status');
-  statusEl.textContent = 'Checking…';
-  if (!fb) {
+  statusEl.textContent = 'Signing in…';
+  if (!fbAuth) {
     statusEl.textContent = 'Firebase required for authentication';
     return;
   }
   try {
-    const hash = await _sha256(pwd);
-    const snap = await fb.dbGet(fb.dbRef(fb.db, 'auth/passwordHash'));
-    if (snap.exists() && snap.val() === hash) {
-      authenticated = true;
-      sessionStorage.setItem('pr26_auth', 'ok');
-      document.getElementById('auth-input').value = '';
-      document.getElementById('auth-overlay').classList.remove('open');
-      statusEl.textContent = '';
-      if (_pendingAuthCb) { _pendingAuthCb(); _pendingAuthCb = null; }
-    } else {
-      statusEl.textContent = '✗ Incorrect password';
-      document.getElementById('auth-input').value = '';
-      setTimeout(() => document.getElementById('auth-input').focus(), 50);
-    }
+    await signInWithEmailAndPassword(fbAuth, COORDINATOR_EMAIL, pwd);
+    // onAuthStateChanged fires next and sets authenticated = true,
+    // closes the dialog, and runs the pending callback.
   } catch(e) {
-    statusEl.textContent = 'Error — check connection';
+    const msg = e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password'
+      ? '✗ Incorrect password'
+      : 'Error — check connection';
+    statusEl.textContent = msg;
+    document.getElementById('auth-input').value = '';
+    setTimeout(() => document.getElementById('auth-input').focus(), 50);
   }
 }
 
@@ -987,15 +987,13 @@ function closeAuthDialog() {
   _pendingAuthCb = null;
 }
 
-// One-time setup: call _setupAuth('your-password') from the browser console
-// to store the password hash in Firebase. After running, set auth/.write to
-// false in Firebase rules so it can't be changed by clients.
-window._setupAuth = async function(pwd) {
-  if (!fb) { console.error('Firebase not initialized'); return; }
-  const hash = await _sha256(pwd);
-  await fb.dbSet(fb.dbRef(fb.db, 'auth/passwordHash'), hash);
-  console.log('✓ Password configured. Now set "auth": {".read": true, ".write": false} in Firebase rules.');
-};
+async function signOutCoordinator() {
+  if (!fbAuth) return;
+  if (!confirm('Sign out of coordinator access?')) return;
+  await fbSignOut(fbAuth);
+  // onAuthStateChanged fires and sets authenticated = false
+  closeSessionBrowser();
+}
 
 // ── Rename current session ──
 async function renameCurrentSession() {
@@ -1136,14 +1134,33 @@ Object.assign(window, {
   openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation,
   openSessionBrowser, closeSessionBrowser, sbrowserBgClick,
   newSessionFromBrowser, switchToSession, deleteSessionEntry, confirmSessionName,
-  submitAuth, closeAuthDialog
+  submitAuth, closeAuthDialog, signOutCoordinator
 });
 
-if (sessionId) {
-  loadSession();
+function _startup() {
+  if (sessionId) {
+    loadSession();
+  } else {
+    setSessionNameDisplay('Select a session…');
+    openSessionBrowser();
+  }
+}
+
+if (fbAuth) {
+  let _startupDone = false;
+  onAuthStateChanged(fbAuth, user => {
+    authenticated = !!user;
+    if (user && document.getElementById('auth-overlay').classList.contains('open')) {
+      // Sign-in just succeeded — close dialog and run pending callback
+      document.getElementById('auth-input').value = '';
+      document.getElementById('auth-status').textContent = '';
+      document.getElementById('auth-overlay').classList.remove('open');
+      if (_pendingAuthCb) { _pendingAuthCb(); _pendingAuthCb = null; }
+    }
+    if (!_startupDone) { _startupDone = true; _startup(); }
+  });
 } else {
-  setSessionNameDisplay('Select a session…');
-  openSessionBrowser();
+  _startup();
 }
 </script>
 </body>
