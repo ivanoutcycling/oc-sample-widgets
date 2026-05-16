@@ -115,6 +115,43 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .ann-delete-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);color:#FF5050;cursor:pointer;transition:all 0.15s}
 .ann-delete-btn:hover{background:rgba(255,80,80,0.15)}
 
+/* ── Session name in header ── */
+.session-name-row{display:flex;align-items:center;gap:7px;margin-top:6px}
+.session-name-text{font-size:13px;font-weight:500;color:var(--muted)}
+.session-rename-btn{background:none;border:none;color:var(--dimmer);cursor:pointer;padding:2px 4px;border-radius:4px;display:flex;align-items:center;transition:color 0.15s}
+.session-rename-btn:hover{color:var(--text)}
+.session-rename-btn svg{width:11px;height:11px}
+
+/* ── Session name dialog ── */
+.sname-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.92);z-index:4000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.sname-overlay.open{display:flex}
+.sname-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;max-width:380px;width:100%;padding:28px;box-shadow:0 32px 80px rgba(0,0,0,0.6)}
+.sname-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
+.sname-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:11px 13px;outline:none;transition:border-color 0.15s;margin-bottom:16px}
+.sname-input:focus{border-color:rgba(59,130,246,0.5)}
+.sname-create-btn{width:100%;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s}
+.sname-create-btn:hover{opacity:0.88}
+
+/* ── Session browser ── */
+.sbrowser-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.88);z-index:3500;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.sbrowser-overlay.open{display:flex}
+.sbrowser-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:560px;padding:24px;box-shadow:0 32px 80px rgba(0,0,0,0.6);flex-shrink:0}
+.sbrowser-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.sbrowser-header h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text)}
+.sbrowser-new-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:7px 14px;border-radius:7px;border:1px solid rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:#3B82F6;cursor:pointer;transition:all 0.15s}
+.sbrowser-new-btn:hover{background:rgba(59,130,246,0.18)}
+.session-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color 0.15s}
+.session-card.current{border-color:#3B82F6;background:rgba(59,130,246,0.06)}
+.session-card-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.session-card-meta{font-size:9px;font-family:'DM Mono',monospace;color:var(--dimmer)}
+.session-card-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.session-open-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.session-open-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.3)}
+.session-del-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,80,80,0.25);background:transparent;color:rgba(255,80,80,0.6);cursor:pointer;transition:all 0.15s}
+.session-del-btn:hover{background:rgba(255,80,80,0.1);color:#FF5050}
+.sbrowser-close-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--muted);cursor:pointer;margin-top:16px;transition:all 0.15s}
+.sbrowser-close-btn:hover{color:var(--text)}
+
 @media(max-width:600px){
   .header,.toolbar,.stats-strip,.content{padding-left:16px;padding-right:16px}
   .stats-strip{margin-left:16px;margin-right:16px}
@@ -130,7 +167,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     <div class="accent-bar"></div>
     <div class="eyebrow">Route Annotation Journal</div>
     <div class="title">Pride Ride 2026</div>
-    <div class="subtitle">100 mi · Washington Heights → Hudson Valley · Annotate the route with hazards, notes &amp; stops</div>
+    <div class="session-name-row">
+      <span class="session-name-text" id="session-name-text">Loading…</span>
+      <button class="session-rename-btn" onclick="renameCurrentSession()" title="Rename session">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- Stats -->
@@ -143,6 +185,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 
   <!-- Toolbar -->
   <div class="toolbar">
+    <button class="btn" onclick="openSessionBrowser()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Sessions
+    </button>
+    <div class="separator"></div>
     <button class="btn" id="btn-annotate-map" onclick="enterMapAnnotationMode()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
       Annotate on Map
@@ -188,6 +235,28 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   </div>
 
 </div><!-- end shell -->
+
+<!-- Session name dialog (shown when creating a new session) -->
+<div class="sname-overlay" id="sname-overlay">
+  <div class="sname-panel">
+    <h3>Name This Session</h3>
+    <input class="sname-input" id="sname-input" type="text" placeholder="e.g. Pre-ride Scouting Run"
+           onkeydown="if(event.key==='Enter') confirmSessionName()">
+    <button class="sname-create-btn" onclick="confirmSessionName()">Create Session</button>
+  </div>
+</div>
+
+<!-- Session browser -->
+<div class="sbrowser-overlay" id="sbrowser-overlay" onclick="sbrowserBgClick(event)">
+  <div class="sbrowser-panel">
+    <div class="sbrowser-header">
+      <h3>Sessions</h3>
+      <button class="sbrowser-new-btn" onclick="newSessionFromBrowser()">+ New Session</button>
+    </div>
+    <div id="sbrowser-list"></div>
+    <button class="sbrowser-close-btn" onclick="closeSessionBrowser()">Close</button>
+  </div>
+</div>
 
 <!-- Mode banner (map-click annotation) -->
 <div class="mode-banner" id="mode-banner">📍 Click anywhere near the route to place an annotation</div>
@@ -300,11 +369,7 @@ const ANN_LABELS = {dangerous_turn:'Dangerous Turn', railroad:'Railroad Crossing
 // ── Session ID ──
 const _params = new URLSearchParams(location.search);
 let sessionId = _params.get('session');
-if (!sessionId) {
-  sessionId = (crypto.randomUUID?.() ??
-    Date.now().toString(36) + Math.random().toString(36).slice(2));
-  history.replaceState(null, '', '?session=' + sessionId);
-}
+let sessionName = 'Untitled Session';
 
 // ── State ──
 let annotations = [];
@@ -597,6 +662,7 @@ async function saveAnnotation() {
     catch(e) { console.warn('DB write failed', e); }
   }
   saveAnnotationsLocal();
+  updateSessionCount();
   closeAnnotationDialog();
   map.setView([ann.lat, ann.lon], 15, {animate: true});
 }
@@ -646,6 +712,7 @@ async function deleteAnnotation(id) {
     try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${id}`)); } catch(e) {}
   }
   saveAnnotationsLocal();
+  updateSessionCount();
   closeAnnotationDetail();
 }
 
@@ -669,6 +736,7 @@ async function clearSession() {
   if (fb) {
     try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`)); } catch(e) {}
   }
+  updateSessionCount();
 }
 
 // ── Share ──
@@ -702,20 +770,163 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// ── Session index helpers ──
+async function writeSessionIndex() {
+  if (!fb) return;
+  try {
+    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}`), {
+      name: sessionName,
+      createdAt: Date.now(),
+      annotationCount: annotations.length
+    });
+  } catch(e) { console.warn('sessionIndex write failed', e); }
+}
+
+async function updateSessionCount() {
+  if (!fb) return;
+  try {
+    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/annotationCount`), annotations.length);
+  } catch(e) {}
+}
+
+function setSessionNameDisplay(name) {
+  sessionName = name;
+  document.getElementById('session-name-text').textContent = name;
+}
+
+// ── New session name dialog ──
+function confirmSessionName() {
+  const val = document.getElementById('sname-input').value.trim();
+  createNamedSession(val || 'Untitled Session');
+}
+
+async function createNamedSession(name) {
+  setSessionNameDisplay(name);
+  sessionId = (crypto.randomUUID?.() ??
+    Date.now().toString(36) + Math.random().toString(36).slice(2));
+  history.replaceState(null, '', '?session=' + sessionId);
+  document.getElementById('sname-overlay').classList.remove('open');
+  await writeSessionIndex();
+  updateAnnStat();
+}
+
+// ── Rename current session ──
+async function renameCurrentSession() {
+  const newName = prompt('Rename this session:', sessionName);
+  if (!newName || !newName.trim()) return;
+  setSessionNameDisplay(newName.trim());
+  if (fb) {
+    try { await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/name`), sessionName); } catch(e) {}
+  }
+}
+
+// ── Session browser ──
+async function openSessionBrowser() {
+  document.getElementById('sbrowser-overlay').classList.add('open');
+  const list = document.getElementById('sbrowser-list');
+  if (!fb) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:24px">Firebase required to browse sessions</div>';
+    return;
+  }
+  list.innerHTML = '<div style="color:var(--dimmer);font-size:11px;text-align:center;padding:24px">Loading…</div>';
+  try {
+    const snap = await fb.dbGet(fb.dbRef(fb.db, 'sessionIndex'));
+    list.innerHTML = '';
+    if (!snap.exists()) {
+      list.innerHTML = '<div style="color:var(--dimmer);font-size:11px;text-align:center;padding:24px">No sessions found</div>';
+      return;
+    }
+    const sessions = Object.entries(snap.val())
+      .map(([id, data]) => ({id, ...data}))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    for (const s of sessions) {
+      const isCurrent = s.id === sessionId;
+      const date = s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '—';
+      const card = document.createElement('div');
+      card.className = 'session-card' + (isCurrent ? ' current' : '');
+      card.innerHTML = `
+        <div class="session-card-info">
+          <div class="session-card-name">${escHtml(s.name || 'Untitled')}</div>
+          <div class="session-card-meta">${s.annotationCount || 0} annotation${s.annotationCount !== 1 ? 's' : ''} · ${date}</div>
+        </div>
+        <div class="session-card-actions">
+          ${isCurrent
+            ? '<span style="font-size:9px;letter-spacing:1px;color:#3B82F6;font-weight:700;font-family:\'DM Mono\',monospace">CURRENT</span>'
+            : `<button class="session-open-btn" onclick="switchToSession('${s.id}')">Open</button>`}
+          <button class="session-del-btn" onclick="deleteSessionEntry('${s.id}')">Delete</button>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+  } catch(e) {
+    list.innerHTML = '<div style="color:#FF5050;font-size:11px;text-align:center;padding:24px">Error loading sessions</div>';
+  }
+}
+
+function closeSessionBrowser() {
+  document.getElementById('sbrowser-overlay').classList.remove('open');
+}
+
+function sbrowserBgClick(e) {
+  if (e.target === document.getElementById('sbrowser-overlay')) closeSessionBrowser();
+}
+
+function newSessionFromBrowser() {
+  closeSessionBrowser();
+  document.getElementById('sname-input').value = '';
+  document.getElementById('sname-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('sname-input').focus(), 50);
+}
+
+function switchToSession(id) {
+  location.href = '?session=' + id;
+}
+
+async function deleteSessionEntry(id) {
+  if (!confirm('Delete this session and all its annotations? This cannot be undone.')) return;
+  if (!fb) return;
+  try {
+    await Promise.all([
+      fb.dbRemove(fb.dbRef(fb.db, `sessionIndex/${id}`)),
+      fb.dbRemove(fb.dbRef(fb.db, `sessions/${id}`))
+    ]);
+    if (id === sessionId) {
+      location.href = location.pathname;
+    } else {
+      openSessionBrowser();
+    }
+  } catch(e) { alert('Error deleting session'); }
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── Load session ──
 async function loadSession() {
   if (fb) {
     try {
-      const snap = await fb.dbGet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`));
-      if (snap.exists()) {
-        annotations = Object.values(snap.val());
-        drawAnnotationMarkers();
-        updateAnnStat();
-        return;
+      const [idxSnap, annSnap] = await Promise.all([
+        fb.dbGet(fb.dbRef(fb.db, `sessionIndex/${sessionId}`)),
+        fb.dbGet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`))
+      ]);
+      if (idxSnap.exists()) {
+        setSessionNameDisplay(idxSnap.val().name || 'Untitled Session');
+      } else {
+        setSessionNameDisplay('Untitled Session');
+        await writeSessionIndex();
       }
-    } catch(e) { console.warn('Firebase load failed, falling back', e); }
+      if (annSnap.exists()) annotations = Object.values(annSnap.val());
+    } catch(e) {
+      console.warn('Firebase load failed, falling back', e);
+      setSessionNameDisplay('Untitled Session');
+      annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
+    }
+  } else {
+    setSessionNameDisplay('Local session');
+    annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
   }
-  annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
   drawAnnotationMarkers();
   updateAnnStat();
 }
@@ -730,10 +941,19 @@ Object.assign(window, {
   enterMapAnnotationMode, openAnnotationByStreets,
   fitRoute, toggleLayer, shareSession, clearSession,
   geocodeAndSnap, startRepositionFromDialog, closeAnnotationDialog, annOverlayBgClick, saveAnnotation,
-  openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation
+  openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation,
+  renameCurrentSession, openSessionBrowser, closeSessionBrowser, sbrowserBgClick,
+  newSessionFromBrowser, switchToSession, deleteSessionEntry, confirmSessionName
 });
 
-loadSession();
+if (sessionId) {
+  loadSession();
+} else {
+  // New visit — prompt for session name
+  setSessionNameDisplay('New Session');
+  document.getElementById('sname-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('sname-input').focus(), 50);
+}
 </script>
 </body>
 </html>
