@@ -287,6 +287,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
         <option value="route_bug">🐛 Route Bug</option>
         <option value="rest_stop">🚻 Bathroom / Rest Stop</option>
         <option value="road_crossing">🚦 Dangerous Road Crossing</option>
+        <option value="bathroom_warning">🚽 Bathroom Warning</option>
+        <option value="confusing_directions">🧭 Confusing Directions</option>
       </select>
     </div>
 
@@ -360,8 +362,8 @@ const GPX_DATA = {"track":[[40.82841,-73.95372,4.0],[40.82842,-73.95372,3.9],[40
 const TRACK = GPX_DATA.track;
 const WAYPOINTS = GPX_DATA.waypoints;
 
-const ANN_ICONS  = {dangerous_turn:'⚠️', railroad:'🚂', route_bug:'🐛', rest_stop:'🚻', road_crossing:'🚦'};
-const ANN_LABELS = {dangerous_turn:'Dangerous Turn', railroad:'Railroad Crossing', route_bug:'Route Bug', rest_stop:'Bathroom / Rest Stop', road_crossing:'Dangerous Road Crossing'};
+const ANN_ICONS  = {dangerous_turn:'⚠️', railroad:'🚂', route_bug:'🐛', rest_stop:'🚻', road_crossing:'🚦', bathroom_warning:'🚽', confusing_directions:'🧭'};
+const ANN_LABELS = {dangerous_turn:'Dangerous Turn', railroad:'Railroad Crossing', route_bug:'Route Bug', rest_stop:'Bathroom / Rest Stop', road_crossing:'Dangerous Road Crossing', bathroom_warning:'Bathroom Warning', confusing_directions:'Confusing Directions'};
 
 // ── Session ID ──
 const _params = new URLSearchParams(location.search);
