@@ -10,9 +10,8 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#07070f;--surface:#0f0f1c;--card:#131323;--border:rgba(255,255,255,0.07);
-  --text:#eeeaff;--muted:rgba(238,234,255,0.42);--dimmer:rgba(238,234,255,0.16);
-  --y:#FFD600;--g:#00C566;--b:#0090FF;--v:#A855F7;
+  --bg:#f0f0f6;--surface:#ffffff;--card:#f7f7fb;--border:rgba(0,0,0,0.09);
+  --text:#111128;--muted:rgba(17,17,40,0.52);--dimmer:rgba(17,17,40,0.3);
   --accent:#3B82F6;
 }
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -21,20 +20,28 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .shell{display:flex;flex-direction:column;max-width:1100px;margin:0 auto;padding:0 0 40px}
 
 /* ── Header ── */
-.header{padding:28px 32px 0}
-.accent-bar{height:3px;background:var(--accent);border-radius:2px;margin-bottom:20px;box-shadow:0 0 20px rgba(59,130,246,0.4)}
-.eyebrow{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:5px;color:var(--y);text-transform:uppercase;margin-bottom:6px}
-.title{font-family:'Unbounded',sans-serif;font-size:clamp(22px,4vw,42px);font-weight:900;line-height:0.95;letter-spacing:-0.5px;color:var(--text);margin-bottom:5px}
+.header{padding:28px 32px 16px}
+.accent-bar{height:3px;background:var(--accent);border-radius:2px;margin-bottom:20px;box-shadow:0 0 16px rgba(59,130,246,0.2)}
+.eyebrow{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:5px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;opacity:0.6}
+.title{font-family:'Unbounded',sans-serif;font-size:clamp(22px,4vw,38px);font-weight:900;line-height:0.95;letter-spacing:-0.5px;color:var(--text);margin-bottom:0}
+
+/* ── Session bar ── */
+.session-bar{margin:12px 32px 0;border-radius:10px;background:var(--surface);border:1.5px solid var(--border);padding:11px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.session-bar:hover{border-color:rgba(59,130,246,0.4);box-shadow:0 0 0 3px rgba(59,130,246,0.08)}
+.session-bar-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;margin-right:10px}
+.session-bar-name{font-size:13px;font-weight:600;color:var(--text)}
+.session-bar-hint{font-size:9px;color:var(--dimmer);display:flex;align-items:center;gap:4px}
+.session-bar-hint svg{width:11px;height:11px;opacity:0.5}
 .subtitle{font-size:11px;font-weight:300;color:var(--muted)}
 
 /* ── Toolbar ── */
-.toolbar{display:flex;align-items:center;gap:8px;padding:14px 32px;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.15);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none}
-.btn:hover{color:var(--text);border-color:rgba(255,255,255,0.28)}
-.btn.active-mode{background:rgba(255,122,0,0.12);border-color:rgba(255,122,0,0.45);color:#FF7A00}
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 32px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none;box-shadow:0 1px 2px rgba(0,0,0,0.05)}
+.btn:hover{color:var(--text);border-color:rgba(0,0,0,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.09)}
+.btn.active-mode{background:rgba(224,104,0,0.08);border-color:rgba(224,104,0,0.4);color:#C06000}
 .btn svg{width:14px;height:14px;flex-shrink:0}
 .btn-toggle{padding:7px 12px;font-size:10px}
-.btn-toggle.on{background:var(--card);border-color:rgba(255,255,255,0.22);color:var(--text)}
+.btn-toggle.on{background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.35);color:var(--accent)}
 .separator{width:1px;height:24px;background:var(--border);margin:0 2px}
 
 /* ── Map ── */
@@ -43,18 +50,18 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 #map{width:100%;height:100%}
 
 /* Leaflet customization */
-.leaflet-control-zoom a{background:#1a1a2e!important;color:#eeeaff!important;border-color:rgba(255,255,255,0.15)!important}
-.leaflet-control-zoom a:hover{background:#242440!important}
-.leaflet-control-attribution{background:rgba(7,7,15,0.7)!important;color:rgba(238,234,255,0.3)!important;font-size:8px!important}
-.leaflet-control-attribution a{color:rgba(238,234,255,0.45)!important}
+.leaflet-control-zoom a{background:#fff!important;color:#444!important;border-color:rgba(0,0,0,0.15)!important}
+.leaflet-control-zoom a:hover{background:#f5f5f5!important}
+.leaflet-control-attribution{background:rgba(255,255,255,0.75)!important;color:rgba(0,0,0,0.45)!important;font-size:8px!important}
+.leaflet-control-attribution a{color:rgba(0,0,0,0.6)!important}
 
-/* Waypoint popup */
+/* Waypoint popup — keep dark for map contrast */
 .wpt-popup{font-family:'Inter',sans-serif}
 .wpt-popup-name{font-size:11px;font-weight:600;color:#eeeaff;margin-bottom:4px;line-height:1.4}
 .wpt-popup-type{display:inline-block;font-size:8.5px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:4px;letter-spacing:0.5px}
 .wpt-popup-type.food{background:rgba(0,197,102,0.15);color:#00C566;border:1px solid rgba(0,197,102,0.25)}
 .wpt-popup-type.toilet{background:rgba(0,144,255,0.15);color:#0090FF;border:1px solid rgba(0,144,255,0.25)}
-.leaflet-popup-content-wrapper{background:rgba(13,13,30,0.96)!important;border:1px solid rgba(255,255,255,0.1)!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,0.5)!important;color:#eeeaff!important;backdrop-filter:blur(12px)}
+.leaflet-popup-content-wrapper{background:rgba(13,13,30,0.96)!important;border:1px solid rgba(255,255,255,0.1)!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,0.4)!important;color:#eeeaff!important;backdrop-filter:blur(12px)}
 .leaflet-popup-tip-container{display:none}
 .leaflet-popup-close-button{color:rgba(238,234,255,0.4)!important;font-size:16px!important;top:8px!important;right:10px!important}
 .leaflet-popup-close-button:hover{color:#eeeaff!important}
@@ -63,26 +70,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .mode-banner{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,122,0,0.95);color:#fff;font-size:12px;font-weight:600;padding:10px 20px;border-radius:40px;z-index:3000;box-shadow:0 4px 20px rgba(255,122,0,0.4);pointer-events:none;white-space:nowrap}
 .mode-banner.show{display:block}
 
-/* ── Stats strip ── */
-.stats-strip{display:flex;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:12px 32px 0}
-.stat{background:var(--surface);padding:10px 0;text-align:center;flex:1}
-.stat-val{font-family:'Unbounded',sans-serif;font-size:clamp(14px,2.5vw,20px);font-weight:700;line-height:1}
-.stat:nth-child(1) .stat-val{color:var(--y)}
-.stat:nth-child(2) .stat-val{color:var(--g)}
-.stat:nth-child(3) .stat-val{color:var(--b)}
-.stat:nth-child(4) .stat-val{color:var(--v)}
-.stat-label{font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-top:3px;font-weight:500}
 
 /* ── Annotation dialog ── */
-.ann-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.85);z-index:3000;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.ann-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
 .ann-overlay.open{display:flex}
-.ann-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:420px;padding:22px;box-shadow:0 32px 80px rgba(0,0,0,0.6);flex-shrink:0}
+.ann-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,0.15);flex-shrink:0}
 .ann-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
 .ann-field{margin-bottom:14px}
 .ann-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;display:block;margin-bottom:5px}
-.ann-select,.ann-input,.ann-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:border-color 0.15s}
+.ann-select,.ann-input,.ann-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:border-color 0.15s}
 .ann-select:focus,.ann-input:focus,.ann-textarea:focus{border-color:rgba(59,130,246,0.5)}
-.ann-select option{background:#1a1a2e;color:var(--text)}
+.ann-select option{background:var(--surface);color:var(--text)}
 .ann-textarea{resize:vertical;min-height:80px;line-height:1.5}
 .ann-cross-row{display:flex;gap:8px}
 .ann-cross-row .ann-input{flex:1}
@@ -96,65 +94,66 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .ann-reposition-btn:hover{background:rgba(255,122,0,0.15)}
 .ann-photo-input{width:100%;font-size:11px;color:var(--muted)}
 .ann-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
-.ann-cancel-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
-.ann-cancel-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.24)}
+.ann-cancel-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.ann-cancel-btn:hover{color:var(--text);border-color:rgba(0,0,0,0.22)}
 .ann-save-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s}
 .ann-save-btn:hover:not(:disabled){opacity:0.88}
 .ann-save-btn:disabled{opacity:0.35;cursor:not-allowed}
 
 /* ── Annotation detail overlay ── */
-.ann-detail-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.85);z-index:2500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.ann-detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
 .ann-detail-overlay.open{display:flex}
-.ann-detail-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:0 32px 80px rgba(0,0,0,0.6)}
+.ann-detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.15)}
 .ann-detail-icon{font-size:36px;margin-bottom:8px;display:block}
 .ann-detail-type{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px;display:block}
 .ann-detail-row{margin-bottom:12px}
 .ann-detail-val{font-size:11px;color:var(--muted);line-height:1.5}
 .ann-detail-img{width:100%;border-radius:10px;margin-bottom:16px;object-fit:cover;max-height:220px}
 .ann-detail-actions{display:flex;gap:8px;justify-content:space-between;margin-top:20px}
-.ann-delete-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);color:#FF5050;cursor:pointer;transition:all 0.15s}
-.ann-delete-btn:hover{background:rgba(255,80,80,0.15)}
-
-/* ── Session name in header ── */
-.session-name-row{display:flex;align-items:center;gap:7px;margin-top:6px}
-.session-name-text{font-size:13px;font-weight:500;color:var(--muted)}
-.session-rename-btn{background:none;border:none;color:var(--dimmer);cursor:pointer;padding:2px 4px;border-radius:4px;display:flex;align-items:center;transition:color 0.15s}
-.session-rename-btn:hover{color:var(--text)}
-.session-rename-btn svg{width:11px;height:11px}
+.ann-delete-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.06);color:#FF5050;cursor:pointer;transition:all 0.15s}
+.ann-delete-btn:hover{background:rgba(255,80,80,0.12)}
 
 /* ── Session name dialog ── */
-.sname-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.92);z-index:4000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.sname-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:4000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
 .sname-overlay.open{display:flex}
-.sname-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;max-width:380px;width:100%;padding:28px;box-shadow:0 32px 80px rgba(0,0,0,0.6)}
-.sname-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
-.sname-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:11px 13px;outline:none;transition:border-color 0.15s;margin-bottom:16px}
+.sname-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:380px;width:100%;padding:28px;box-shadow:0 16px 48px rgba(0,0,0,0.12)}
+.sname-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:8px}
+.sname-subtitle{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:22px}
+.sname-choose-btn{width:100%;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:11px;border-radius:9px;cursor:pointer;transition:all 0.15s;margin-bottom:9px}
+.sname-choose-btn.primary{border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff}
+.sname-choose-btn.primary:hover{opacity:0.88}
+.sname-choose-btn.secondary{border:1.5px solid var(--border);background:transparent;color:var(--text)}
+.sname-choose-btn.secondary:hover{border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.05)}
+.sname-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:11px 13px;outline:none;transition:border-color 0.15s;margin-bottom:14px}
 .sname-input:focus{border-color:rgba(59,130,246,0.5)}
 .sname-create-btn{width:100%;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#3B82F6,#0090FF);color:#fff;cursor:pointer;transition:opacity 0.15s}
 .sname-create-btn:hover{opacity:0.88}
+.sname-back-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;font-family:'Inter',sans-serif;padding:0;margin-bottom:16px;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s}
+.sname-back-btn:hover{color:var(--text)}
 
 /* ── Session browser ── */
-.sbrowser-overlay{display:none;position:fixed;inset:0;background:rgba(7,7,15,0.88);z-index:3500;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.sbrowser-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:3500;align-items:flex-start;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
 .sbrowser-overlay.open{display:flex}
-.sbrowser-panel{background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:560px;padding:24px;box-shadow:0 32px 80px rgba(0,0,0,0.6);flex-shrink:0}
+.sbrowser-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:560px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.12);flex-shrink:0}
 .sbrowser-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .sbrowser-header h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text)}
 .sbrowser-new-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:7px 14px;border-radius:7px;border:1px solid rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:#3B82F6;cursor:pointer;transition:all 0.15s}
 .sbrowser-new-btn:hover{background:rgba(59,130,246,0.18)}
-.session-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color 0.15s}
-.session-card.current{border-color:#3B82F6;background:rgba(59,130,246,0.06)}
+.session-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color 0.15s}
+.session-card.current{border-color:#3B82F6;background:rgba(59,130,246,0.05)}
 .session-card-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
 .session-card-meta{font-size:9px;font-family:'DM Mono',monospace;color:var(--dimmer)}
 .session-card-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.session-open-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
-.session-open-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.3)}
-.session-del-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,80,80,0.25);background:transparent;color:rgba(255,80,80,0.6);cursor:pointer;transition:all 0.15s}
-.session-del-btn:hover{background:rgba(255,80,80,0.1);color:#FF5050}
-.sbrowser-close-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--muted);cursor:pointer;margin-top:16px;transition:all 0.15s}
+.session-open-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.session-open-btn:hover{color:var(--text);border-color:rgba(0,0,0,0.22)}
+.session-del-btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,80,80,0.25);background:transparent;color:rgba(220,60,60,0.7);cursor:pointer;transition:all 0.15s}
+.session-del-btn:hover{background:rgba(255,80,80,0.08);color:#E03030}
+.sbrowser-close-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;margin-top:16px;transition:all 0.15s}
 .sbrowser-close-btn:hover{color:var(--text)}
 
 @media(max-width:600px){
-  .header,.toolbar,.stats-strip,.content{padding-left:16px;padding-right:16px}
-  .stats-strip{margin-left:16px;margin-right:16px}
+  .header,.toolbar,.content{padding-left:16px;padding-right:16px}
+  .session-bar{margin-left:16px;margin-right:16px}
 }
 </style>
 </head>
@@ -167,20 +166,18 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     <div class="accent-bar"></div>
     <div class="eyebrow">Route Annotation Journal</div>
     <div class="title">Pride Ride 2026</div>
-    <div class="session-name-row">
-      <span class="session-name-text" id="session-name-text">Loading…</span>
-      <button class="session-rename-btn" onclick="renameCurrentSession()" title="Rename session">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>
-    </div>
   </div>
 
-  <!-- Stats -->
-  <div class="stats-strip">
-    <div class="stat"><div class="stat-val">100</div><div class="stat-label">Miles</div></div>
-    <div class="stat"><div class="stat-val">~7,200</div><div class="stat-label">Ft Climb</div></div>
-    <div class="stat"><div class="stat-val">6</div><div class="stat-label">Rest Stops</div></div>
-    <div class="stat"><div class="stat-val" id="ann-stat">0</div><div class="stat-label">Annotations</div></div>
+  <!-- Session bar (clickable — opens session browser) -->
+  <div class="session-bar" onclick="openSessionBrowser()">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="session-bar-label">Session</span>
+      <span class="session-bar-name" id="session-bar-name">Loading…</span>
+    </div>
+    <div class="session-bar-hint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Browse sessions
+    </div>
   </div>
 
   <!-- Toolbar -->
@@ -236,13 +233,28 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 
 </div><!-- end shell -->
 
-<!-- Session name dialog (shown when creating a new session) -->
+<!-- Session startup dialog (shown when no ?session= in URL) -->
 <div class="sname-overlay" id="sname-overlay">
   <div class="sname-panel">
-    <h3>Name This Session</h3>
-    <input class="sname-input" id="sname-input" type="text" placeholder="e.g. Pre-ride Scouting Run"
-           onkeydown="if(event.key==='Enter') confirmSessionName()">
-    <button class="sname-create-btn" onclick="confirmSessionName()">Create Session</button>
+
+    <!-- View 1: choose pick or create -->
+    <div id="sname-choose-view">
+      <h3>Pride Ride 2026</h3>
+      <p class="sname-subtitle">Open an existing annotation session or start a fresh one.</p>
+      <button class="sname-choose-btn primary" onclick="showPickExisting()">Browse Existing Sessions</button>
+      <button class="sname-choose-btn secondary" onclick="showCreateNew()">+ Create New Session</button>
+    </div>
+
+    <!-- View 2: name input for new session -->
+    <div id="sname-create-view" style="display:none">
+      <button class="sname-back-btn" onclick="showChooseView()">← Back</button>
+      <h3>Name This Session</h3>
+      <p class="sname-subtitle" style="margin-bottom:16px">Give your session a descriptive name so you can find it later.</p>
+      <input class="sname-input" id="sname-input" type="text" placeholder="e.g. Pre-ride Scouting Run"
+             onkeydown="if(event.key==='Enter') confirmSessionName()">
+      <button class="sname-create-btn" onclick="confirmSessionName()">Create Session</button>
+    </div>
+
   </div>
 </div>
 
@@ -753,9 +765,7 @@ function saveAnnotationsLocal() {
   try { localStorage.setItem('pr26_annotations', JSON.stringify(annotations)); } catch(e) {}
 }
 
-function updateAnnStat() {
-  document.getElementById('ann-stat').textContent = annotations.length;
-}
+function updateAnnStat() { /* stats strip removed */ }
 
 // ── Keyboard ──
 document.addEventListener('keydown', e => {
@@ -791,7 +801,8 @@ async function updateSessionCount() {
 
 function setSessionNameDisplay(name) {
   sessionName = name;
-  document.getElementById('session-name-text').textContent = name;
+  const el = document.getElementById('session-bar-name');
+  if (el) el.textContent = name;
 }
 
 // ── New session name dialog ──
@@ -818,6 +829,26 @@ async function renameCurrentSession() {
   if (fb) {
     try { await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/name`), sessionName); } catch(e) {}
   }
+}
+
+// ── Startup dialog views ──
+let _startupMode = false;
+
+function showChooseView() {
+  document.getElementById('sname-choose-view').style.display = '';
+  document.getElementById('sname-create-view').style.display = 'none';
+}
+
+function showCreateNew() {
+  document.getElementById('sname-choose-view').style.display = 'none';
+  document.getElementById('sname-create-view').style.display = '';
+  setTimeout(() => document.getElementById('sname-input').focus(), 50);
+}
+
+function showPickExisting() {
+  document.getElementById('sname-overlay').classList.remove('open');
+  _startupMode = true;
+  openSessionBrowser();
 }
 
 // ── Session browser ──
@@ -866,6 +897,11 @@ async function openSessionBrowser() {
 
 function closeSessionBrowser() {
   document.getElementById('sbrowser-overlay').classList.remove('open');
+  if (_startupMode) {
+    _startupMode = false;
+    showChooseView();
+    document.getElementById('sname-overlay').classList.add('open');
+  }
 }
 
 function sbrowserBgClick(e) {
@@ -873,10 +909,11 @@ function sbrowserBgClick(e) {
 }
 
 function newSessionFromBrowser() {
-  closeSessionBrowser();
+  _startupMode = false; // suppress return-to-startup behavior
+  document.getElementById('sbrowser-overlay').classList.remove('open');
   document.getElementById('sname-input').value = '';
+  showCreateNew();
   document.getElementById('sname-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('sname-input').focus(), 50);
 }
 
 function switchToSession(id) {
@@ -942,17 +979,16 @@ Object.assign(window, {
   fitRoute, toggleLayer, shareSession, clearSession,
   geocodeAndSnap, startRepositionFromDialog, closeAnnotationDialog, annOverlayBgClick, saveAnnotation,
   openAnnotationDetail, closeAnnotationDetail, annDetailBgClick, deleteAnnotation,
-  renameCurrentSession, openSessionBrowser, closeSessionBrowser, sbrowserBgClick,
-  newSessionFromBrowser, switchToSession, deleteSessionEntry, confirmSessionName
+  openSessionBrowser, closeSessionBrowser, sbrowserBgClick,
+  newSessionFromBrowser, switchToSession, deleteSessionEntry, confirmSessionName,
+  showChooseView, showCreateNew, showPickExisting
 });
 
 if (sessionId) {
   loadSession();
 } else {
-  // New visit — prompt for session name
-  setSessionNameDisplay('New Session');
+  // New visit — show pick-or-create startup dialog
   document.getElementById('sname-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('sname-input').focus(), 50);
 }
 </script>
 </body>
