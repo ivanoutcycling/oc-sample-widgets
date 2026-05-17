@@ -330,6 +330,148 @@
     body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
     aside { border-right: 0; border-bottom: 2px solid var(--rule); max-height: 50vh; }
   }
+
+  /* ── Firebase session / auth UI ── */
+  .zb-session-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 2px solid var(--rule);
+  }
+  .zb-session-left { flex: 1; min-width: 0; }
+  .zb-session-name {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 3px;
+    line-height: 1.2;
+  }
+  .zb-session-name:hover { color: var(--accent); }
+  .zb-coord-badge {
+    display: none;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 2px 7px;
+  }
+  .zb-strip-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  /* Overlays */
+  .zb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 10, 0.55);
+    z-index: 4000;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 20px;
+    overflow-y: auto;
+  }
+  .zb-overlay.open { display: flex; }
+
+  .zb-dialog {
+    background: var(--paper);
+    border: 2px solid var(--rule);
+    padding: 28px;
+    width: 100%;
+    max-width: 380px;
+    flex-shrink: 0;
+    box-shadow: 4px 4px 0 var(--rule);
+  }
+  .zb-dialog h3 {
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .zb-field { margin-bottom: 12px; }
+  .zb-label {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .zb-input {
+    width: 100%;
+    padding: 9px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--rule);
+    background: #fffefb;
+    color: var(--ink);
+  }
+  .zb-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .zb-status { font-size: 11px; min-height: 16px; margin-bottom: 8px; color: var(--accent); }
+  .zb-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+  .zb-browser-dialog { max-width: 480px; }
+  .zb-browser-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .zb-browser-header h3 { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .zb-session-card {
+    border: 1px solid var(--rule);
+    padding: 11px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #fffefb;
+  }
+  .zb-session-card.current { border-left: 3px solid var(--accent); }
+  .zb-card-name {
+    font-family: Georgia, serif;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .zb-card-meta { font-size: 10px; color: var(--muted); font-family: 'Courier New', monospace; margin-top: 2px; }
+  .zb-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .zb-browser-footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .zb-link-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: underline;
+    font-family: inherit;
+    padding: 4px 0;
+  }
+  .zb-link-btn:hover { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -338,6 +480,19 @@
     <div class="eyebrow">A Cartographic Index</div>
     <h1>The Tri-State <em>Heatmap</em></h1>
     <p class="lede">A frequency atlas of zip codes across the five boroughs and northern New Jersey. Paste a list to render.</p>
+  </div>
+
+  <!-- Session strip -->
+  <div class="zb-session-strip">
+    <div class="zb-session-left">
+      <div class="eyebrow">Session</div>
+      <div class="zb-session-name" id="zbSessionName" onclick="zbOpenSessionBrowser()">—</div>
+    </div>
+    <div class="zb-strip-right">
+      <button class="secondary" id="zbShareBtn" style="display:none;font-size:9px;padding:5px 8px;white-space:nowrap;" onclick="zbShareSession()">Copy link</button>
+      <span class="zb-coord-badge" id="zbCoordBadge">Coord</span>
+      <button class="secondary" id="zbAuthBtn" style="font-size:9px;padding:5px 8px;white-space:nowrap;" onclick="zbAuthBtnClick()">Sign in</button>
+    </div>
   </div>
 
   <section class="panel">
@@ -417,6 +572,63 @@
     Boundaries: NYC Dept. of City Planning &amp; U.S. Census Bureau ZCTA. Rendered with Leaflet over OpenStreetMap.
   </div>
 </aside>
+
+<!-- Auth overlay -->
+<div class="zb-overlay" id="zbAuthOverlay" onclick="if(event.target===this)zbCloseAuthDialog()">
+  <div class="zb-dialog">
+    <h3>🔐 Coordinator Sign-In</h3>
+    <p style="font-family:Georgia,serif;font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.55;">
+      Sign in to create and manage sessions. Anyone with a session link can view without signing in.
+    </p>
+    <div class="zb-field">
+      <label class="zb-label" for="zbEmail">Email</label>
+      <input class="zb-input" type="email" id="zbEmail" placeholder="coordinator@example.com" autocomplete="username" />
+    </div>
+    <div class="zb-field">
+      <label class="zb-label" for="zbPwd">Password</label>
+      <input class="zb-input" type="password" id="zbPwd" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')zbSubmitAuth()" />
+    </div>
+    <div class="zb-status" id="zbAuthStatus"></div>
+    <div class="zb-actions">
+      <button class="primary" style="flex:1;" onclick="zbSubmitAuth()">Sign In</button>
+      <button class="secondary" onclick="zbCloseAuthDialog()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Session browser overlay -->
+<div class="zb-overlay" id="zbBrowserOverlay" onclick="if(event.target===this)zbCloseSessionBrowser()">
+  <div class="zb-dialog zb-browser-dialog">
+    <div class="zb-browser-header">
+      <h3>Sessions</h3>
+      <button class="primary" style="font-size:9px;padding:6px 10px;" onclick="zbStartNewSession()">+ New Session</button>
+    </div>
+    <div id="zbSessionList">
+      <div style="font-size:12px;color:var(--muted);text-align:center;padding:24px;font-family:Georgia,serif;font-style:italic;">Loading…</div>
+    </div>
+    <div class="zb-browser-footer">
+      <button class="zb-link-btn" id="zbSignOutBtn" onclick="zbSignOut()" style="display:none;">Sign out</button>
+      <button class="secondary" onclick="zbCloseSessionBrowser()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- New session name overlay -->
+<div class="zb-overlay" id="zbNameOverlay" onclick="if(event.target===this)zbCloseNameDialog()">
+  <div class="zb-dialog">
+    <h3>New Session</h3>
+    <div class="zb-field">
+      <label class="zb-label" for="zbNameInput">Session Name</label>
+      <input class="zb-input" type="text" id="zbNameInput" placeholder="e.g., Outreach — June 2026"
+             onkeydown="if(event.key==='Enter')zbConfirmNewSession()" />
+    </div>
+    <div class="zb-actions">
+      <button class="primary" style="flex:1;" onclick="zbConfirmNewSession()">Create Session</button>
+      <button class="secondary" onclick="zbCloseNameDialog()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <main>
   <div class="map-title"><strong>Folio I</strong>NY · NJ Postal Districts</div>
@@ -672,6 +884,7 @@
       zip3Features = buildZip3Features(allFeatures);
 
       document.getElementById('loading').style.display = 'none';
+      window._zbOnBoundariesLoaded?.();
     } catch (err) {
       document.getElementById('loading').textContent = 'Boundary load failed. Check connection.';
       console.error(err);
@@ -1128,6 +1341,7 @@
       : '<li><span class="zip">—</span><span class="ct">—</span></li>';
 
     if (geoLayer) geoLayer.setStyle(styleFeature);
+    window._zbOnRender?.();
   }
 
   document.getElementById('renderBtn').addEventListener('click', render);
@@ -1170,6 +1384,355 @@
   });
 
   loadBoundaries();
+</script>
+
+<!--
+  Firebase Realtime Database rules — add these paths to your rules JSON
+  (alongside the existing "sessions" and "sessionIndex" rules):
+
+  "zipSessions": {
+    "$sid": { ".read": true, ".write": true }
+  },
+  "zipSessionIndex": {
+    ".read": "auth != null",
+    ".write": "auth != null"
+  }
+
+  zipSessions/$sid  — public read/write; the UUID v4 session ID acts as the
+                      shared secret.  Anyone who knows the ID can read or write.
+  zipSessionIndex   — requires any Firebase auth (anonymous satisfies this),
+                      preventing unauthenticated enumeration of all sessions.
+-->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemove }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getAuth, signInWithEmailAndPassword, signInAnonymously,
+         onAuthStateChanged, signOut as fbSignOut }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+// Same Firebase project as the route annotation journal; storage paths are
+// separate (zipSessions / zipSessionIndex vs. sessions / sessionIndex).
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAoRc4QRDsXTf7xPISXeEy6TEhqnl5LCEU",
+  authDomain: "ride-annotator.firebaseapp.com",
+  databaseURL: "https://ride-annotator-default-rtdb.firebaseio.com",
+  projectId: "ride-annotator",
+  storageBucket: "ride-annotator.firebasestorage.app",
+  messagingSenderId: "692274107391",
+  appId: "1:692274107391:web:409d15436032b812a24dca"
+};
+
+let fb = null;
+let fbAuth = null;
+try {
+  // Named app so it can coexist with the route journal on the same domain
+  const app = initializeApp(FIREBASE_CONFIG, 'zip-heatmap');
+  fb = { db: getDatabase(app), dbRef, dbSet, dbGet, dbRemove };
+  fbAuth = getAuth(app);
+} catch (e) { console.warn('Firebase init failed — no cloud sync', e); }
+
+// ── Session state ──
+const _params = new URLSearchParams(location.search);
+let sessionId = _params.get('session');
+let sessionName = null;
+let authenticated = false;   // true only for coordinator (non-anonymous) users
+let _pendingAuthCb = null;
+let _boundariesLoaded = false;
+let _sessionZips = null;     // zips waiting for boundaries to finish loading
+
+// ── UI helpers ──
+function setSessionDisplay(name) {
+  sessionName = name;
+  const el = document.getElementById('zbSessionName');
+  if (el) el.textContent = name || '—';
+  const shareBtn = document.getElementById('zbShareBtn');
+  if (shareBtn) shareBtn.style.display = sessionId ? 'inline' : 'none';
+}
+
+function updateAuthUI(isCoord) {
+  const badge = document.getElementById('zbCoordBadge');
+  const btn   = document.getElementById('zbAuthBtn');
+  const signOutBtn = document.getElementById('zbSignOutBtn');
+  if (badge) badge.style.display = isCoord ? 'inline' : 'none';
+  if (btn)   btn.textContent = isCoord ? 'Account' : 'Sign in';
+  if (signOutBtn) signOutBtn.style.display = isCoord ? 'inline-block' : 'none';
+}
+
+function _esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Auth ──
+function requireAuth(cb) {
+  if (authenticated) { cb(); return; }
+  _pendingAuthCb = cb;
+  document.getElementById('zbAuthOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('zbEmail')?.focus(), 50);
+}
+
+function zbAuthBtnClick() {
+  if (authenticated) {
+    zbOpenSessionBrowser();
+  } else {
+    document.getElementById('zbAuthOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('zbEmail')?.focus(), 50);
+  }
+}
+
+async function zbSubmitAuth() {
+  const email = document.getElementById('zbEmail').value.trim();
+  const pwd   = document.getElementById('zbPwd').value;
+  const status = document.getElementById('zbAuthStatus');
+  if (!email || !pwd) return;
+  status.textContent = 'Signing in…';
+  if (!fbAuth) { status.textContent = 'Firebase unavailable.'; return; }
+  try {
+    await signInWithEmailAndPassword(fbAuth, email, pwd);
+    // onAuthStateChanged fires next and handles the rest
+  } catch (e) {
+    status.textContent =
+      (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password')
+        ? '✗ Incorrect email or password'
+        : 'Error — check connection';
+    document.getElementById('zbPwd').value = '';
+    setTimeout(() => document.getElementById('zbPwd')?.focus(), 50);
+  }
+}
+
+function zbCloseAuthDialog() {
+  document.getElementById('zbAuthOverlay').classList.remove('open');
+  document.getElementById('zbEmail').value = '';
+  document.getElementById('zbPwd').value = '';
+  document.getElementById('zbAuthStatus').textContent = '';
+  _pendingAuthCb = null;
+}
+
+async function zbSignOut() {
+  if (!fbAuth) return;
+  if (!confirm('Sign out of coordinator access?')) return;
+  await fbSignOut(fbAuth);
+  // Drop back to anonymous so Firebase reads still work
+  signInAnonymously(fbAuth);
+  zbCloseSessionBrowser();
+}
+
+// ── Session browser ──
+function zbOpenSessionBrowser() {
+  requireAuth(_doOpenSessionBrowser);
+}
+
+async function _doOpenSessionBrowser() {
+  document.getElementById('zbBrowserOverlay').classList.add('open');
+  const list = document.getElementById('zbSessionList');
+  if (!fb) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:24px;font-family:Georgia,serif;font-style:italic;">Firebase unavailable — sessions disabled</div>';
+    return;
+  }
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:24px;font-family:Georgia,serif;font-style:italic;">Loading…</div>';
+  try {
+    const snap = await fb.dbGet(fb.dbRef(fb.db, 'zipSessionIndex'));
+    list.innerHTML = '';
+    if (!snap.exists()) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:24px;font-family:Georgia,serif;font-style:italic;">No sessions yet. Create one above.</div>';
+      return;
+    }
+    const sessions = Object.entries(snap.val())
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    for (const s of sessions) {
+      const isCurrent = s.id === sessionId;
+      const date = s.createdAt
+        ? new Date(s.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '—';
+      const card = document.createElement('div');
+      card.className = 'zb-session-card' + (isCurrent ? ' current' : '');
+      card.innerHTML = `
+        <div style="flex:1;min-width:0;">
+          <div class="zb-card-name">${_esc(s.name || 'Untitled')}</div>
+          <div class="zb-card-meta">${date}</div>
+        </div>
+        <div class="zb-card-actions">
+          ${isCurrent
+            ? '<span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);font-weight:700;">Current</span>'
+            : `<button class="secondary" style="font-size:9px;padding:5px 8px;" onclick="zbSwitchToSession('${s.id}')">Open</button>`}
+          <button class="secondary" style="font-size:9px;padding:5px 8px;color:var(--accent);" onclick="zbDeleteSession('${s.id}')">Delete</button>
+        </div>`;
+      list.appendChild(card);
+    }
+  } catch (e) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--accent);text-align:center;padding:24px;font-family:Georgia,serif;font-style:italic;">Error loading sessions</div>';
+    console.error(e);
+  }
+}
+
+function zbCloseSessionBrowser() {
+  document.getElementById('zbBrowserOverlay').classList.remove('open');
+}
+
+function zbStartNewSession() {
+  zbCloseSessionBrowser();
+  document.getElementById('zbNameOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('zbNameInput')?.focus(), 50);
+}
+
+function zbCloseNameDialog() {
+  document.getElementById('zbNameOverlay').classList.remove('open');
+  document.getElementById('zbNameInput').value = '';
+}
+
+async function zbConfirmNewSession() {
+  const name = document.getElementById('zbNameInput').value.trim() || 'Untitled Session';
+  zbCloseNameDialog();
+  await _createSession(name);
+}
+
+async function _createSession(name) {
+  sessionId = (crypto.randomUUID?.() ??
+    Date.now().toString(36) + Math.random().toString(36).slice(2));
+  setSessionDisplay(name);
+  history.replaceState(null, '', '?session=' + sessionId);
+  if (fb) {
+    try {
+      await fb.dbSet(fb.dbRef(fb.db, `zipSessionIndex/${sessionId}`), {
+        name,
+        createdAt: Date.now()
+      });
+    } catch (e) { console.warn('sessionIndex write failed', e); }
+  }
+}
+
+function zbSwitchToSession(id) {
+  location.href = '?session=' + id;
+}
+
+async function zbDeleteSession(id) {
+  if (!confirm('Delete this session and its zip codes? This cannot be undone.')) return;
+  if (!fb) return;
+  try {
+    await Promise.all([
+      fb.dbRemove(fb.dbRef(fb.db, `zipSessionIndex/${id}`)),
+      fb.dbRemove(fb.dbRef(fb.db, `zipSessions/${id}`))
+    ]);
+    if (id === sessionId) {
+      location.href = location.pathname;
+    } else {
+      _doOpenSessionBrowser();
+    }
+  } catch (e) { alert('Error deleting session.'); }
+}
+
+// ── Share ──
+function zbShareSession() {
+  navigator.clipboard.writeText(location.href).catch(() => {});
+  const btn = document.getElementById('zbShareBtn');
+  if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 2000); }
+}
+
+// ── Save / Load ──
+async function _saveSessionZips() {
+  if (!fb || !sessionId) return;
+  const zips = document.getElementById('zipInput')?.value ?? '';
+  try {
+    await fb.dbSet(fb.dbRef(fb.db, `zipSessions/${sessionId}`), {
+      zips,
+      savedAt: Date.now()
+    });
+  } catch (e) { console.warn('Save failed', e); }
+}
+
+async function _loadSession() {
+  if (!fb || !sessionId) return;
+  try {
+    const [idxSnap, dataSnap] = await Promise.all([
+      fb.dbGet(fb.dbRef(fb.db, `zipSessionIndex/${sessionId}`)),
+      fb.dbGet(fb.dbRef(fb.db, `zipSessions/${sessionId}`))
+    ]);
+    setSessionDisplay(idxSnap.exists() ? (idxSnap.val().name || 'Untitled Session') : 'Shared Session');
+    if (dataSnap.exists()) {
+      const zips = dataSnap.val().zips || '';
+      const input = document.getElementById('zipInput');
+      if (input) input.value = zips;
+      if (_boundariesLoaded) {
+        window.render?.();
+      } else {
+        _sessionZips = zips;
+      }
+    }
+  } catch (e) {
+    console.warn('Session load failed', e);
+    setSessionDisplay('Session (offline)');
+  }
+}
+
+// Hooks called by the existing (non-module) script
+function _onRender() { _saveSessionZips(); }
+
+function _onBoundariesLoaded() {
+  _boundariesLoaded = true;
+  if (_sessionZips !== null && _sessionZips !== '') {
+    window.render?.();
+    _sessionZips = null;
+  }
+}
+
+// ── Expose to window (inline onclick handlers live in non-module script scope) ──
+Object.assign(window, {
+  zbOpenSessionBrowser,
+  zbCloseSessionBrowser,
+  zbStartNewSession,
+  zbCloseNameDialog,
+  zbConfirmNewSession,
+  zbSwitchToSession,
+  zbDeleteSession,
+  zbShareSession,
+  zbSubmitAuth,
+  zbCloseAuthDialog,
+  zbAuthBtnClick,
+  zbSignOut,
+  _zbOnRender: _onRender,
+  _zbOnBoundariesLoaded: _onBoundariesLoaded
+});
+
+// ── Startup ──
+function _startup() {
+  if (sessionId) {
+    setSessionDisplay('Loading…');
+    _loadSession();
+  } else {
+    setSessionDisplay('No session · Sign in to create');
+  }
+}
+
+if (fbAuth) {
+  let _startupDone = false;
+  onAuthStateChanged(fbAuth, user => {
+    authenticated = !!(user && !user.isAnonymous);
+    updateAuthUI(authenticated);
+
+    if (authenticated && document.getElementById('zbAuthOverlay').classList.contains('open')) {
+      // Coordinator just signed in — close auth dialog and run pending callback
+      zbCloseAuthDialog();
+      if (_pendingAuthCb) { _pendingAuthCb(); _pendingAuthCb = null; }
+    }
+
+    if (!_startupDone) {
+      if (user) {
+        // Any Firebase user (anonymous or coordinator) can read session data
+        _startupDone = true;
+        _startup();
+      } else {
+        // No user at all — sign in anonymously so DB reads satisfy auth != null
+        signInAnonymously(fbAuth);
+      }
+    }
+  });
+} else {
+  _startup();
+}
 </script>
 </body>
 </html>
