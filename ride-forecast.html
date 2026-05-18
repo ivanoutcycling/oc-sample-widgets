@@ -195,6 +195,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   </div>
 
   <div class="forecast-meta" id="forecast-meta"></div>
+  <div id="fc-generated-at" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;padding:0 32px 12px;display:none"></div>
 
   <div class="feel-panel" id="feel-panel"></div>
 
@@ -331,6 +332,7 @@ let _forecastPoints = null;
 let _waypoints = null;
 let _elevGainM = null;   // RWGPS pre-computed gain; null → compute from raw track points
 let _sessionMeta = null;
+let _forecastGeneratedAt = null;
 let _leafletMap = null;
 let _charts = {};
 
@@ -862,6 +864,15 @@ function renderForecastMeta(meta) {
   ).join('');
 }
 
+function setGeneratedAt(ts) {
+  _forecastGeneratedAt = ts ?? null;
+  const el = document.getElementById('fc-generated-at');
+  if (!el) return;
+  if (!ts) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.textContent = 'Weather fetched ' + fmtRelTime(ts);
+  el.style.display = 'block';
+}
+
 // ── Ride-feel summary panel ──
 // Shared data builder used by both the DOM panel and the canvas export.
 function buildFeelItems(pts) {
@@ -1302,6 +1313,7 @@ async function generateForecast() {
     await renderCharts(forecastPoints);
     setTimeout(() => renderMap(forecastPoints, waypoints), 50);
     renderFeelSummary(forecastPoints); renderSummary(forecastPoints, waypoints);
+    setGeneratedAt(Date.now());
     setProgress(100, 'Done');
 
     // 5. Save (coordinator only)
@@ -1346,6 +1358,7 @@ async function regenForecast() {
                    speedMph:s.speedMph, routeSource:s.routeSource, routeId:s.routeId,
                    routePrivacyCode: s.routePrivacyCode || null, elevGainM: _elevGainM };
     await saveSession(meta, forecastPoints, wpts);
+    setGeneratedAt(Date.now());
     toast('Forecast updated');
   } catch(e) {
     alert('Regeneration failed: ' + e.message);
@@ -1405,6 +1418,8 @@ async function openSessionForecast(id) {
 
     _forecastPoints = forecastPoints;
     _waypoints = wpts;
+    // Use the stored timestamp for cache hits; fresh Date.now() for stale regenerations.
+    setGeneratedAt(age < CACHE_TTL_MS ? (session.forecastGeneratedAt || Date.now()) : Date.now());
     await renderCharts(forecastPoints);
     if (wpts) { setTimeout(() => renderMap(forecastPoints, wpts), 50); renderFeelSummary(forecastPoints); renderSummary(forecastPoints, wpts); }
   } catch(e) {
