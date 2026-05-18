@@ -253,6 +253,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 <div class="overlay" id="auth-overlay" onclick="overlayBgClick(event)">
   <div class="overlay-panel">
     <h3>Coordinator Sign In</h3>
+    <p id="auth-reason" style="display:none;font-size:12px;color:var(--text);opacity:0.75;margin:-6px 0 14px;line-height:1.5"></p>
     <div class="ov-field">
       <label class="ov-label" for="auth-email">Email</label>
       <input class="ov-input" id="auth-email" type="email" placeholder="coordinator@example.com"
@@ -419,7 +420,9 @@ function updateAuthUI() {
   if (regenBtn) regenBtn.style.display = isCoordinator ? 'inline-flex' : 'none';
 }
 
-function openAuthDialog() {
+function openAuthDialog(reason = '') {
+  const r = document.getElementById('auth-reason');
+  if (r) { r.textContent = reason; r.style.display = reason ? 'block' : 'none'; }
   document.getElementById('auth-overlay').classList.add('open');
   setTimeout(() => document.getElementById('auth-email')?.focus(), 50);
 }
@@ -427,14 +430,16 @@ function openAuthDialog() {
 function closeAuthDialog() {
   document.getElementById('auth-overlay').classList.remove('open');
   document.getElementById('auth-status').textContent = '';
+  const r = document.getElementById('auth-reason');
+  if (r) { r.textContent = ''; r.style.display = 'none'; }
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-pwd').value = '';
 }
 
-function requireAuth(cb) {
+function requireAuth(cb, reason = '') {
   if (isCoordinator) { cb(); return; }
   _pendingAuthCb = cb;
-  openAuthDialog();
+  openAuthDialog(reason);
 }
 
 function authBtnClick() {
@@ -1165,7 +1170,7 @@ async function deleteSession(id) {
 
 // ── Dashboard ──
 async function openDashboard() {
-  if (!isCoordinator) { requireAuth(() => openDashboard()); return; }
+  if (!isCoordinator) { requireAuth(() => openDashboard(), 'Sign in to view and manage saved sessions.'); return; }
   showView('view-dashboard');
   const tbody = document.getElementById('dash-tbody');
   document.getElementById('dash-empty').style.display = 'none';
@@ -1207,7 +1212,33 @@ async function confirmDelete(id) {
 
 // ── Share ──
 function shareSession() {
-  navigator.clipboard.writeText(location.href).then(() => toast('Link copied!'));
+  if (_sessionId) {
+    // Session already saved — URL has ?id=UUID, just copy it.
+    navigator.clipboard.writeText(location.href).then(() => toast('Link copied!'));
+    return;
+  }
+  if (!isCoordinator) {
+    // Forecast exists locally but hasn't been saved. Prompt sign-in, then save + copy.
+    requireAuth(async () => {
+      if (_forecastPoints && _sessionMeta) {
+        toast('Saving forecast…');
+        try {
+          await saveSession(_sessionMeta, _forecastPoints, _waypoints);
+          navigator.clipboard.writeText(location.href).then(() => toast('Link copied!'));
+        } catch(e) {
+          toast('Save failed — check connection');
+        }
+      }
+    }, 'Sign in to save this forecast and get a shareable link.');
+    return;
+  }
+  // Coordinator but auto-save hasn't completed yet (rare — e.g. slow connection).
+  if (_forecastPoints && _sessionMeta) {
+    toast('Saving…');
+    saveSession(_sessionMeta, _forecastPoints, _waypoints)
+      .then(() => navigator.clipboard.writeText(location.href).then(() => toast('Link copied!')))
+      .catch(() => toast('Save failed — check connection'));
+  }
 }
 
 // ── Run forecast from form inputs ──
@@ -1263,9 +1294,9 @@ async function generateForecast() {
     // 4. Render
     _forecastPoints = forecastPoints;
     _waypoints = waypoints;
-    _sessionMeta = null;
     _sessionId = null;
     const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId, routePrivacyCode, elevGainM: _elevGainM };
+    _sessionMeta = meta;  // keep available so a post-auth save can use it
     renderForecastMeta(meta);
     showView('view-forecast');
     await renderCharts(forecastPoints);
@@ -1393,7 +1424,7 @@ function startup() {
     openSessionForecast(idParam);
   } else if (dashParam === '1') {
     if (isCoordinator) openDashboard();
-    else requireAuth(() => openDashboard());
+    else requireAuth(() => openDashboard(), 'Sign in to view and manage saved sessions.');
   } else {
     showView('view-input');
     document.getElementById('start-date').value = new Date().toISOString().slice(0, 10);
