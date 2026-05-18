@@ -6,8 +6,7 @@
 <title>Ride Forecast</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"
-        onerror="this.onerror=null;this.src='https://unpkg.com/chart.js@4/dist/chart.umd.min.js'"></script>
+
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -270,6 +269,29 @@ import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemo
 import { getAuth, signInWithEmailAndPassword, signInAnonymously,
          onAuthStateChanged, signOut as fbSignOut }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+// ── Chart.js loader ──
+// Loaded programmatically so we can retry CDNs and know when it's ready.
+async function loadChartJs() {
+  if (typeof Chart !== 'undefined') return;
+  const cdns = [
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
+    'https://unpkg.com/chart.js@4.4.3/dist/chart.umd.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js',
+  ];
+  for (const src of cdns) {
+    const ok = await new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+    if (ok && typeof Chart !== 'undefined') return;
+  }
+  throw new Error('Chart.js could not be loaded — check your internet connection');
+}
+const _chartReady = loadChartJs(); // start eagerly; resolves before the user finishes the form
 
 // ── Firebase init ──
 const FIREBASE_CONFIG = {
@@ -587,7 +609,8 @@ function mkDataset(label, data, color, rgba, opts = {}) {
   return { label, data, borderColor: color, backgroundColor: rgba, fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, ...opts };
 }
 
-function renderCharts(pts) {
+async function renderCharts(pts) {
+  await _chartReady;
   destroyCharts();
   const labels = pts.map(p => fmtHHMM(p.timestamp));
 
@@ -861,8 +884,8 @@ async function generateForecast() {
     _sessionId = null;
     const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId, routePrivacyCode };
     renderForecastMeta(meta);
-    renderCharts(forecastPoints);
     showView('view-forecast');
+    await renderCharts(forecastPoints);
     setTimeout(() => renderMap(forecastPoints, waypoints), 50);
     renderSummary(forecastPoints, waypoints);
     setProgress(100, 'Done');
@@ -901,7 +924,7 @@ async function regenForecast() {
     const samples = interpolateByTime(wpts, startTimeMs, s.speedMph);
     const forecastPoints = await fetchWeatherForSamples(samples, () => {});
     _forecastPoints = forecastPoints;
-    renderCharts(forecastPoints);
+    await renderCharts(forecastPoints);
     renderMap(forecastPoints, wpts);
     renderSummary(forecastPoints, wpts);
     // Coordinator writes back the fresh forecast
@@ -964,7 +987,7 @@ async function openSessionForecast(id) {
 
     _forecastPoints = forecastPoints;
     _waypoints = wpts;
-    renderCharts(forecastPoints);
+    await renderCharts(forecastPoints);
     if (wpts) { setTimeout(() => renderMap(forecastPoints, wpts), 50); renderSummary(forecastPoints, wpts); }
   } catch(e) {
     alert('Error loading forecast: ' + e.message);
