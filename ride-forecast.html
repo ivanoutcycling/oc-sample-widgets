@@ -442,8 +442,10 @@ function setSource(src) {
 }
 
 // ── Route loading ──
-async function loadRwgpsRoute(routeId) {
-  const res = await fetch(`${RWGPS_BASE}/${routeId}.json`);
+async function loadRwgpsRoute(routeId, privacyCode = null) {
+  const qs = privacyCode ? `?privacy_code=${encodeURIComponent(privacyCode)}` : '';
+  const res = await fetch(`${RWGPS_BASE}/${routeId}.json${qs}`);
+  if (res.status === 401 || res.status === 403) throw new Error('Route is private — check the privacy code in the URL');
   if (res.status === 404) throw new Error('Route not found — is it a public RideWithGPS route?');
   if (!res.ok) throw new Error(`Failed to load route (HTTP ${res.status})`);
   const data = await res.json();
@@ -718,6 +720,7 @@ async function saveSession(meta, forecastPoints, waypoints) {
     label: meta.label || 'Untitled Forecast',
     routeSource: meta.routeSource,
     routeId: meta.routeId || null,
+    routePrivacyCode: meta.routePrivacyCode || null,
     waypointsJson,
     startDate: meta.startDate,
     startTime: meta.startTime,
@@ -823,12 +826,13 @@ async function generateForecast() {
 
   try {
     // 1. Load route
-    let waypoints, routeId = null;
+    let waypoints, routeId = null, routePrivacyCode = null;
     if (isRwgps) {
       const m = rwgpsUrl.match(/routes\/(\d+)/);
       if (!m) throw new Error('Could not find a route ID in that URL');
       routeId = m[1];
-      waypoints = await loadRwgpsRoute(routeId);
+      try { routePrivacyCode = new URL(rwgpsUrl).searchParams.get('privacy_code') || null; } catch(_) {}
+      waypoints = await loadRwgpsRoute(routeId, routePrivacyCode);
     } else {
       waypoints = parseGpx(await gpxFile.text());
     }
@@ -850,7 +854,7 @@ async function generateForecast() {
     _waypoints = waypoints;
     _sessionMeta = null;
     _sessionId = null;
-    const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId };
+    const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId, routePrivacyCode };
     renderForecastMeta(meta);
     renderCharts(forecastPoints);
     showView('view-forecast');
@@ -880,7 +884,7 @@ async function regenForecast() {
   try {
     let wpts = _waypoints;
     if (!wpts) {
-      if (s.routeSource === 'rwgps' && s.routeId) wpts = await loadRwgpsRoute(s.routeId);
+      if (s.routeSource === 'rwgps' && s.routeId) wpts = await loadRwgpsRoute(s.routeId, s.routePrivacyCode || null);
       else if (s.waypointsJson) {
         const raw = JSON.parse(s.waypointsJson);
         wpts = raw.map(w => ({ lat:w[0], lng:w[1], ele_m:w[2], dist_m:w[3] }));
@@ -897,7 +901,8 @@ async function regenForecast() {
     renderSummary(forecastPoints, wpts);
     // Coordinator writes back the fresh forecast
     const meta = { label:s.label, startDate:s.startDate, startTime:s.startTime,
-                   speedMph:s.speedMph, routeSource:s.routeSource, routeId:s.routeId };
+                   speedMph:s.speedMph, routeSource:s.routeSource, routeId:s.routeId,
+                   routePrivacyCode: s.routePrivacyCode || null };
     await saveSession(meta, forecastPoints, wpts);
     toast('Forecast updated');
   } catch(e) {
@@ -931,7 +936,7 @@ async function openSessionForecast(id) {
         const raw = JSON.parse(session.waypointsJson);
         return raw.map(w => ({ lat:w[0], lng:w[1], ele_m:w[2], dist_m:w[3] }));
       }
-      if (session.routeSource === 'rwgps' && session.routeId) return loadRwgpsRoute(session.routeId);
+      if (session.routeSource === 'rwgps' && session.routeId) return loadRwgpsRoute(session.routeId, session.routePrivacyCode || null);
       return null;
     };
 
