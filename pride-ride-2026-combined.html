@@ -32,6 +32,42 @@
   font-size: 9px !important;
 }
 .leaflet-control-attribution a { color: rgba(238,234,255,0.5) !important; }
+
+/* ── Landmark popup ── */
+.lm-popup-wrap .leaflet-popup-content-wrapper {
+  background: rgba(10,10,22,0.97) !important;
+  border: 1px solid rgba(255,255,255,0.13) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.75) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  backdrop-filter: blur(16px) !important;
+}
+.lm-popup-wrap .leaflet-popup-content { margin: 0 !important; width: 260px !important; }
+.lm-popup-wrap .leaflet-popup-tip { background: rgba(10,10,22,0.97) !important; box-shadow: none !important; }
+.lm-popup-wrap .leaflet-popup-close-button {
+  color: rgba(238,234,255,0.45) !important; font-size: 16px !important;
+  top: 7px !important; right: 10px !important; z-index: 10 !important;
+}
+.lm-popup-wrap .leaflet-popup-close-button:hover { color: #eeeaff !important; }
+.lm-popup-img { height: 148px; overflow: hidden; }
+.lm-popup-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lm-popup-body { padding: 11px 14px 13px; }
+.lm-popup-name { font-family: 'Unbounded', sans-serif; font-size: 10.5px; font-weight: 700; color: #eeeaff; margin-bottom: 7px; display: flex; align-items: center; gap: 6px; }
+.lm-popup-desc { font-size: 10px; line-height: 1.65; color: rgba(238,234,255,0.68); }
+.lm-popup-credit { font-size: 8px; color: rgba(238,234,255,0.28); margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,0.07); }
+
+/* ── Landmark circle marker ── */
+.lm-marker-ring {
+  width: 46px; height: 46px; border-radius: 50%; overflow: hidden;
+  border: 2.5px solid rgba(255,255,255,0.82);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,0,0,0.4);
+  cursor: pointer; background: #1a1a2e; position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.lm-marker-ring:hover { transform: scale(1.12); box-shadow: 0 4px 20px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,0,0,0.4); }
+.lm-marker-ring img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lm-marker-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 </style>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -237,8 +273,16 @@ const ROUTES = {
     label: '40 mi', subtitle: 'Washington Heights → Palisades → Tallman State Park → Return',
     stats: { dist: '41.5', gain: '1,474', peak: '383', stops: 2 },
     landmarks: [
-      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge' },
-      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier' },
+      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/George_Washington_Bridge_05.JPG/80px-George_Washington_Bridge_05.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/George_Washington_Bridge_05.JPG/400px-George_Washington_Bridge_05.JPG',
+        desc:'The iconic suspension bridge connecting Manhattan to Fort Lee, NJ. Cyclists cross on the lower level with sweeping Hudson River views — a dramatic launch into the Palisades climb.',
+        credit:'© Ad Meskens / Wikimedia Commons, CC BY-SA 3.0' },
+      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Piermont_pier_jeh.JPG/80px-Piermont_pier_jeh.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Piermont_pier_jeh.JPG/400px-Piermont_pier_jeh.JPG',
+        desc:'A remarkable 4,800-ft pier jutting into the Tappan Zee. Built in 1841 as a railroad freight terminus, it\'s now a beloved promenade with 360° Hudson Valley panoramas.',
+        credit:'Jim.henderson / Wikimedia Commons, Public Domain' },
     ],
     waypoints: [
       { d:15.191, e:41, lat:40.99005, lon:-73.96998, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
@@ -252,9 +296,21 @@ const ROUTES = {
     label: '65 mi', subtitle: 'Washington Heights → Palisades → Tallman State Park → Rockland Lake → Return',
     stats: { dist: '65.0', gain: '2,466', peak: '384', stops: 3 },
     landmarks: [
-      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge' },
-      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier' },
-      { lat:41.1306, lon:-73.9211, icon:'💧', name:'Rockland Lake' },
+      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/George_Washington_Bridge_05.JPG/80px-George_Washington_Bridge_05.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/George_Washington_Bridge_05.JPG/400px-George_Washington_Bridge_05.JPG',
+        desc:'The iconic suspension bridge connecting Manhattan to Fort Lee, NJ. Cyclists cross on the lower level with sweeping Hudson River views — a dramatic launch into the Palisades climb.',
+        credit:'© Ad Meskens / Wikimedia Commons, CC BY-SA 3.0' },
+      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Piermont_pier_jeh.JPG/80px-Piermont_pier_jeh.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Piermont_pier_jeh.JPG/400px-Piermont_pier_jeh.JPG',
+        desc:'A remarkable 4,800-ft pier jutting into the Tappan Zee. Built in 1841 as a railroad freight terminus, it\'s now a beloved promenade with 360° Hudson Valley panoramas.',
+        credit:'Jim.henderson / Wikimedia Commons, Public Domain' },
+      { lat:41.1306, lon:-73.9211, icon:'💧', name:'Rockland Lake',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Rockland_Lake.jpg/80px-Rockland_Lake.jpg',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Rockland_Lake.jpg/400px-Rockland_Lake.jpg',
+        desc:'A glacially-carved lake at the foot of Hook Mountain, surrounded by 1,100 acres of state parkland. Once the source of crystal-clear ice shipped to New York City, now a stunning rest stop mid-ride.',
+        credit:'Jondude11 / Wikimedia Commons, CC BY-SA 4.0' },
     ],
     waypoints: [
       { d:15.895, e:52, lat:40.99061, lon:-73.96898, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
@@ -269,10 +325,26 @@ const ROUTES = {
     label: '100 mi', subtitle: 'Washington Heights → Palisades → Rockland Lake → New City → Hudson Valley Loop',
     stats: { dist: '99.3', gain: '4,494', peak: '641', stops: 5 },
     landmarks: [
-      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge' },
-      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier' },
-      { lat:41.1306, lon:-73.9211, icon:'💧', name:'Rockland Lake' },
-      { lat:41.1537, lon:-74.0745, icon:'🍎', name:'Orchards of Concklin' },
+      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/George_Washington_Bridge_05.JPG/80px-George_Washington_Bridge_05.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/George_Washington_Bridge_05.JPG/400px-George_Washington_Bridge_05.JPG',
+        desc:'The iconic suspension bridge connecting Manhattan to Fort Lee, NJ. Cyclists cross on the lower level with sweeping Hudson River views — a dramatic launch into the Palisades climb.',
+        credit:'© Ad Meskens / Wikimedia Commons, CC BY-SA 3.0' },
+      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Piermont_pier_jeh.JPG/80px-Piermont_pier_jeh.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Piermont_pier_jeh.JPG/400px-Piermont_pier_jeh.JPG',
+        desc:'A remarkable 4,800-ft pier jutting into the Tappan Zee. Built in 1841 as a railroad freight terminus, it\'s now a beloved promenade with 360° Hudson Valley panoramas.',
+        credit:'Jim.henderson / Wikimedia Commons, Public Domain' },
+      { lat:41.1306, lon:-73.9211, icon:'💧', name:'Rockland Lake',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Rockland_Lake.jpg/80px-Rockland_Lake.jpg',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Rockland_Lake.jpg/400px-Rockland_Lake.jpg',
+        desc:'A glacially-carved lake at the foot of Hook Mountain, surrounded by 1,100 acres of state parkland. Once the source of crystal-clear ice shipped to New York City, now a stunning rest stop mid-ride.',
+        credit:'Jondude11 / Wikimedia Commons, CC BY-SA 4.0' },
+      { lat:41.1537, lon:-74.0745, icon:'🍎', name:'Orchards of Concklin',
+        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Apple_orchard_in_Marlboro%2C_New_York_%28cropped%29.JPG/80px-Apple_orchard_in_Marlboro%2C_New_York_%28cropped%29.JPG',
+        fullImg:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Apple_orchard_in_Marlboro%2C_New_York_%28cropped%29.JPG/400px-Apple_orchard_in_Marlboro%2C_New_York_%28cropped%29.JPG',
+        desc:'A working family farm in Pomona, NY growing apples, peaches, and berries since the 1930s. Century riders pass right by — keep an eye out for roadside stands and fresh-picked fruit.',
+        credit:'Juliancolton / Wikimedia Commons, Public Domain' },
     ],
     waypoints: [
       { d:15.839, e:50, lat:40.99055, lon:-73.96908, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
@@ -662,13 +734,25 @@ function drawMap() {
   (route.landmarks || []).forEach(lm => {
     const lmIcon = L.divIcon({
       className: '',
-      html: `<div style="display:flex;align-items:center;gap:5px;background:rgba(7,7,15,0.88);border:1px solid rgba(255,255,255,0.22);border-radius:20px;padding:4px 9px 4px 6px;box-shadow:0 2px 10px rgba(0,0,0,0.55);white-space:nowrap;pointer-events:auto">
-               <span style="font-size:15px;line-height:1">${lm.icon}</span>
-               <span style="font-family:Inter,sans-serif;font-size:9px;font-weight:500;color:rgba(238,234,255,0.85);letter-spacing:0.2px">${lm.name}</span>
+      html: `<div class="lm-marker-ring">
+               <img src="${lm.img}" alt="${lm.name}"
+                 onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div class=\\'lm-marker-fallback\\'>${lm.icon}</div>')">
              </div>`,
-      iconAnchor: [0, 14]
+      iconSize: [46, 46], iconAnchor: [23, 23]
     });
+
+    const popupContent = `
+      <div>
+        <div class="lm-popup-img"><img src="${lm.fullImg}" alt="${lm.name}" loading="lazy"></div>
+        <div class="lm-popup-body">
+          <div class="lm-popup-name"><span>${lm.icon}</span>${lm.name}</div>
+          <div class="lm-popup-desc">${lm.desc}</div>
+          <div class="lm-popup-credit">${lm.credit}</div>
+        </div>
+      </div>`;
+
     const m = L.marker([lm.lat, lm.lon], { icon: lmIcon, zIndexOffset: -100 })
+      .bindPopup(popupContent, { className: 'lm-popup-wrap', maxWidth: 260, minWidth: 260 })
       .addTo(leafletMap);
     landmarkMarkers.push(m);
   });
