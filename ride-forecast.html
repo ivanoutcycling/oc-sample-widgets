@@ -6,7 +6,8 @@
 <title>Ride Forecast</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/chart.js@4/dist/chart.umd.min.js'"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -449,8 +450,12 @@ async function loadRwgpsRoute(routeId, privacyCode = null) {
   if (res.status === 404) throw new Error('Route not found — is it a public RideWithGPS route?');
   if (!res.ok) throw new Error(`Failed to load route (HTTP ${res.status})`);
   const data = await res.json();
-  const pts = data.route?.track_points;
-  if (!pts?.length) throw new Error('Route has no track points');
+  // RWGPS route JSON may nest under a "route" key or expose track_points at top level
+  const pts = data.route?.track_points ?? data.track_points;
+  if (!pts?.length) {
+    const keys = JSON.stringify(Object.keys(data));
+    throw new Error(`Route has no track points (response keys: ${keys})`);
+  }
   return pts.map(p => ({ lat: p.y, lng: p.x, ele_m: p.e ?? 0, dist_m: p.d ?? 0 }));
 }
 
