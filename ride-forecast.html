@@ -84,7 +84,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .toast.show{opacity:1}
 .leaflet-control-zoom a{background:#fff!important;color:#444!important;border-color:rgba(0,0,0,0.15)!important}
 .leaflet-control-attribution{background:rgba(255,255,255,0.75)!important;color:rgba(0,0,0,0.45)!important;font-size:8px!important}
-.wind-arrow{pointer-events:none}
+.wind-arrow{cursor:pointer}
 @media(max-width:600px){
   .header,.toolbar,.forecast-meta{padding-left:16px;padding-right:16px}
   .card,.map-wrap{margin-left:16px;margin-right:16px}
@@ -679,9 +679,12 @@ function renderMap(pts, waypoints) {
   for (const pt of pts) {
     const angle = (pt.wind_dir_deg + 180) % 360;
     const spd = pt.wind_mph;
-    const clr = spd < 8 ? '#bbb' : spd < 16 ? '#666' : '#111';
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="transform:rotate(${angle}deg);display:block"><polygon points="9,1 13,15 9,11 5,15" fill="${clr}" opacity="0.8"/></svg>`;
-    const icon = L.divIcon({ html: svg, iconSize:[18,18], iconAnchor:[9,9], className:'wind-arrow' });
+    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" style="transform:rotate(${angle}deg);display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35))">
+      <circle cx="16" cy="16" r="14" fill="white" fill-opacity="0.92" stroke="${clr}" stroke-width="2.5"/>
+      <polygon points="16,4 21,25 16,20 11,25" fill="${clr}"/>
+    </svg>`;
+    const icon = L.divIcon({ html: svg, iconSize:[32,32], iconAnchor:[16,16], className:'wind-arrow' });
     L.marker([pt.lat, pt.lng], { icon })
       .bindTooltip(`${fmtHHMM(pt.timestamp)} · ${Math.round(spd)} mph from ${Math.round(pt.wind_dir_deg)}°`, { direction:'top' })
       .addTo(_leafletMap);
