@@ -328,6 +328,7 @@ let isCoordinator = false;
 let _pendingAuthCb = null;
 let _forecastPoints = null;
 let _waypoints = null;
+let _elevGainM = null;   // RWGPS pre-computed gain; null → compute from raw track points
 let _sessionMeta = null;
 let _leafletMap = null;
 let _charts = {};
@@ -484,11 +485,14 @@ async function loadRwgpsRoute(routeId, privacyCode = null) {
   if (!res.ok) throw new Error(`Failed to load route (HTTP ${res.status})`);
   const data = await res.json();
   // RWGPS route JSON may nest under a "route" key or expose track_points at top level
-  const pts = data.route?.track_points ?? data.track_points;
+  const route = data.route ?? data;
+  const pts = route.track_points ?? data.track_points;
   if (!pts?.length) {
     const keys = JSON.stringify(Object.keys(data));
     throw new Error(`Route has no track points (response keys: ${keys})`);
   }
+  // Use RWGPS's server-side smoothed elevation gain rather than summing raw GPS increments.
+  _elevGainM = (typeof route.elevation_gain === 'number') ? route.elevation_gain : null;
   return pts.map(p => ({ lat: p.y, lng: p.x, ele_m: p.e ?? 0, dist_m: p.d ?? 0 }));
 }
 
@@ -706,10 +710,15 @@ function renderMap(pts, waypoints) {
 // ── Summary footer ──
 function renderSummary(pts, waypoints) {
   const totalDist = waypoints[waypoints.length - 1].dist_m;
-  let elevGain = 0;
-  for (let i = 1; i < waypoints.length; i++) {
-    const d = waypoints[i].ele_m - waypoints[i-1].ele_m;
-    if (d > 0) elevGain += d;
+  let elevGain;
+  if (_elevGainM !== null) {
+    elevGain = _elevGainM;  // authoritative RWGPS server-side value
+  } else {
+    elevGain = 0;
+    for (let i = 1; i < waypoints.length; i++) {
+      const d = waypoints[i].ele_m - waypoints[i-1].ele_m;
+      if (d > 0) elevGain += d;
+    }
   }
   const durationMin = pts[pts.length - 1].minutes_elapsed;
   const avgTemp = pts.reduce((a, p) => a + p.temp_f, 0) / pts.length;
@@ -1094,6 +1103,7 @@ async function generateForecast() {
       try { routePrivacyCode = new URL(rwgpsUrl).searchParams.get('privacy_code') || null; } catch(_) {}
       waypoints = await loadRwgpsRoute(routeId, routePrivacyCode);
     } else {
+      _elevGainM = null;  // GPX: compute from raw track points
       waypoints = parseGpx(await gpxFile.text());
     }
     setProgress(25, 'Calculating sample points…');
