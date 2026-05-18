@@ -59,14 +59,30 @@
 
 /* ── Landmark circle marker ── */
 .lm-marker-ring {
-  width: 46px; height: 46px; border-radius: 50%; overflow: hidden;
-  border: 2.5px solid rgba(255,255,255,0.82);
-  box-shadow: 0 2px 14px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,0,0,0.4);
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.82);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,0,0,0.35);
   cursor: pointer; background: #1a1a2e; position: relative;
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.lm-marker-ring:hover { transform: scale(1.12); box-shadow: 0 4px 20px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,0,0,0.4); }
+.lm-marker-ring:hover { transform: scale(1.15); box-shadow: 0 4px 16px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,0,0,0.4); }
 .lm-marker-ring img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ── Route highlights panel ── */
+.highlights-section { padding: 16px 36px 0; }
+.highlights-row { display: flex; gap: 7px; flex-wrap: wrap; }
+.highlight-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  display: flex; align-items: center; gap: 10px; padding: 8px 11px 8px 8px;
+  cursor: pointer; transition: border-color 0.18s, background 0.18s;
+  flex: 1; min-width: 190px;
+}
+.highlight-card:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.04); }
+.hl-thumb { width: 44px; height: 44px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+.hl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hl-info { flex: 1; min-width: 0; }
+.hl-name { font-size: 10px; font-weight: 600; color: var(--text); margin-bottom: 3px; line-height: 1.3; }
+.hl-desc { font-size: 9px; line-height: 1.45; color: var(--muted); }
 </style>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -191,9 +207,10 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 .note { padding: 9px 36px 0; font-size: 9.5px; color: var(--dimmer); font-style: italic; }
 
 @media (max-width: 560px) {
-  .topbar,.panel-wrap,.stops-section,.divider,.note,.route-selector,.view-toggle { padding-left: 16px; padding-right: 16px; }
+  .topbar,.panel-wrap,.stops-section,.highlights-section,.divider,.note,.route-selector,.view-toggle { padding-left: 16px; padding-right: 16px; }
   .stats { margin-left: 16px; margin-right: 16px; grid-template-columns: repeat(2,1fr); }
   .stops-grid { grid-template-columns: 1fr; }
+  .highlight-card { min-width: 100%; }
 }
 </style>
 </head>
@@ -250,6 +267,11 @@ canvas { display: block; width: 100%; cursor: crosshair; }
       </div>
     </div>
   </div>
+</div>
+
+<div class="highlights-section" id="highlights-section">
+  <div class="stops-title">Route Highlights</div>
+  <div class="highlights-row" id="highlights-row"></div>
 </div>
 
 <div class="stops-section">
@@ -371,6 +393,7 @@ function setRoute(id) {
   document.querySelectorAll('.route-btn').forEach(b => b.classList.toggle('active', b.dataset.route === id));
   updateStats();
   buildStops();
+  buildHighlights();
   if (activeView === 'elev') drawElevation(); else drawMap();
 }
 
@@ -460,6 +483,35 @@ function buildStops() {
       </div>`;
     grid.appendChild(card);
   });
+}
+
+// ─── Route highlights ────────────────────────────────────────────────────────
+function buildHighlights() {
+  const landmarks = ROUTES[activeRoute].landmarks || [];
+  const row = document.getElementById('highlights-row');
+  row.innerHTML = '';
+  landmarks.forEach((lm, i) => {
+    const sentence = lm.desc.split('. ')[0] + '.';
+    const card = document.createElement('div');
+    card.className = 'highlight-card';
+    card.innerHTML = `
+      <div class="hl-thumb"><img src="${lm.img}" alt="${lm.name}"></div>
+      <div class="hl-info">
+        <div class="hl-name">${lm.name}</div>
+        <div class="hl-desc">${sentence}</div>
+      </div>`;
+    card.addEventListener('click', () => focusLandmark(i));
+    row.appendChild(card);
+  });
+}
+
+function focusLandmark(idx) {
+  const lm = (ROUTES[activeRoute].landmarks || [])[idx];
+  if (!lm) return;
+  if (activeView !== 'map') setView('map');
+  if (!leafletMap) return;
+  leafletMap.flyTo([lm.lat, lm.lon], 14, { duration: 0.55 });
+  setTimeout(() => { if (landmarkMarkers[idx]) landmarkMarkers[idx].openPopup(); }, 600);
 }
 
 // ─── ELEVATION CHART ─────────────────────────────────────────────────────────
@@ -734,7 +786,7 @@ function drawMap() {
     const lmIcon = L.divIcon({
       className: '',
       html: `<div class="lm-marker-ring"><img src="${lm.img}" alt="${lm.name}"></div>`,
-      iconSize: [46, 46], iconAnchor: [23, 23]
+      iconSize: [32, 32], iconAnchor: [16, 16]
     });
 
     const popupContent = `
@@ -759,6 +811,7 @@ function drawMap() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 updateStats();
 buildStops();
+buildHighlights();
 drawMap();
 window.addEventListener('resize', () => {
   if (activeView === 'elev') drawElevation();
