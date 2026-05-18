@@ -1391,17 +1391,21 @@
   (alongside the existing "sessions" and "sessionIndex" rules):
 
   "zipSessions": {
-    "$sid": { ".read": true, ".write": true }
+    "$sid": {
+      ".read": true,
+      ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
+    }
   },
   "zipSessionIndex": {
     ".read": "auth != null",
-    ".write": "auth != null"
+    ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
   }
 
-  zipSessions/$sid  — public read/write; the UUID v4 session ID acts as the
-                      shared secret.  Anyone who knows the ID can read or write.
-  zipSessionIndex   — requires any Firebase auth (anonymous satisfies this),
-                      preventing unauthenticated enumeration of all sessions.
+  zipSessions/$sid  — public read (anyone with the link can view);
+                      write requires coordinator (email/password) sign-in.
+  zipSessionIndex   — read requires any auth (anonymous satisfies this,
+                      preventing unauthenticated scraping of the session list);
+                      write requires coordinator sign-in.
 -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -1634,7 +1638,7 @@ function zbShareSession() {
 
 // ── Save / Load ──
 async function _saveSessionZips() {
-  if (!fb || !sessionId) return;
+  if (!fb || !sessionId || !authenticated) return;
   const zips = document.getElementById('zipInput')?.value ?? '';
   try {
     await fb.dbSet(fb.dbRef(fb.db, `zipSessions/${sessionId}`), {
