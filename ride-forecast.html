@@ -679,7 +679,7 @@ function renderMap(pts, waypoints) {
   _leafletMap = L.map(mapEl);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd', maxZoom: 18
+    subdomains: 'abcd', maxZoom: 18, crossOrigin: 'anonymous'
   }).addTo(_leafletMap);
 
   const latlngs = waypoints.map(w => [w.lat, w.lng]);
@@ -705,6 +705,82 @@ function renderMap(pts, waypoints) {
   }
 
   _leafletMap.fitBounds(L.latLngBounds(latlngs), { padding:[20,20] });
+}
+
+// Captures the Leaflet map (tiles + route SVG + wind arrows) onto an offscreen canvas.
+// Tiles must be loaded with crossOrigin:'anonymous' (set on the tile layer above).
+async function captureLeafletMap(outW, outH) {
+  const mapEl = document.getElementById('forecast-map');
+  if (!mapEl || !_leafletMap || !_forecastPoints) return null;
+  const mapRect = mapEl.getBoundingClientRect();
+  if (!mapRect.width || !mapRect.height) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  const sx = outW / mapRect.width;
+  const sy = outH / mapRect.height;
+
+  // CARTO Voyager land colour as background fallback
+  ctx.fillStyle = '#f5f0eb';
+  ctx.fillRect(0, 0, outW, outH);
+
+  // 1. Map tiles
+  for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
+    if (!tile.complete || !tile.naturalWidth) continue;
+    const r = tile.getBoundingClientRect();
+    try {
+      ctx.drawImage(tile,
+        (r.left - mapRect.left) * sx, (r.top - mapRect.top) * sy,
+        r.width * sx, r.height * sy);
+    } catch(_) {}
+  }
+
+  // 2. Route polyline + start/finish markers (Leaflet SVG overlay pane)
+  const svgEl = mapEl.querySelector('.leaflet-overlay-pane svg');
+  if (svgEl) {
+    const sr = svgEl.getBoundingClientRect();
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('width',  sr.width);
+    clone.setAttribute('height', sr.height);
+    const url = URL.createObjectURL(
+      new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }));
+    const img = new Image();
+    await new Promise(res => { img.onload = img.onerror = res; img.src = url; });
+    ctx.drawImage(img,
+      (sr.left - mapRect.left) * sx, (sr.top - mapRect.top) * sy,
+      sr.width * sx, sr.height * sy);
+    URL.revokeObjectURL(url);
+  }
+
+  // 3. Wind arrows drawn from forecast data — avoids CSS-transform serialization issues.
+  // Arrow polygon is the same shape as the SVG DivIcon (viewBox 0 0 20 20, anchor 10,10):
+  // tip(0,-8), rightBase(4,7), notch(0,3), leftBase(-4,7) relative to center.
+  for (const pt of _forecastPoints) {
+    const px = _leafletMap.latLngToContainerPoint(L.latLng(pt.lat, pt.lng));
+    const cx = px.x * sx;
+    const cy = px.y * sy;
+    const spd = pt.wind_mph || 0;
+    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const rad  = (((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180;
+    const s = 0.7;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rad);
+    ctx.beginPath();
+    ctx.moveTo(0, -8*s); ctx.lineTo(4*s, 7*s); ctx.lineTo(0, 3*s); ctx.lineTo(-4*s, 7*s);
+    ctx.closePath();
+    ctx.fillStyle = clr;
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1.2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  return canvas;
 }
 
 // ── Summary footer ──
@@ -837,11 +913,12 @@ async function exportWeatherImage() {
     const CHART_H  = chartEl?.offsetHeight || 200;
     const W        = IW + PAD * 2;
     const FEEL_H   = 104;
+    const MAP_H    = 200;
     const HDR_H    = 64;
     const LBL_H    = 20;
     const GAP      = 14;
     const FOOT_H   = 28;
-    const H = PAD + HDR_H + GAP + FEEL_H + GAP +
+    const H = PAD + HDR_H + GAP + FEEL_H + GAP + LBL_H + MAP_H + GAP +
               (LBL_H + CHART_H + GAP) * 3 + FOOT_H + PAD;
 
     const canvas = document.createElement('canvas');
@@ -925,6 +1002,26 @@ async function exportWeatherImage() {
     });
 
     y += FEEL_H + GAP;
+
+    // ── Map ──
+    ctx.font = '600 7.5px Unbounded, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(17,17,40,0.35)';
+    ctx.fillText('ROUTE & WIND', PAD, y + 13);
+    y += LBL_H;
+
+    const mapBitmap = await captureLeafletMap(IW, MAP_H);
+    ctx.save();
+    rrect(ctx, PAD, y, IW, MAP_H, 8);
+    ctx.clip();
+    if (mapBitmap) {
+      ctx.drawImage(mapBitmap, PAD, y, IW, MAP_H);
+    } else {
+      ctx.fillStyle = '#e8e4df';
+      ctx.fillRect(PAD, y, IW, MAP_H);
+    }
+    ctx.restore();
+    y += MAP_H + GAP;
 
     // ── Three weather charts ──
     for (const { id, title } of [
