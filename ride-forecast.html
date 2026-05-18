@@ -753,32 +753,13 @@ async function captureLeafletMap(outW, outH, dpr = 1) {
     } catch(_) {}
   }
 
-  // 2. Route polyline + start/finish markers (Leaflet SVG overlay pane)
-  const svgEl = mapEl.querySelector('.leaflet-overlay-pane svg');
-  if (svgEl) {
-    const sr = svgEl.getBoundingClientRect();
-    const clone = svgEl.cloneNode(true);
-    clone.setAttribute('width',  sr.width);
-    clone.setAttribute('height', sr.height);
-    const url = URL.createObjectURL(
-      new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }));
-    const img = new Image();
-    await new Promise(res => { img.onload = img.onerror = res; img.src = url; });
-    ctx.drawImage(img,
-      (sr.left - mapRect.left) * sx, (sr.top - mapRect.top) * sy,
-      sr.width * sx, sr.height * sy);
-    URL.revokeObjectURL(url);
-  }
-
-  // 3. Wind arrows — anchor position to tile grid coordinates (Web Mercator) so they
-  // are pixel-perfect relative to the tiles regardless of Leaflet's CSS pan transforms.
+  // Build tile index and Web Mercator helpers (shared by route polyline and wind arrows).
   const tileZoom = (() => {
     const src = mapEl.querySelector('img.leaflet-tile')?.src || '';
     const m = src.match(/\/(\d+)\/\d+\/\d+/);
     return m ? parseInt(m[1], 10) : Math.round(_leafletMap.getZoom());
   })();
 
-  // Index each loaded tile by its grid address.
   const tileIndex = new Map();
   for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
     if (!tile.complete || !tile.naturalWidth) continue;
@@ -787,7 +768,6 @@ async function captureLeafletMap(outW, outH, dpr = 1) {
     tileIndex.set(`${m[2]},${m[3]}`, tile.getBoundingClientRect());
   }
 
-  // Web Mercator: lat/lng → fractional tile coordinate at zoom z.
   function latlngToTilePos(lat, lng, z) {
     const n = Math.pow(2, z);
     const tx = (lng + 180) / 360 * n;
@@ -797,12 +777,57 @@ async function captureLeafletMap(outW, outH, dpr = 1) {
     return { tileX, tileY, fracX: tx - tileX, fracY: ty - tileY };
   }
 
+  function latlngToCanvas(lat, lng) {
+    const { tileX, tileY, fracX, fracY } = latlngToTilePos(lat, lng, tileZoom);
+    const tr = tileIndex.get(`${tileX},${tileY}`);
+    if (!tr) return null;
+    return {
+      x: (tr.left + fracX * tr.width  - mapRect.left) * sx,
+      y: (tr.top  + fracY * tr.height - mapRect.top)  * sy,
+    };
+  }
+
+  // 2. Route polyline + start/finish markers drawn via tile-coordinate math so the
+  // route aligns with tiles regardless of Leaflet's CSS pan transforms.
+  if (_waypoints && _waypoints.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    let penDown = false;
+    for (const wp of _waypoints) {
+      const pos = latlngToCanvas(wp.lat, wp.lng);
+      if (!pos) { penDown = false; continue; }
+      if (!penDown) { ctx.moveTo(pos.x, pos.y); penDown = true; }
+      else { ctx.lineTo(pos.x, pos.y); }
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Start (green) and end (red) circle markers
+    const startPos = latlngToCanvas(_waypoints[0].lat, _waypoints[0].lng);
+    const endPos   = latlngToCanvas(_waypoints[_waypoints.length - 1].lat, _waypoints[_waypoints.length - 1].lng);
+    for (const [pos, fill] of [[startPos, '#22c55e'], [endPos, '#ef4444']]) {
+      if (!pos) continue;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 3. Wind arrows
   for (const pt of _forecastPoints) {
-    const { tileX, tileY, fracX, fracY } = latlngToTilePos(pt.lat, pt.lng, tileZoom);
-    const tileRect = tileIndex.get(`${tileX},${tileY}`);
-    if (!tileRect) continue; // tile not loaded — skip this arrow
-    const cx = (tileRect.left + fracX * tileRect.width  - mapRect.left) * sx;
-    const cy = (tileRect.top  + fracY * tileRect.height - mapRect.top)  * sy;
+    const pos = latlngToCanvas(pt.lat, pt.lng);
+    if (!pos) continue;
+    const { x: cx, y: cy } = pos;
     const spd = pt.wind_mph || 0;
     const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
     const rad = (((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180;
