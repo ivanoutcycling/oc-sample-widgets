@@ -236,6 +236,10 @@ const ROUTES = {
   '40': {
     label: '40 mi', subtitle: 'Washington Heights → Palisades → Tallman State Park → Return',
     stats: { dist: '41.5', gain: '1,474', peak: '383', stops: 2 },
+    landmarks: [
+      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge' },
+      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier' },
+    ],
     waypoints: [
       { d:15.191, e:41, lat:40.99005, lon:-73.96998, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
       { d:22.992, e:147, lat:41.02927, lon:-73.91656, n:'Rest Stop — Tallman State Park',                          icon:'🍌', t:'food' },
@@ -247,6 +251,11 @@ const ROUTES = {
   '65': {
     label: '65 mi', subtitle: 'Washington Heights → Palisades → Tallman State Park → Rockland Lake → Return',
     stats: { dist: '65.0', gain: '2,466', peak: '384', stops: 3 },
+    landmarks: [
+      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge' },
+      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier' },
+      { lat:41.1306, lon:-73.9211, icon:'💧', name:'Rockland Lake' },
+    ],
     waypoints: [
       { d:15.895, e:52, lat:40.99061, lon:-73.96898, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
       { d:20.683, e:148, lat:41.0292, lon:-73.91693, n:'Rest Stop — Tallman State Park',                          icon:'🍌', t:'food' },
@@ -259,6 +268,12 @@ const ROUTES = {
   '100': {
     label: '100 mi', subtitle: 'Washington Heights → Palisades → Rockland Lake → New City → Hudson Valley Loop',
     stats: { dist: '99.3', gain: '4,494', peak: '641', stops: 5 },
+    landmarks: [
+      { lat:40.8513, lon:-73.9534, icon:'🌉', name:'George Washington Bridge' },
+      { lat:41.0393, lon:-73.8955, icon:'🪝', name:'Piermont Pier' },
+      { lat:41.1306, lon:-73.9211, icon:'💧', name:'Rockland Lake' },
+      { lat:41.1537, lon:-74.0745, icon:'🍎', name:'Orchards of Concklin' },
+    ],
     waypoints: [
       { d:15.839, e:50, lat:40.99055, lon:-73.96908, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
       { d:20.644, e:147, lat:41.02923, lon:-73.91676, n:'Rest Stop — Tallman State Park',                          icon:'🍌', t:'food' },
@@ -530,6 +545,7 @@ let leafletMap = null;
 let routeLayer = null;
 let markerLayers = [];
 let wptMarkers = [];
+let landmarkMarkers = [];
 
 function initLeaflet() {
   leafletMap = L.map('leaflet-map', { zoomControl: true, attributionControl: true });
@@ -590,6 +606,8 @@ function drawMap() {
   markerLayers.forEach(layer => leafletMap.removeLayer(layer));
   markerLayers = [];
   wptMarkers = [];
+  landmarkMarkers.forEach(layer => leafletMap.removeLayer(layer));
+  landmarkMarkers = [];
   if (routeLayer) { leafletMap.removeLayer(routeLayer); routeLayer = null; }
 
   leafletMap.setView(view.center, view.zoom);
@@ -638,6 +656,21 @@ function drawMap() {
     m.on('mouseout',  () => highlightWpt(null, false));
     markerLayers.push(m);
     wptMarkers.push(m);
+  });
+
+  // ── Landmark highlight markers ────────────────────────────────────────────
+  (route.landmarks || []).forEach(lm => {
+    const lmIcon = L.divIcon({
+      className: '',
+      html: `<div style="display:flex;align-items:center;gap:5px;background:rgba(7,7,15,0.88);border:1px solid rgba(255,255,255,0.22);border-radius:20px;padding:4px 9px 4px 6px;box-shadow:0 2px 10px rgba(0,0,0,0.55);white-space:nowrap;pointer-events:auto">
+               <span style="font-size:15px;line-height:1">${lm.icon}</span>
+               <span style="font-family:Inter,sans-serif;font-size:9px;font-weight:500;color:rgba(238,234,255,0.85);letter-spacing:0.2px">${lm.name}</span>
+             </div>`,
+      iconAnchor: [0, 14]
+    });
+    const m = L.marker([lm.lat, lm.lon], { icon: lmIcon, zIndexOffset: -100 })
+      .addTo(leafletMap);
+    landmarkMarkers.push(m);
   });
 
   setTimeout(() => leafletMap.invalidateSize(), 50);
