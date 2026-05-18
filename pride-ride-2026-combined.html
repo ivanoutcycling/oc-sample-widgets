@@ -193,7 +193,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
   <div class="stat"><div class="stat-val" id="stat-dist">41.5</div><div class="stat-label">Miles</div></div>
   <div class="stat"><div class="stat-val" id="stat-gain">1,959</div><div class="stat-label">Ft Gain</div></div>
   <div class="stat"><div class="stat-val" id="stat-peak">383</div><div class="stat-label">Ft Peak</div></div>
-  <div class="stat"><div class="stat-val" id="stat-stops">3</div><div class="stat-label">Stops</div></div>
+  <div class="stat"><div class="stat-val" id="stat-stops">2</div><div class="stat-label">Stops</div></div>
 </div>
 
 <div class="panel-wrap">
@@ -235,9 +235,8 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 const ROUTES = {
   '40': {
     label: '40 mi', subtitle: 'Washington Heights → Palisades → Tallman State Park → Return',
-    stats: { dist: '41.5', gain: '1,959', peak: '383', stops: 3 },
+    stats: { dist: '41.5', gain: '1,959', peak: '383', stops: 2 },
     waypoints: [
-      { d:4.405, e:330, lat:40.86117, lon:-73.95922, n:'Strictly Bicycles',                                       icon:'🔧', t:'gear' },
       { d:15.191, e:41, lat:40.99005, lon:-73.96998, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
       { d:22.992, e:147, lat:41.02927, lon:-73.91656, n:'Rest Stop — Tallman State Park',                          icon:'🍌', t:'food' },
     ],
@@ -247,9 +246,8 @@ const ROUTES = {
 
   '65': {
     label: '65 mi', subtitle: 'Washington Heights → Palisades → Tallman State Park → Rockland Lake → Return',
-    stats: { dist: '64.9', gain: '3,562', peak: '384', stops: 4 },
+    stats: { dist: '64.9', gain: '3,562', peak: '384', stops: 3 },
     waypoints: [
-      { d:4.39, e:330, lat:40.86117, lon:-73.95923, n:'Strictly Bicycles',                                       icon:'🔧', t:'gear' },
       { d:15.895, e:52, lat:40.99061, lon:-73.96898, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
       { d:20.683, e:148, lat:41.0292, lon:-73.91693, n:'Rest Stop — Tallman State Park',                          icon:'🍌', t:'food' },
       { d:36.663, e:156, lat:41.13058, lon:-73.9212, n:'Rest Stop — Rockland Lake State Park',                    icon:'🍌', t:'food' },
@@ -260,9 +258,8 @@ const ROUTES = {
 
   '100': {
     label: '100 mi', subtitle: 'Washington Heights → Palisades → Rockland Lake → New City → Hudson Valley Loop',
-    stats: { dist: '99.2', gain: '5,705', peak: '641', stops: 6 },
+    stats: { dist: '99.2', gain: '5,705', peak: '641', stops: 5 },
     waypoints: [
-      { d:4.346, e:330, lat:40.86119, lon:-73.9592, n:'Strictly Bicycles',                                       icon:'🔧', t:'gear' },
       { d:15.839, e:50, lat:40.99055, lon:-73.96908, n:'Rest Stop — Hoelscher Field, Harrington Park NJ',         icon:'🍌', t:'food' },
       { d:20.644, e:147, lat:41.02923, lon:-73.91676, n:'Rest Stop — Tallman State Park',                          icon:'🍌', t:'food' },
       { d:36.619, e:156, lat:41.13066, lon:-73.92112, n:'Rest Stop — Rockland Lake State Park',                    icon:'🍌', t:'food' },
