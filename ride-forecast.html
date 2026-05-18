@@ -680,11 +680,10 @@ function renderMap(pts, waypoints) {
     const angle = (pt.wind_dir_deg + 180) % 360;
     const spd = pt.wind_mph;
     const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" style="transform:rotate(${angle}deg);display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35))">
-      <circle cx="16" cy="16" r="14" fill="white" fill-opacity="0.92" stroke="${clr}" stroke-width="2.5"/>
-      <polygon points="16,4 21,25 16,20 11,25" fill="${clr}"/>
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${angle}deg);display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))">
+      <polygon points="10,2 14,17 10,13 6,17" fill="${clr}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
     </svg>`;
-    const icon = L.divIcon({ html: svg, iconSize:[32,32], iconAnchor:[16,16], className:'wind-arrow' });
+    const icon = L.divIcon({ html: svg, iconSize:[20,20], iconAnchor:[10,10], className:'wind-arrow' });
     L.marker([pt.lat, pt.lng], { icon })
       .bindTooltip(`${fmtHHMM(pt.timestamp)} · ${Math.round(spd)} mph from ${Math.round(pt.wind_dir_deg)}°`, { direction:'top' })
       .addTo(_leafletMap);
