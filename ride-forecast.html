@@ -82,6 +82,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .ov-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
 .toast.show{opacity:1}
+.feel-panel{display:flex;margin:0 32px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.feel-item{flex:1;padding:18px 16px 16px;text-align:center;border-right:1px solid var(--border)}
+.feel-item:last-child{border-right:none}
+.feel-emoji{font-size:30px;line-height:1;margin-bottom:7px}
+.feel-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:4px}
+.feel-value{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.feel-desc{font-size:10px;color:var(--muted);line-height:1.4}
+@media(max-width:600px){.feel-panel{margin-left:16px;margin-right:16px}.feel-item{padding:14px 10px 12px}.feel-emoji{font-size:24px}}
 .leaflet-control-zoom a{background:#fff!important;color:#444!important;border-color:rgba(0,0,0,0.15)!important}
 .leaflet-control-attribution{background:rgba(255,255,255,0.75)!important;color:rgba(0,0,0,0.45)!important;font-size:8px!important}
 .wind-arrow{cursor:pointer}
@@ -186,6 +194,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   </div>
 
   <div class="forecast-meta" id="forecast-meta"></div>
+
+  <div class="feel-panel" id="feel-panel"></div>
 
   <div class="card">
     <div class="chart-title">Temperature</div>
@@ -734,6 +744,54 @@ function renderForecastMeta(meta) {
   ).join('');
 }
 
+// ── Ride-feel summary panel ──
+function renderFeelSummary(pts) {
+  const feelsLike = pts.map(p => p.feels_like_f);
+  const avgFeels  = feelsLike.reduce((a, b) => a + b) / feelsLike.length;
+  const minFeels  = Math.min(...feelsLike);
+  const maxFeels  = Math.max(...feelsLike);
+
+  let tempEmoji, tempValue;
+  if      (avgFeels < 35) { tempEmoji = '🥶'; tempValue = 'Very Cold'; }
+  else if (avgFeels < 48) { tempEmoji = '🧤'; tempValue = 'Cold'; }
+  else if (avgFeels < 58) { tempEmoji = '🧥'; tempValue = 'Cool'; }
+  else if (avgFeels < 70) { tempEmoji = '😊'; tempValue = 'Comfortable'; }
+  else if (avgFeels < 82) { tempEmoji = '☀️'; tempValue = 'Warm'; }
+  else                    { tempEmoji = '🥵'; tempValue = 'Hot'; }
+  const tempDesc = `${Math.round(minFeels)}–${Math.round(maxFeels)}°F feels like`;
+
+  const maxPrecipProb = Math.max(...pts.map(p => p.precip_prob));
+  const maxPrecipIn   = Math.max(...pts.map(p => p.precip_in));
+  let rainEmoji, rainValue, rainDesc;
+  if      (maxPrecipProb < 10) { rainEmoji = '☀️';  rainValue = 'Clear';            rainDesc = 'No rain expected'; }
+  else if (maxPrecipProb < 25) { rainEmoji = '🌤️'; rainValue = 'Mostly Clear';     rainDesc = `Up to ${maxPrecipProb}% chance`; }
+  else if (maxPrecipProb < 50) { rainEmoji = '⛅';  rainValue = 'Partly Cloudy';    rainDesc = `Up to ${maxPrecipProb}% chance`; }
+  else if (maxPrecipProb < 70) { rainEmoji = '🌦️'; rainValue = 'Possible Showers'; rainDesc = `Up to ${maxPrecipProb}% chance`; }
+  else if (maxPrecipProb < 90) { rainEmoji = '🌧️'; rainValue = 'Likely Rain';      rainDesc = `${maxPrecipProb}% at peak`; }
+  else                         { rainEmoji = '⛈️'; rainValue = 'Heavy Rain';        rainDesc = `${maxPrecipProb}% chance`; }
+  if (maxPrecipIn > 0.1) rainDesc += ` · up to ${maxPrecipIn.toFixed(2)} in/hr`;
+
+  const maxWind = Math.max(...pts.map(p => p.wind_mph));
+  const maxGust = Math.max(...pts.map(p => p.wind_gust_mph));
+  let windEmoji, windValue, windDesc;
+  if      (maxWind < 6)  { windEmoji = '🍃';  windValue = 'Calm';        windDesc = `Max ${Math.round(maxWind)} mph`; }
+  else if (maxWind < 12) { windEmoji = '💨';  windValue = 'Light Breeze'; windDesc = `Max ${Math.round(maxWind)} mph`; }
+  else if (maxWind < 20) { windEmoji = '🌬️'; windValue = 'Breezy';       windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
+  else if (maxWind < 30) { windEmoji = '💨';  windValue = 'Windy';        windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
+  else                   { windEmoji = '🌪️'; windValue = 'Very Windy';   windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
+
+  document.getElementById('feel-panel').innerHTML = [
+    { emoji: tempEmoji, label: 'Temperature', value: tempValue, desc: tempDesc },
+    { emoji: rainEmoji, label: 'Precipitation', value: rainValue, desc: rainDesc },
+    { emoji: windEmoji, label: 'Wind', value: windValue, desc: windDesc },
+  ].map(it => `<div class="feel-item">
+    <div class="feel-emoji">${it.emoji}</div>
+    <div class="feel-label">${it.label}</div>
+    <div class="feel-value">${it.value}</div>
+    <div class="feel-desc">${esc(it.desc)}</div>
+  </div>`).join('');
+}
+
 // ── Firebase session save/load ──
 async function saveSession(meta, forecastPoints, waypoints) {
   if (!fb || !isCoordinator) return; // anonymous visitors never write
@@ -889,7 +947,7 @@ async function generateForecast() {
     showView('view-forecast');
     await renderCharts(forecastPoints);
     setTimeout(() => renderMap(forecastPoints, waypoints), 50);
-    renderSummary(forecastPoints, waypoints);
+    renderFeelSummary(forecastPoints); renderSummary(forecastPoints, waypoints);
     setProgress(100, 'Done');
 
     // 5. Save (coordinator only)
@@ -928,7 +986,7 @@ async function regenForecast() {
     _forecastPoints = forecastPoints;
     await renderCharts(forecastPoints);
     renderMap(forecastPoints, wpts);
-    renderSummary(forecastPoints, wpts);
+    renderFeelSummary(forecastPoints); renderSummary(forecastPoints, wpts);
     // Coordinator writes back the fresh forecast
     const meta = { label:s.label, startDate:s.startDate, startTime:s.startTime,
                    speedMph:s.speedMph, routeSource:s.routeSource, routeId:s.routeId,
@@ -990,7 +1048,7 @@ async function openSessionForecast(id) {
     _forecastPoints = forecastPoints;
     _waypoints = wpts;
     await renderCharts(forecastPoints);
-    if (wpts) { setTimeout(() => renderMap(forecastPoints, wpts), 50); renderSummary(forecastPoints, wpts); }
+    if (wpts) { setTimeout(() => renderMap(forecastPoints, wpts), 50); renderFeelSummary(forecastPoints); renderSummary(forecastPoints, wpts); }
   } catch(e) {
     alert('Error loading forecast: ' + e.message);
     showView('view-input');
