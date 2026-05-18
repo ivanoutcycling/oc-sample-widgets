@@ -709,16 +709,17 @@ function renderMap(pts, waypoints) {
 
 // Captures the Leaflet map (tiles + route SVG + wind arrows) onto an offscreen canvas.
 // Tiles must be loaded with crossOrigin:'anonymous' (set on the tile layer above).
-async function captureLeafletMap(outW, outH) {
+async function captureLeafletMap(outW, outH, dpr = 1) {
   const mapEl = document.getElementById('forecast-map');
   if (!mapEl || !_leafletMap || !_forecastPoints) return null;
   const mapRect = mapEl.getBoundingClientRect();
   if (!mapRect.width || !mapRect.height) return null;
 
   const canvas = document.createElement('canvas');
-  canvas.width  = outW;
-  canvas.height = outH;
+  canvas.width  = outW * dpr;
+  canvas.height = outH * dpr;
   const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
   const sx = outW / mapRect.width;
   const sy = outH / mapRect.height;
 
@@ -1010,7 +1011,7 @@ async function exportWeatherImage() {
     ctx.fillText('ROUTE & WIND', PAD, y + 13);
     y += LBL_H;
 
-    const mapBitmap = await captureLeafletMap(IW, MAP_H);
+    const mapBitmap = await captureLeafletMap(IW, MAP_H, DPR);
     ctx.save();
     rrect(ctx, PAD, y, IW, MAP_H, 8);
     ctx.clip();
