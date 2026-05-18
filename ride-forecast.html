@@ -821,10 +821,12 @@ async function exportWeatherImage() {
     await document.fonts.ready;
 
     const DPR      = Math.min(window.devicePixelRatio || 1, 2);
-    const W        = 800;
     const PAD      = 28;
-    const IW       = W - PAD * 2;   // inner width
-    const CHART_H  = 185;
+    // Use the chart's actual rendered size so drawImage is 1:1 and never blurry.
+    const chartEl  = document.getElementById('chart-temp');
+    const IW       = chartEl?.offsetWidth  || 744;
+    const CHART_H  = chartEl?.offsetHeight || 200;
+    const W        = IW + PAD * 2;
     const FEEL_H   = 104;
     const HDR_H    = 64;
     const LBL_H    = 20;
