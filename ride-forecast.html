@@ -616,7 +616,7 @@ const CHART_OPTS = {
   interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: { position: 'top', labels: { boxWidth: 12, font: { family: 'Inter', size: 10 }, padding: 12 } },
-    tooltip: { enabled: false }
+    tooltip: { bodyFont: { family: 'DM Mono', size: 11 }, titleFont: { family: 'Inter', size: 10 } }
   }
 };
 
@@ -1025,6 +1025,12 @@ async function exportWeatherImage() {
     y += MAP_H + GAP;
 
     // ── Three weather charts ──
+    // Hide any visible tooltip before copying chart canvases to pixels.
+    for (const c of Object.values(_charts)) {
+      if (c?.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = false;
+      c?.update('none');
+    }
+    try {
     for (const { id, title } of [
       { id: 'chart-temp',   title: 'TEMPERATURE' },
       { id: 'chart-precip', title: 'PRECIPITATION & CLOUD COVER' },
@@ -1040,6 +1046,12 @@ async function exportWeatherImage() {
       if (src?.width) ctx.drawImage(src, PAD, y, IW, CHART_H);
 
       y += CHART_H + GAP;
+    }
+    } finally {
+      for (const c of Object.values(_charts)) {
+        if (c?.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = true;
+        c?.update('none');
+      }
     }
 
     // ── Footer ──
