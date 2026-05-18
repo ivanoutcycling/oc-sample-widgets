@@ -994,6 +994,7 @@ async function saveSession(meta, forecastPoints, waypoints) {
     startDate: meta.startDate,
     startTime: meta.startTime,
     speedMph: meta.speedMph,
+    elevGainM: meta.elevGainM ?? null,
     forecastPoints,
     forecastGeneratedAt: now
   };
@@ -1124,7 +1125,7 @@ async function generateForecast() {
     _waypoints = waypoints;
     _sessionMeta = null;
     _sessionId = null;
-    const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId, routePrivacyCode };
+    const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId, routePrivacyCode, elevGainM: _elevGainM };
     renderForecastMeta(meta);
     showView('view-forecast');
     await renderCharts(forecastPoints);
@@ -1172,7 +1173,7 @@ async function regenForecast() {
     // Coordinator writes back the fresh forecast
     const meta = { label:s.label, startDate:s.startDate, startTime:s.startTime,
                    speedMph:s.speedMph, routeSource:s.routeSource, routeId:s.routeId,
-                   routePrivacyCode: s.routePrivacyCode || null };
+                   routePrivacyCode: s.routePrivacyCode || null, elevGainM: _elevGainM };
     await saveSession(meta, forecastPoints, wpts);
     toast('Forecast updated');
   } catch(e) {
@@ -1192,9 +1193,13 @@ async function openSessionForecast(id) {
     if (!session) { alert('Session not found or has been deleted.'); showView('view-input'); return; }
     _sessionMeta = session;
     _sessionId = id;
+    // Restore stored gain so renderSummary doesn't inherit a stale value from a prior load.
+    // loadRwgpsRoute will overwrite this with the live API value if the route is re-fetched.
+    _elevGainM = session.elevGainM ?? null;
 
     const meta = { label:session.label, startDate:session.startDate, startTime:session.startTime,
-                   speedMph:session.speedMph, routeSource:session.routeSource, routeId:session.routeId };
+                   speedMph:session.speedMph, routeSource:session.routeSource, routeId:session.routeId,
+                   elevGainM: _elevGainM };
     renderForecastMeta(meta);
 
     const age = Date.now() - (session.forecastGeneratedAt || 0);
