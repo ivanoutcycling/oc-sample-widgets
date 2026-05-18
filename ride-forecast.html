@@ -187,6 +187,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     <button class="btn" onclick="showView('view-input')">← New forecast</button>
     <div class="spacer"></div>
     <button class="btn" id="fc-share-btn" onclick="shareSession()">Copy link</button>
+    <button class="btn" id="export-btn" onclick="exportWeatherImage()">Export image</button>
     <button class="btn" id="fc-regen-btn" style="display:none" onclick="regenForecast()">Regenerate</button>
     <button class="btn" id="fc-auth-btn" onclick="authBtnClick()">Sign in</button>
     <span class="coord-badge" id="fc-coord-badge" style="display:none">COORD</span>
@@ -745,7 +746,8 @@ function renderForecastMeta(meta) {
 }
 
 // ── Ride-feel summary panel ──
-function renderFeelSummary(pts) {
+// Shared data builder used by both the DOM panel and the canvas export.
+function buildFeelItems(pts) {
   const feelsLike = pts.map(p => p.feels_like_f);
   const avgFeels  = feelsLike.reduce((a, b) => a + b) / feelsLike.length;
   const minFeels  = Math.min(...feelsLike);
@@ -780,16 +782,174 @@ function renderFeelSummary(pts) {
   else if (maxWind < 30) { windEmoji = '💨';  windValue = 'Windy';        windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
   else                   { windEmoji = '🌪️'; windValue = 'Very Windy';   windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
 
-  document.getElementById('feel-panel').innerHTML = [
-    { emoji: tempEmoji, label: 'Temperature', value: tempValue, desc: tempDesc },
+  return [
+    { emoji: tempEmoji, label: 'Temperature',   value: tempValue, desc: tempDesc },
     { emoji: rainEmoji, label: 'Precipitation', value: rainValue, desc: rainDesc },
-    { emoji: windEmoji, label: 'Wind', value: windValue, desc: windDesc },
-  ].map(it => `<div class="feel-item">
-    <div class="feel-emoji">${it.emoji}</div>
-    <div class="feel-label">${it.label}</div>
-    <div class="feel-value">${it.value}</div>
-    <div class="feel-desc">${esc(it.desc)}</div>
-  </div>`).join('');
+    { emoji: windEmoji, label: 'Wind',          value: windValue, desc: windDesc },
+  ];
+}
+
+function renderFeelSummary(pts) {
+  document.getElementById('feel-panel').innerHTML = buildFeelItems(pts).map(it =>
+    `<div class="feel-item">
+      <div class="feel-emoji">${it.emoji}</div>
+      <div class="feel-label">${it.label}</div>
+      <div class="feel-value">${it.value}</div>
+      <div class="feel-desc">${esc(it.desc)}</div>
+    </div>`
+  ).join('');
+}
+
+// ── Canvas image export ──
+// Draws the feel panel + 3 weather charts onto an offscreen canvas and saves as PNG.
+// No external library needed: Chart.js canvases are copied with drawImage().
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
+}
+
+async function exportWeatherImage() {
+  if (!_forecastPoints) { toast('No forecast to export'); return; }
+  const btn = document.getElementById('export-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
+  try {
+    await document.fonts.ready;
+
+    const DPR      = Math.min(window.devicePixelRatio || 1, 2);
+    const W        = 800;
+    const PAD      = 28;
+    const IW       = W - PAD * 2;   // inner width
+    const CHART_H  = 185;
+    const FEEL_H   = 104;
+    const HDR_H    = 64;
+    const LBL_H    = 20;
+    const GAP      = 14;
+    const FOOT_H   = 28;
+    const H = PAD + HDR_H + GAP + FEEL_H + GAP +
+              (LBL_H + CHART_H + GAP) * 3 + FOOT_H + PAD;
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * DPR;
+    canvas.height = H * DPR;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(DPR, DPR);
+
+    // Outer background
+    ctx.fillStyle = '#f0f0f6';
+    ctx.fillRect(0, 0, W, H);
+
+    // White card
+    ctx.fillStyle = '#ffffff';
+    rrect(ctx, PAD / 2, PAD / 2, W - PAD, H - PAD, 14);
+    ctx.fill();
+
+    let y = PAD;
+
+    // ── Header ──
+    const label     = (_sessionMeta?.label) || 'Ride Forecast';
+    const startDate = _sessionMeta?.startDate || _forecastPoints[0]?.timestamp?.slice(0,10) || '';
+    const startTime = _sessionMeta?.startTime || '';
+    const speedMph  = _sessionMeta?.speedMph  || '';
+    const metaStr   = [startDate, startTime, speedMph ? speedMph + ' mph' : ''].filter(Boolean).join(' · ');
+
+    ctx.fillStyle = '#3B82F6';
+    ctx.fillRect(PAD, y + 4, 3, 38);
+
+    ctx.fillStyle = '#111128';
+    ctx.font = 'bold 19px Unbounded, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, PAD + 14, y + 26);
+
+    ctx.fillStyle = 'rgba(17,17,40,0.42)';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(metaStr, PAD + 14, y + 48);
+
+    y += HDR_H + GAP;
+
+    // ── Feel panel ──
+    ctx.fillStyle = '#f7f7fb';
+    rrect(ctx, PAD, y, IW, FEEL_H, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 1;
+    rrect(ctx, PAD, y, IW, FEEL_H, 10);
+    ctx.stroke();
+
+    const colW = IW / 3;
+    buildFeelItems(_forecastPoints).forEach((item, i) => {
+      if (i > 0) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(PAD + i * colW, y + 12);
+        ctx.lineTo(PAD + i * colW, y + FEEL_H - 12);
+        ctx.stroke();
+      }
+      const cx = PAD + i * colW + colW / 2;
+
+      ctx.font = '26px serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#111128';
+      ctx.fillText(item.emoji, cx, y + 30);
+
+      ctx.font = '600 8px Unbounded, sans-serif';
+      ctx.fillStyle = 'rgba(17,17,40,0.35)';
+      ctx.fillText(item.label.toUpperCase(), cx, y + 50);
+
+      ctx.font = '600 13px Inter, sans-serif';
+      ctx.fillStyle = '#111128';
+      ctx.fillText(item.value, cx, y + 68);
+
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(17,17,40,0.5)';
+      // Truncate description if too wide for column
+      let desc = item.desc;
+      while (ctx.measureText(desc).width > colW - 16 && desc.length > 10) desc = desc.slice(0, -4) + '…';
+      ctx.fillText(desc, cx, y + 84);
+    });
+
+    y += FEEL_H + GAP;
+
+    // ── Three weather charts ──
+    for (const { id, title } of [
+      { id: 'chart-temp',   title: 'TEMPERATURE' },
+      { id: 'chart-precip', title: 'PRECIPITATION & CLOUD COVER' },
+      { id: 'chart-wind',   title: 'WIND' },
+    ]) {
+      ctx.font = '600 7.5px Unbounded, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(17,17,40,0.35)';
+      ctx.fillText(title, PAD, y + 13);
+      y += LBL_H;
+
+      const src = document.getElementById(id);
+      if (src?.width) ctx.drawImage(src, PAD, y, IW, CHART_H);
+
+      y += CHART_H + GAP;
+    }
+
+    // ── Footer ──
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(17,17,40,0.3)';
+    ctx.fillText('Weather data by Open-Meteo.com', W / 2, y + 16);
+
+    const filename = label.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-forecast.png';
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast('Image saved!');
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Export image'; }
+  }
 }
 
 // ── Firebase session save/load ──
@@ -1099,8 +1259,8 @@ if (fbAuth) {
 
 Object.assign(window, {
   setSource, authBtnClick, submitAuth, closeAuthDialog, overlayBgClick,
-  signOutCoord, openDashboard, shareSession, generateForecast, regenForecast,
-  copyLink, confirmDelete,
+  signOutCoord, openDashboard, shareSession, exportWeatherImage,
+  generateForecast, regenForecast, copyLink, confirmDelete,
   showView: id => showView(id)
 });
 </script>
