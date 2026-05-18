@@ -942,11 +942,21 @@ async function exportWeatherImage() {
     ctx.fillText('Weather data by Open-Meteo.com', W / 2, y + 16);
 
     const filename = label.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-forecast.png';
-    const link = document.createElement('a');
-    link.download = filename;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    toast('Image saved!');
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const file = new File([blob], filename, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: label });
+      toast('Shared!');
+    } else {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast('Image saved!');
+    }
   } catch(e) {
     alert('Export failed: ' + e.message);
   } finally {
