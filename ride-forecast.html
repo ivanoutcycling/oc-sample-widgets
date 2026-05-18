@@ -755,18 +755,42 @@ async function captureLeafletMap(outW, outH, dpr = 1) {
     URL.revokeObjectURL(url);
   }
 
-  // 3. Wind arrows — read position from the actual DOM elements so the coordinates
-  // match what's on screen regardless of Leaflet's internal pan transforms.
-  // Angle and colour are read from the SVG attributes in the DOM.
-  for (const div of mapEl.querySelectorAll('.leaflet-marker-pane .wind-arrow')) {
-    const r = div.getBoundingClientRect();
-    const cx = ((r.left + r.right) / 2 - mapRect.left) * sx;
-    const cy = ((r.top  + r.bottom) / 2 - mapRect.top)  * sy;
-    const svgEl2 = div.querySelector('svg');
-    const style  = svgEl2?.getAttribute('style') || '';
-    const match  = style.match(/rotate\(([\d.]+)deg\)/);
-    const rad    = match ? parseFloat(match[1]) * Math.PI / 180 : 0;
-    const clr    = svgEl2?.querySelector('polygon')?.getAttribute('fill') || '#64748b';
+  // 3. Wind arrows — anchor position to tile grid coordinates (Web Mercator) so they
+  // are pixel-perfect relative to the tiles regardless of Leaflet's CSS pan transforms.
+  const tileZoom = (() => {
+    const src = mapEl.querySelector('img.leaflet-tile')?.src || '';
+    const m = src.match(/\/(\d+)\/\d+\/\d+/);
+    return m ? parseInt(m[1], 10) : Math.round(_leafletMap.getZoom());
+  })();
+
+  // Index each loaded tile by its grid address.
+  const tileIndex = new Map();
+  for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
+    if (!tile.complete || !tile.naturalWidth) continue;
+    const m = tile.src.match(/\/(\d+)\/(\d+)\/(\d+)/);
+    if (!m || parseInt(m[1], 10) !== tileZoom) continue;
+    tileIndex.set(`${m[2]},${m[3]}`, tile.getBoundingClientRect());
+  }
+
+  // Web Mercator: lat/lng → fractional tile coordinate at zoom z.
+  function latlngToTilePos(lat, lng, z) {
+    const n = Math.pow(2, z);
+    const tx = (lng + 180) / 360 * n;
+    const sinLat = Math.sin(lat * Math.PI / 180);
+    const ty = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * n;
+    const tileX = Math.floor(tx), tileY = Math.floor(ty);
+    return { tileX, tileY, fracX: tx - tileX, fracY: ty - tileY };
+  }
+
+  for (const pt of _forecastPoints) {
+    const { tileX, tileY, fracX, fracY } = latlngToTilePos(pt.lat, pt.lng, tileZoom);
+    const tileRect = tileIndex.get(`${tileX},${tileY}`);
+    if (!tileRect) continue; // tile not loaded — skip this arrow
+    const cx = (tileRect.left + fracX * tileRect.width  - mapRect.left) * sx;
+    const cy = (tileRect.top  + fracY * tileRect.height - mapRect.top)  * sy;
+    const spd = pt.wind_mph || 0;
+    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const rad = (((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180;
     const s = 0.7;
     ctx.save();
     ctx.translate(cx, cy);
