@@ -93,6 +93,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .leaflet-control-zoom a{background:#fff!important;color:#444!important;border-color:rgba(0,0,0,0.15)!important}
 .leaflet-control-attribution{background:rgba(255,255,255,0.75)!important;color:rgba(0,0,0,0.45)!important;font-size:8px!important}
 .wind-arrow{cursor:pointer}
+.local-notice{display:none;margin:0 32px 12px;padding:10px 14px;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:8px;font-size:12px;color:var(--text);line-height:1.5;gap:12px;align-items:center}
+.local-notice button.notice-action{font-size:11px;padding:3px 9px;cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:5px;font-family:inherit}
+.local-notice button.notice-dismiss{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:0 2px;flex-shrink:0}
 @media(max-width:600px){
   .header,.toolbar,.forecast-meta{padding-left:16px;padding-right:16px}
   .card,.map-wrap{margin-left:16px;margin-right:16px}
@@ -196,6 +199,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 
   <div class="forecast-meta" id="forecast-meta"></div>
   <div id="fc-generated-at" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;padding:0 32px 12px;display:none"></div>
+  <div id="fc-local-notice" class="local-notice">
+    <span>The weather was refreshed in your browser but won't update the shared link.</span>
+    <button class="notice-action" onclick="signInAndSaveRegen()">Sign in to save</button>
+    <button class="notice-dismiss" onclick="document.getElementById('fc-local-notice').style.display='none'" title="Dismiss">×</button>
+  </div>
 
   <div class="feel-panel" id="feel-panel"></div>
 
@@ -864,6 +872,29 @@ function renderForecastMeta(meta) {
   ).join('');
 }
 
+function showLocalRegenNotice() {
+  const el = document.getElementById('fc-local-notice');
+  if (el) el.style.display = 'flex';
+}
+function hideLocalRegenNotice() {
+  const el = document.getElementById('fc-local-notice');
+  if (el) el.style.display = 'none';
+}
+
+function signInAndSaveRegen() {
+  requireAuth(async () => {
+    try {
+      toast('Saving…');
+      await saveSession(_sessionMeta, _forecastPoints, _waypoints);
+      setGeneratedAt(Date.now());
+      hideLocalRegenNotice();
+      toast('Forecast saved — shared link updated');
+    } catch(e) {
+      toast('Save failed — check connection');
+    }
+  }, 'Sign in to save the refreshed forecast to the shared link.');
+}
+
 function setGeneratedAt(ts) {
   _forecastGeneratedAt = ts ?? null;
   const el = document.getElementById('fc-generated-at');
@@ -1314,6 +1345,7 @@ async function generateForecast() {
     setTimeout(() => renderMap(forecastPoints, waypoints), 50);
     renderFeelSummary(forecastPoints); renderSummary(forecastPoints, waypoints);
     setGeneratedAt(Date.now());
+    hideLocalRegenNotice();
     setProgress(100, 'Done');
 
     // 5. Save (coordinator only)
@@ -1370,6 +1402,7 @@ async function regenForecast() {
 // ── Load and display a session from ?id= URL param ──
 async function openSessionForecast(id) {
   showView('view-forecast');
+  hideLocalRegenNotice();
   document.getElementById('forecast-title').textContent = 'Loading…';
   document.getElementById('forecast-meta').innerHTML = '';
   try {
@@ -1413,6 +1446,8 @@ async function openSessionForecast(id) {
       // Coordinator writes the refreshed cache; anonymous visitors do not
       if (isCoordinator) {
         saveSession(meta, forecastPoints, wpts).catch(e => console.warn('Cache refresh failed', e));
+      } else {
+        showLocalRegenNotice();
       }
     }
 
@@ -1472,7 +1507,7 @@ if (fbAuth) {
 
 Object.assign(window, {
   setSource, authBtnClick, submitAuth, closeAuthDialog, overlayBgClick,
-  signOutCoord, openDashboard, shareSession, exportWeatherImage,
+  signOutCoord, openDashboard, shareSession, exportWeatherImage, signInAndSaveRegen,
   generateForecast, regenForecast, copyLink, confirmDelete,
   showView: id => showView(id)
 });
