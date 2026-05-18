@@ -755,16 +755,18 @@ async function captureLeafletMap(outW, outH, dpr = 1) {
     URL.revokeObjectURL(url);
   }
 
-  // 3. Wind arrows drawn from forecast data — avoids CSS-transform serialization issues.
-  // Arrow polygon is the same shape as the SVG DivIcon (viewBox 0 0 20 20, anchor 10,10):
-  // tip(0,-8), rightBase(4,7), notch(0,3), leftBase(-4,7) relative to center.
-  for (const pt of _forecastPoints) {
-    const px = _leafletMap.latLngToContainerPoint(L.latLng(pt.lat, pt.lng));
-    const cx = px.x * sx;
-    const cy = px.y * sy;
-    const spd = pt.wind_mph || 0;
-    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
-    const rad  = (((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180;
+  // 3. Wind arrows — read position from the actual DOM elements so the coordinates
+  // match what's on screen regardless of Leaflet's internal pan transforms.
+  // Angle and colour are read from the SVG attributes in the DOM.
+  for (const div of mapEl.querySelectorAll('.leaflet-marker-pane .wind-arrow')) {
+    const r = div.getBoundingClientRect();
+    const cx = ((r.left + r.right) / 2 - mapRect.left) * sx;
+    const cy = ((r.top  + r.bottom) / 2 - mapRect.top)  * sy;
+    const svgEl2 = div.querySelector('svg');
+    const style  = svgEl2?.getAttribute('style') || '';
+    const match  = style.match(/rotate\(([\d.]+)deg\)/);
+    const rad    = match ? parseFloat(match[1]) * Math.PI / 180 : 0;
+    const clr    = svgEl2?.querySelector('polygon')?.getAttribute('fill') || '#64748b';
     const s = 0.7;
     ctx.save();
     ctx.translate(cx, cy);
@@ -1025,10 +1027,13 @@ async function exportWeatherImage() {
     y += MAP_H + GAP;
 
     // ── Three weather charts ──
-    // Hide any visible tooltip before copying chart canvases to pixels.
+    // Disable tooltips and synchronously redraw before copying canvas pixels.
+    // update('none') goes through the RAF animation loop and won't fire before
+    // drawImage; draw() is synchronous and bypasses the animation system.
     for (const c of Object.values(_charts)) {
-      if (c?.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = false;
-      c?.update('none');
+      if (!c) continue;
+      if (c.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = false;
+      c.draw();
     }
     try {
     for (const { id, title } of [
@@ -1049,8 +1054,9 @@ async function exportWeatherImage() {
     }
     } finally {
       for (const c of Object.values(_charts)) {
-        if (c?.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = true;
-        c?.update('none');
+        if (!c) continue;
+        if (c.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = true;
+        c.draw();
       }
     }
 
