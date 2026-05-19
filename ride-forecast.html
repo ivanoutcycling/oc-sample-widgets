@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ride Forecast</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f0f6;--surface:#ffffff;--card:#f7f7fb;--border:rgba(0,0,0,0.09);
+  --text:#111128;--muted:rgba(17,17,40,0.52);--dimmer:rgba(17,17,40,0.3);
+  --accent:#3B82F6;--orange:#e06800;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.shell{max-width:900px;margin:0 auto;padding:0 0 60px}
+.header{padding:28px 32px 16px}
+.accent-bar{height:3px;background:var(--accent);border-radius:2px;margin-bottom:20px;box-shadow:0 0 16px rgba(59,130,246,0.2)}
+.eyebrow{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:5px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;opacity:0.6}
+.title{font-family:'Unbounded',sans-serif;font-size:clamp(20px,4vw,34px);font-weight:900;line-height:0.95;letter-spacing:-0.5px;color:var(--text)}
+.subtitle{font-size:11px;font-weight:300;color:var(--muted);margin-top:6px}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 32px 12px;flex-wrap:wrap}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none;box-shadow:0 1px 2px rgba(0,0,0,0.05);text-decoration:none}
+.btn:hover{color:var(--text);border-color:rgba(0,0,0,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.09)}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-danger{background:rgba(220,38,38,0.07);border-color:rgba(220,38,38,0.3);color:#dc2626}
+.btn-danger:hover{background:rgba(220,38,38,0.14)}
+.coord-badge{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(0,180,80,0.1);color:#00a84a;border:1px solid rgba(0,180,80,0.2)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.card-heading{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-field{display:flex;flex-direction:column;gap:5px}
+.form-field.full{grid-column:1/-1}
+.form-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif}
+.form-input,.form-select{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;transition:border-color 0.15s;width:100%}
+.form-input:focus,.form-select:focus{border-color:rgba(59,130,246,0.5);background:#fff}
+.form-input[type=file]{padding:8px 12px;font-size:11px;cursor:pointer}
+.form-error{font-size:11px;color:#dc2626;min-height:14px;margin-top:2px}
+.source-toggle{display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);width:fit-content;margin-bottom:14px}
+.source-toggle button{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:8px 18px;border:none;cursor:pointer;transition:all 0.15s;background:var(--bg);color:var(--muted)}
+.source-toggle button.active{background:var(--accent);color:#fff}
+.loading-state{padding:32px;text-align:center;display:none}
+.loading-state.show{display:block}
+.progress-bar-wrap{background:var(--bg);border-radius:4px;height:4px;margin:14px auto 10px;max-width:320px;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);border-radius:4px;transition:width 0.4s ease;width:0}
+.loading-label{font-size:11px;color:var(--muted)}
+.forecast-meta{display:flex;flex-wrap:wrap;gap:24px;padding:0 32px 16px;align-items:baseline}
+.meta-item{display:flex;flex-direction:column;gap:2px}
+.meta-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif}
+.meta-value{font-size:13px;font-weight:600;color:var(--text)}
+.chart-title{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
+.chart-wrap{position:relative;height:200px}
+.map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border);height:380px;margin:0 32px 16px}
+#forecast-map{width:100%;height:100%}
+.summary-row{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--border);margin-top:8px}
+.summary-item{flex:1;min-width:110px;padding:14px 0;text-align:center}
+.summary-item+.summary-item{border-left:1px solid var(--border)}
+.summary-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;margin-bottom:4px}
+.summary-value{font-size:17px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace}
+.summary-unit{font-size:9px;color:var(--muted);font-family:'Inter',sans-serif}
+.dash-table{width:100%;border-collapse:collapse}
+.dash-table th{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.dash-table td{padding:10px 12px;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:middle}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table tr:hover td{background:var(--card)}
+.td-actions{display:flex;gap:6px;flex-wrap:wrap}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;padding:60px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.overlay.open{display:flex}
+.overlay-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:380px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.15);flex-shrink:0}
+.overlay-panel h3{font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:18px}
+.ov-field{margin-bottom:12px}
+.ov-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif;display:block;margin-bottom:5px}
+.ov-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:border-color 0.15s}
+.ov-input:focus{border-color:rgba(59,130,246,0.5)}
+.ov-status{font-size:11px;color:var(--muted);min-height:16px;margin-top:6px}
+.ov-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
+.toast.show{opacity:1}
+.feel-panel{display:flex;margin:0 32px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.feel-item{flex:1;padding:18px 16px 16px;text-align:center;border-right:1px solid var(--border)}
+.feel-item:last-child{border-right:none}
+.feel-emoji{font-size:30px;line-height:1;margin-bottom:7px}
+.feel-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:4px}
+.feel-value{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.feel-desc{font-size:10px;color:var(--muted);line-height:1.4}
+@media(max-width:600px){.feel-panel{margin-left:16px;margin-right:16px}.feel-item{padding:14px 10px 12px}.feel-emoji{font-size:24px}}
+.leaflet-control-zoom a{background:#fff!important;color:#444!important;border-color:rgba(0,0,0,0.15)!important}
+.leaflet-control-attribution{background:rgba(255,255,255,0.75)!important;color:rgba(0,0,0,0.45)!important;font-size:8px!important}
+.wind-arrow{cursor:pointer}
+.local-notice{display:none;margin:0 32px 12px;padding:10px 14px;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:8px;font-size:12px;color:var(--text);line-height:1.5;gap:12px;align-items:center}
+.local-notice button.notice-action{font-size:11px;padding:3px 9px;cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:5px;font-family:inherit}
+.local-notice button.notice-dismiss{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:0 2px;flex-shrink:0}
+@media(max-width:600px){
+  .header,.toolbar,.forecast-meta{padding-left:16px;padding-right:16px}
+  .card,.map-wrap{margin-left:16px;margin-right:16px}
+  .form-grid{grid-template-columns:1fr}
+  .form-field.full{grid-column:1}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ INPUT VIEW ═══ -->
+<div id="view-input">
+<div class="shell">
+  <div class="header">
+    <div class="accent-bar"></div>
+    <div class="eyebrow">Ride Forecast</div>
+    <div class="title">Cycling<br>Weather Forecast</div>
+    <div class="subtitle">Generate a ride-time weather forecast for any cycling route</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn" id="auth-btn" onclick="authBtnClick()">Sign in</button>
+    <span class="coord-badge" id="coord-badge" style="display:none">COORD</span>
+    <button class="btn" id="sign-out-btn" style="display:none" onclick="signOutCoord()">Sign out</button>
+    <div class="spacer"></div>
+    <button class="btn" id="dashboard-btn" style="display:none" onclick="openDashboard()">Sessions</button>
+  </div>
+
+  <div class="card">
+    <div class="card-heading">Route</div>
+    <div class="source-toggle">
+      <button id="src-rwgps" class="active" onclick="setSource('rwgps')">RideWithGPS URL</button>
+      <button id="src-gpx" onclick="setSource('gpx')">GPX File</button>
+    </div>
+    <div id="route-rwgps-field" class="form-field">
+      <label class="form-label" for="rwgps-url">Route URL</label>
+      <input class="form-input" id="rwgps-url" type="url" placeholder="https://ridewithgps.com/routes/12345678">
+      <div class="form-error" id="rwgps-error"></div>
+    </div>
+    <div id="route-gpx-field" class="form-field" style="display:none">
+      <label class="form-label" for="gpx-file">GPX File</label>
+      <input class="form-input" id="gpx-file" type="file" accept=".gpx">
+      <div class="form-error" id="gpx-error"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-heading">Ride Parameters</div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label class="form-label" for="start-date">Start Date</label>
+        <input class="form-input" id="start-date" type="date">
+        <div class="form-error" id="date-error"></div>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="start-time">Start Time</label>
+        <input class="form-input" id="start-time" type="time" value="07:00">
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="speed-mph">Average Speed (mph)</label>
+        <input class="form-input" id="speed-mph" type="number" min="3" max="60" step="0.5" value="15">
+        <div class="form-error" id="speed-error"></div>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="session-label">Label (optional)</label>
+        <input class="form-input" id="session-label" type="text" placeholder="e.g. Saturday Morning Ride">
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 32px">
+    <button class="btn btn-primary" id="generate-btn" onclick="generateForecast()" style="width:100%;justify-content:center;padding:14px;font-size:13px">
+      Generate Forecast
+    </button>
+  </div>
+
+  <div class="loading-state" id="loading-state">
+    <div class="loading-label" id="loading-label">Loading route…</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ FORECAST VIEW ═══ -->
+<div id="view-forecast" hidden>
+<div class="shell">
+  <div class="header">
+    <div class="accent-bar"></div>
+    <div class="eyebrow">Ride Forecast</div>
+    <div class="title" id="forecast-title">Forecast</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn" onclick="showView('view-input')">← New forecast</button>
+    <div class="spacer"></div>
+    <button class="btn" id="fc-share-btn" onclick="shareSession()">Copy link</button>
+    <button class="btn" id="export-btn" onclick="exportWeatherImage()">Export image</button>
+    <button class="btn" id="fc-regen-btn" style="display:none" onclick="regenForecast()">Regenerate</button>
+    <button class="btn" id="fc-auth-btn" onclick="authBtnClick()">Sign in</button>
+    <span class="coord-badge" id="fc-coord-badge" style="display:none">COORD</span>
+    <button class="btn" id="fc-sign-out-btn" style="display:none" onclick="signOutCoord()">Sign out</button>
+  </div>
+
+  <div class="forecast-meta" id="forecast-meta"></div>
+  <div id="fc-generated-at" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;padding:0 32px 12px;display:none"></div>
+  <div id="fc-local-notice" class="local-notice">
+    <span>The weather was refreshed in your browser but won't update the shared link.</span>
+    <button class="notice-action" onclick="signInAndSaveRegen()">Sign in to save</button>
+    <button class="notice-dismiss" onclick="document.getElementById('fc-local-notice').style.display='none'" title="Dismiss">×</button>
+  </div>
+
+  <div class="feel-panel" id="feel-panel"></div>
+
+  <div class="card">
+    <div class="chart-title">Temperature</div>
+    <div class="chart-wrap"><canvas id="chart-temp"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="chart-title">Precipitation &amp; Cloud Cover</div>
+    <div class="chart-wrap"><canvas id="chart-precip"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="chart-title">Wind</div>
+    <div class="chart-wrap"><canvas id="chart-wind"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="chart-title">Elevation</div>
+    <div class="chart-wrap"><canvas id="chart-elev"></canvas></div>
+  </div>
+
+  <div class="map-wrap"><div id="forecast-map"></div></div>
+
+  <div class="card" style="padding:0 0 0 0">
+    <div class="summary-row" id="summary-row"></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ DASHBOARD VIEW ═══ -->
+<div id="view-dashboard" hidden>
+<div class="shell">
+  <div class="header">
+    <div class="accent-bar"></div>
+    <div class="eyebrow">Ride Forecast</div>
+    <div class="title">Sessions</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn" onclick="showView('view-input')">← New forecast</button>
+    <div class="spacer"></div>
+    <span class="coord-badge" id="db-coord-badge" style="display:inline">COORD</span>
+    <button class="btn" onclick="signOutCoord()">Sign out</button>
+  </div>
+  <div class="card">
+    <table class="dash-table">
+      <thead><tr>
+        <th>Label</th><th>Source</th><th>Date / Time</th><th>Last Forecast</th><th></th>
+      </tr></thead>
+      <tbody id="dash-tbody"></tbody>
+    </table>
+    <div id="dash-empty" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:12px">No sessions yet.</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ AUTH OVERLAY ═══ -->
+<div class="overlay" id="auth-overlay" onclick="overlayBgClick(event)">
+  <div class="overlay-panel">
+    <h3>Coordinator Sign In</h3>
+    <p id="auth-reason" style="display:none;font-size:12px;color:var(--text);opacity:0.75;margin:-6px 0 14px;line-height:1.5"></p>
+    <div class="ov-field">
+      <label class="ov-label" for="auth-email">Email</label>
+      <input class="ov-input" id="auth-email" type="email" placeholder="coordinator@example.com"
+             onkeydown="if(event.key==='Enter')submitAuth()">
+    </div>
+    <div class="ov-field">
+      <label class="ov-label" for="auth-pwd">Password</label>
+      <input class="ov-input" id="auth-pwd" type="password"
+             onkeydown="if(event.key==='Enter')submitAuth()">
+    </div>
+    <div class="ov-status" id="auth-status"></div>
+    <div class="ov-actions">
+      <button class="btn" onclick="closeAuthDialog()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAuth()">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref as dbRef, set as dbSet, get as dbGet, remove as dbRemove }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getAuth, signInWithEmailAndPassword, signInAnonymously,
+         onAuthStateChanged, signOut as fbSignOut }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+// ── Chart.js loader ──
+// Loaded programmatically so we can retry CDNs and know when it's ready.
+async function loadChartJs() {
+  if (typeof Chart !== 'undefined') return;
+  const cdns = [
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
+    'https://unpkg.com/chart.js@4.4.3/dist/chart.umd.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js',
+  ];
+  for (const src of cdns) {
+    const ok = await new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+    if (ok && typeof Chart !== 'undefined') return;
+  }
+  throw new Error('Chart.js could not be loaded — check your internet connection');
+}
+const _chartReady = loadChartJs(); // start eagerly; resolves before the user finishes the form
+
+// ── Firebase init ──
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAoRc4QRDsXTf7xPISXeEy6TEhqnl5LCEU",
+  authDomain: "ride-annotator.firebaseapp.com",
+  databaseURL: "https://ride-annotator-default-rtdb.firebaseio.com",
+  projectId: "ride-annotator",
+  storageBucket: "ride-annotator.firebasestorage.app",
+  messagingSenderId: "692274107391",
+  appId: "1:692274107391:web:409d15436032b812a24dca"
+};
+
+let fb = null, fbAuth = null;
+try {
+  const app = initializeApp(FIREBASE_CONFIG, 'ride-forecast');
+  fb = { db: getDatabase(app), dbRef, dbSet, dbGet, dbRemove };
+  fbAuth = getAuth(app);
+} catch (e) { console.warn('Firebase init failed — no cloud sync', e); }
+
+// ── Runtime state ──
+let _sessionId = new URLSearchParams(location.search).get('id');
+let isCoordinator = false;
+let _pendingAuthCb = null;
+let _forecastPoints = null;
+let _waypoints = null;
+let _elevGainM = null;   // RWGPS pre-computed gain; null → compute from raw track points
+let _sessionMeta = null;
+let _forecastGeneratedAt = null;
+let _leafletMap = null;
+let _charts = {};
+
+// ── Constants ──
+const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';
+const RWGPS_BASE = 'https://ridewithgps.com/routes';
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
+// ── Tiny helpers ──
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('loading-label').textContent = label;
+}
+
+function fmtHHMM(isoStr) {
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function fmtRelTime(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return Math.round(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.round(diff / 3600000) + 'h ago';
+  return Math.round(diff / 86400000) + 'd ago';
+}
+
+function mToFt(m) { return Math.round(m * 3.28084); }
+function mToMi(m) { return (m / 1609.34).toFixed(1); }
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+  const dφ = (lat2 - lat1) * Math.PI / 180, dλ = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── View management ──
+function showView(id) {
+  ['view-input','view-forecast','view-dashboard'].forEach(v =>
+    document.getElementById(v).hidden = (v !== id)
+  );
+}
+
+// ── Auth UI ──
+function updateAuthUI() {
+  const ids = [
+    ['coord-badge','fc-coord-badge','db-coord-badge'],
+    ['sign-out-btn','fc-sign-out-btn'],
+    ['auth-btn','fc-auth-btn'],
+    ['dashboard-btn'],
+    ['fc-regen-btn']
+  ];
+  // coord badge
+  ['coord-badge','fc-coord-badge','db-coord-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isCoordinator ? 'inline' : 'none';
+  });
+  // sign-out
+  ['sign-out-btn','fc-sign-out-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isCoordinator ? 'inline-flex' : 'none';
+  });
+  // auth btn label
+  ['auth-btn','fc-auth-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = isCoordinator ? 'Account' : 'Sign in';
+  });
+  // dashboard btn (input view only)
+  const dbBtn = document.getElementById('dashboard-btn');
+  if (dbBtn) dbBtn.style.display = isCoordinator ? 'inline-flex' : 'none';
+  // regen btn (forecast view)
+  const regenBtn = document.getElementById('fc-regen-btn');
+  if (regenBtn) regenBtn.style.display = isCoordinator ? 'inline-flex' : 'none';
+}
+
+function openAuthDialog(reason = '') {
+  const r = document.getElementById('auth-reason');
+  if (r) { r.textContent = reason; r.style.display = reason ? 'block' : 'none'; }
+  document.getElementById('auth-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('auth-email')?.focus(), 50);
+}
+
+function closeAuthDialog() {
+  document.getElementById('auth-overlay').classList.remove('open');
+  document.getElementById('auth-status').textContent = '';
+  const r = document.getElementById('auth-reason');
+  if (r) { r.textContent = ''; r.style.display = 'none'; }
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-pwd').value = '';
+}
+
+function requireAuth(cb, reason = '') {
+  if (isCoordinator) { cb(); return; }
+  _pendingAuthCb = cb;
+  openAuthDialog(reason);
+}
+
+function authBtnClick() {
+  if (isCoordinator) openDashboard();
+  else openAuthDialog();
+}
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pwd = document.getElementById('auth-pwd').value;
+  const status = document.getElementById('auth-status');
+  if (!email || !pwd) return;
+  status.textContent = 'Signing in…';
+  if (!fbAuth) { status.textContent = 'Firebase unavailable.'; return; }
+  try {
+    await signInWithEmailAndPassword(fbAuth, email, pwd);
+  } catch (e) {
+    status.textContent = (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password')
+      ? '✗ Incorrect email or password'
+      : 'Error — check connection';
+    document.getElementById('auth-pwd').value = '';
+    setTimeout(() => document.getElementById('auth-pwd')?.focus(), 50);
+  }
+}
+
+async function signOutCoord() {
+  if (fbAuth) await fbSignOut(fbAuth).catch(() => {});
+}
+
+function overlayBgClick(e) {
+  if (e.target === document.getElementById('auth-overlay')) closeAuthDialog();
+}
+
+// ── Source toggle ──
+function setSource(src) {
+  document.getElementById('src-rwgps').classList.toggle('active', src === 'rwgps');
+  document.getElementById('src-gpx').classList.toggle('active', src === 'gpx');
+  document.getElementById('route-rwgps-field').style.display = src === 'rwgps' ? 'flex' : 'none';
+  document.getElementById('route-gpx-field').style.display   = src === 'gpx'   ? 'flex' : 'none';
+}
+
+// ── Route loading ──
+async function loadRwgpsRoute(routeId, privacyCode = null) {
+  const qs = privacyCode ? `?privacy_code=${encodeURIComponent(privacyCode)}` : '';
+  const res = await fetch(`${RWGPS_BASE}/${routeId}.json${qs}`);
+  if (res.status === 401 || res.status === 403) throw new Error('Route is private — check the privacy code in the URL');
+  if (res.status === 404) throw new Error('Route not found — is it a public RideWithGPS route?');
+  if (!res.ok) throw new Error(`Failed to load route (HTTP ${res.status})`);
+  const data = await res.json();
+  // RWGPS route JSON may nest under a "route" key or expose track_points at top level
+  const route = data.route ?? data;
+  const pts = route.track_points ?? data.track_points;
+  if (!pts?.length) {
+    const keys = JSON.stringify(Object.keys(data));
+    throw new Error(`Route has no track points (response keys: ${keys})`);
+  }
+  // Use RWGPS's server-side smoothed elevation gain rather than summing raw GPS increments.
+  _elevGainM = (typeof route.elevation_gain === 'number') ? route.elevation_gain : null;
+  return pts.map(p => ({ lat: p.y, lng: p.x, ele_m: p.e ?? 0, dist_m: p.d ?? 0 }));
+}
+
+function parseGpx(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('Invalid GPX file');
+  const pts = [...doc.querySelectorAll('trkpt')];
+  if (!pts.length) throw new Error('No track points found in GPX file');
+  let dist = 0;
+  return pts.map((pt, i) => {
+    const lat = parseFloat(pt.getAttribute('lat'));
+    const lng = parseFloat(pt.getAttribute('lon'));
+    const ele_m = parseFloat(pt.querySelector('ele')?.textContent ?? 0) || 0;
+    if (i > 0) {
+      const p = pts[i - 1];
+      dist += haversine(parseFloat(p.getAttribute('lat')), parseFloat(p.getAttribute('lon')), lat, lng);
+    }
+    return { lat, lng, ele_m, dist_m: dist };
+  });
+}
+
+// ── Time-position interpolation ──
+// Samples every 10 minutes of ride time, interpolating position linearly between waypoints.
+function interpolateByTime(waypoints, startTimeMs, speedMph) {
+  if (waypoints.length < 2) throw new Error('Route too short');
+  const speedMps = speedMph * 0.44704;
+  const totalDist = waypoints[waypoints.length - 1].dist_m;
+  const totalMs = (totalDist / speedMps) * 1000;
+  const intervalMs = 10 * 60 * 1000;
+  const samples = [];
+
+  for (let elapsed = 0; elapsed <= totalMs + 1000; elapsed += intervalMs) {
+    const clampedMs = Math.min(elapsed, totalMs);
+    const targetDist = (clampedMs / 1000) * speedMps;
+
+    let lo = 0;
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      if (waypoints[i].dist_m <= targetDist) lo = i; else break;
+    }
+    const hi = Math.min(lo + 1, waypoints.length - 1);
+    const a = waypoints[lo], b = waypoints[hi];
+    const span = b.dist_m - a.dist_m;
+    const frac = span > 0 ? Math.min((targetDist - a.dist_m) / span, 1) : 0;
+
+    samples.push({
+      lat:      a.lat   + frac * (b.lat   - a.lat),
+      lng:      a.lng   + frac * (b.lng   - a.lng),
+      ele_m:    a.ele_m + frac * (b.ele_m - a.ele_m),
+      dist_m:   targetDist,
+      timestamp: new Date(startTimeMs + clampedMs).toISOString(),
+      minutes_elapsed: clampedMs / 60000
+    });
+    if (clampedMs >= totalMs) break;
+  }
+  return samples;
+}
+
+// ── Open-Meteo weather fetching ──
+// Uses UTC timezone so our ISO timestamps align with Open-Meteo's time array.
+async function fetchWeatherForSamples(samples, onProgress) {
+  const CONCURRENCY = 5;
+  const results = new Array(samples.length);
+  for (let i = 0; i < samples.length; i += CONCURRENCY) {
+    const batch = samples.slice(i, Math.min(i + CONCURRENCY, samples.length));
+    await Promise.all(batch.map(async (s, j) => {
+      const params = new URLSearchParams({
+        latitude:  s.lat.toFixed(4),
+        longitude: s.lng.toFixed(4),
+        hourly: 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m',
+        temperature_unit: 'fahrenheit',
+        wind_speed_unit: 'mph',
+        precipitation_unit: 'inch',
+        timezone: 'UTC',
+        forecast_days: '7'
+      });
+      const res = await fetch(`${OPEN_METEO_BASE}?${params}`);
+      if (!res.ok) throw new Error(`Weather API error ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.reason || 'Weather API error');
+
+      // Match hourly row by UTC hour prefix (e.g. "2026-05-16T08")
+      const hourKey = s.timestamp.slice(0, 13);
+      const idx = data.hourly.time.findIndex(t => t.startsWith(hourKey));
+      if (idx === -1) throw new Error(`No forecast data for ${hourKey} — ride may be beyond the 7-day window`);
+
+      const h = data.hourly;
+      results[i + j] = {
+        ...s,
+        temp_f:       h.temperature_2m[idx],
+        feels_like_f: h.apparent_temperature[idx],
+        precip_prob:  h.precipitation_probability[idx],
+        precip_in:    h.precipitation[idx],
+        cloud_cover:  h.cloud_cover[idx],
+        wind_mph:     h.wind_speed_10m[idx],
+        wind_gust_mph: h.wind_gusts_10m[idx],
+        wind_dir_deg: h.wind_direction_10m[idx]
+      };
+    }));
+    onProgress?.(Math.min(i + CONCURRENCY, samples.length), samples.length);
+  }
+  return results;
+}
+
+// ── Chart rendering ──
+function destroyCharts() {
+  Object.values(_charts).forEach(c => c?.destroy());
+  _charts = {};
+}
+
+const X_SCALE = {
+  ticks: { font: { family: 'DM Mono', size: 9 }, color: 'rgba(17,17,40,0.45)', maxRotation: 0, maxTicksLimit: 12 },
+  grid: { color: 'rgba(0,0,0,0.05)' }
+};
+const Y_SCALE = {
+  ticks: { font: { family: 'DM Mono', size: 9 }, color: 'rgba(17,17,40,0.45)' },
+  grid: { color: 'rgba(0,0,0,0.06)' }
+};
+const CHART_OPTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  plugins: {
+    legend: { position: 'top', labels: { boxWidth: 12, font: { family: 'Inter', size: 10 }, padding: 12 } },
+    tooltip: { bodyFont: { family: 'DM Mono', size: 11 }, titleFont: { family: 'Inter', size: 10 } }
+  }
+};
+
+function mkDataset(label, data, color, rgba, opts = {}) {
+  return { label, data, borderColor: color, backgroundColor: rgba, fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, ...opts };
+}
+
+async function renderCharts(pts) {
+  await _chartReady;
+  destroyCharts();
+  const labels = pts.map(p => fmtHHMM(p.timestamp));
+
+  _charts.temp = new Chart(document.getElementById('chart-temp').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      mkDataset('Temperature (°F)', pts.map(p=>p.temp_f),       '#3B82F6', 'rgba(59,130,246,0.12)'),
+      mkDataset('Feels Like (°F)',  pts.map(p=>p.feels_like_f), '#f97316', 'rgba(249,115,22,0.08)')
+    ]},
+    options: { ...CHART_OPTS, scales: { x: X_SCALE, y: Y_SCALE } }
+  });
+
+  _charts.precip = new Chart(document.getElementById('chart-precip').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      mkDataset('Precip Prob (%)',  pts.map(p=>p.precip_prob),  '#3B82F6', 'rgba(59,130,246,0.12)', { yAxisID:'yPct' }),
+      mkDataset('Cloud Cover (%)', pts.map(p=>p.cloud_cover),   '#94a3b8', 'rgba(148,163,184,0.1)', { yAxisID:'yPct', borderWidth:1.5 }),
+      mkDataset('Precip (in/hr)',  pts.map(p=>p.precip_in),     '#0ea5e9', 'rgba(14,165,233,0.15)', { yAxisID:'yIn' })
+    ]},
+    options: { ...CHART_OPTS, scales: {
+      x:    X_SCALE,
+      yPct: { ...Y_SCALE, position:'left',  min:0, max:100 },
+      yIn:  { ...Y_SCALE, position:'right', min:0, suggestedMax:0.5, grid:{ drawOnChartArea:false },
+              ticks:{ ...Y_SCALE.ticks, callback: v => v > 0 ? v.toFixed(2)+'"' : '0"' } }
+    }}
+  });
+
+  _charts.wind = new Chart(document.getElementById('chart-wind').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      mkDataset('Wind (mph)',  pts.map(p=>p.wind_mph),      '#3B82F6', 'rgba(59,130,246,0.12)'),
+      mkDataset('Gusts (mph)', pts.map(p=>p.wind_gust_mph), '#f97316', 'rgba(249,115,22,0.08)', { borderDash:[4,3] })
+    ]},
+    options: { ...CHART_OPTS, scales: { x: X_SCALE, y: { ...Y_SCALE, min: 0 } } }
+  });
+
+  const elevFt = pts.map(p => mToFt(p.ele_m));
+  _charts.elev = new Chart(document.getElementById('chart-elev').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      mkDataset('Elevation (ft)', elevFt, '#f97316', 'rgba(249,115,22,0.15)', { pointRadius:0, borderWidth:1.5 })
+    ]},
+    options: { ...CHART_OPTS, scales: { x: X_SCALE, y: { ...Y_SCALE, min: Math.max(0, Math.min(...elevFt) - 200) } } }
+  });
+}
+
+// ── Map rendering ──
+function renderMap(pts, waypoints) {
+  const mapEl = document.getElementById('forecast-map');
+  if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; }
+  _leafletMap = L.map(mapEl);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd', maxZoom: 18, crossOrigin: 'anonymous'
+  }).addTo(_leafletMap);
+
+  const latlngs = waypoints.map(w => [w.lat, w.lng]);
+  L.polyline(latlngs, { color: '#f97316', weight: 3, opacity: 0.85 }).addTo(_leafletMap);
+
+  L.circleMarker(latlngs[0], { radius:7, color:'#fff', weight:2, fillColor:'#22c55e', fillOpacity:1 })
+    .bindTooltip('Start').addTo(_leafletMap);
+  L.circleMarker(latlngs[latlngs.length - 1], { radius:7, color:'#fff', weight:2, fillColor:'#ef4444', fillOpacity:1 })
+    .bindTooltip('Finish').addTo(_leafletMap);
+
+  // Wind arrows: met convention is "direction wind comes FROM"; rotate 180° to show where it pushes.
+  for (const pt of pts) {
+    const angle = (pt.wind_dir_deg + 180) % 360;
+    const spd = pt.wind_mph;
+    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${angle}deg);display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))">
+      <polygon points="10,2 14,17 10,13 6,17" fill="${clr}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>`;
+    const icon = L.divIcon({ html: svg, iconSize:[20,20], iconAnchor:[10,10], className:'wind-arrow' });
+    L.marker([pt.lat, pt.lng], { icon })
+      .bindTooltip(`${fmtHHMM(pt.timestamp)} · ${Math.round(spd)} mph from ${Math.round(pt.wind_dir_deg)}°`, { direction:'top' })
+      .addTo(_leafletMap);
+  }
+
+  _leafletMap.fitBounds(L.latLngBounds(latlngs), { padding:[20,20] });
+}
+
+// Captures the Leaflet map (tiles + route SVG + wind arrows) onto an offscreen canvas.
+// Tiles must be loaded with crossOrigin:'anonymous' (set on the tile layer above).
+async function captureLeafletMap(outW, outH, dpr = 1) {
+  const mapEl = document.getElementById('forecast-map');
+  if (!mapEl || !_leafletMap || !_forecastPoints) return null;
+  const mapRect = mapEl.getBoundingClientRect();
+  if (!mapRect.width || !mapRect.height) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = outW * dpr;
+  canvas.height = outH * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const sx = outW / mapRect.width;
+  const sy = outH / mapRect.height;
+
+  // CARTO Voyager land colour as background fallback
+  ctx.fillStyle = '#f5f0eb';
+  ctx.fillRect(0, 0, outW, outH);
+
+  // 1. Map tiles
+  for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
+    if (!tile.complete || !tile.naturalWidth) continue;
+    const r = tile.getBoundingClientRect();
+    try {
+      ctx.drawImage(tile,
+        (r.left - mapRect.left) * sx, (r.top - mapRect.top) * sy,
+        r.width * sx, r.height * sy);
+    } catch(_) {}
+  }
+
+  // Build tile index and Web Mercator helpers (shared by route polyline and wind arrows).
+  const tileZoom = (() => {
+    const src = mapEl.querySelector('img.leaflet-tile')?.src || '';
+    const m = src.match(/\/(\d+)\/\d+\/\d+/);
+    return m ? parseInt(m[1], 10) : Math.round(_leafletMap.getZoom());
+  })();
+
+  const tileIndex = new Map();
+  for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
+    if (!tile.complete || !tile.naturalWidth) continue;
+    const m = tile.src.match(/\/(\d+)\/(\d+)\/(\d+)/);
+    if (!m || parseInt(m[1], 10) !== tileZoom) continue;
+    tileIndex.set(`${m[2]},${m[3]}`, tile.getBoundingClientRect());
+  }
+
+  function latlngToTilePos(lat, lng, z) {
+    const n = Math.pow(2, z);
+    const tx = (lng + 180) / 360 * n;
+    const sinLat = Math.sin(lat * Math.PI / 180);
+    const ty = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * n;
+    const tileX = Math.floor(tx), tileY = Math.floor(ty);
+    return { tileX, tileY, fracX: tx - tileX, fracY: ty - tileY };
+  }
+
+  function latlngToCanvas(lat, lng) {
+    const { tileX, tileY, fracX, fracY } = latlngToTilePos(lat, lng, tileZoom);
+    const tr = tileIndex.get(`${tileX},${tileY}`);
+    if (!tr) return null;
+    return {
+      x: (tr.left + fracX * tr.width  - mapRect.left) * sx,
+      y: (tr.top  + fracY * tr.height - mapRect.top)  * sy,
+    };
+  }
+
+  // 2. Route polyline + start/finish markers drawn via tile-coordinate math so the
+  // route aligns with tiles regardless of Leaflet's CSS pan transforms.
+  if (_waypoints && _waypoints.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    let penDown = false;
+    for (const wp of _waypoints) {
+      const pos = latlngToCanvas(wp.lat, wp.lng);
+      if (!pos) { penDown = false; continue; }
+      if (!penDown) { ctx.moveTo(pos.x, pos.y); penDown = true; }
+      else { ctx.lineTo(pos.x, pos.y); }
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Start (green) and end (red) circle markers
+    const startPos = latlngToCanvas(_waypoints[0].lat, _waypoints[0].lng);
+    const endPos   = latlngToCanvas(_waypoints[_waypoints.length - 1].lat, _waypoints[_waypoints.length - 1].lng);
+    for (const [pos, fill] of [[startPos, '#22c55e'], [endPos, '#ef4444']]) {
+      if (!pos) continue;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 3. Wind arrows
+  for (const pt of _forecastPoints) {
+    const pos = latlngToCanvas(pt.lat, pt.lng);
+    if (!pos) continue;
+    const { x: cx, y: cy } = pos;
+    const spd = pt.wind_mph || 0;
+    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const rad = (((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180;
+    const s = 0.7;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rad);
+    ctx.beginPath();
+    ctx.moveTo(0, -8*s); ctx.lineTo(4*s, 7*s); ctx.lineTo(0, 3*s); ctx.lineTo(-4*s, 7*s);
+    ctx.closePath();
+    ctx.fillStyle = clr;
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1.2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  return canvas;
+}
+
+// ── Summary footer ──
+function renderSummary(pts, waypoints) {
+  const totalDist = waypoints[waypoints.length - 1].dist_m;
+  let elevGain;
+  if (_elevGainM !== null) {
+    elevGain = _elevGainM;  // authoritative RWGPS server-side value
+  } else {
+    elevGain = 0;
+    for (let i = 1; i < waypoints.length; i++) {
+      const d = waypoints[i].ele_m - waypoints[i-1].ele_m;
+      if (d > 0) elevGain += d;
+    }
+  }
+  const durationMin = pts[pts.length - 1].minutes_elapsed;
+  const avgTemp = pts.reduce((a, p) => a + p.temp_f, 0) / pts.length;
+  const maxWind = Math.max(...pts.map(p => p.wind_mph));
+
+  const items = [
+    { label:'Distance',  value: mToMi(totalDist),                 unit:'mi' },
+    { label:'Elev Gain', value: mToFt(elevGain).toLocaleString(),  unit:'ft' },
+    { label:'Duration',  value: `${Math.floor(durationMin/60)}h ${Math.round(durationMin%60)}m`, unit:'' },
+    { label:'Avg Temp',  value: Math.round(avgTemp),               unit:'°F' },
+    { label:'Max Wind',  value: Math.round(maxWind),               unit:'mph' }
+  ];
+  document.getElementById('summary-row').innerHTML = items.map(it =>
+    `<div class="summary-item">
+      <div class="summary-label">${it.label}</div>
+      <div class="summary-value">${it.value}<span class="summary-unit"> ${it.unit}</span></div>
+    </div>`
+  ).join('');
+}
+
+// ── Forecast meta header ──
+function renderForecastMeta(meta) {
+  document.getElementById('forecast-title').textContent = meta.label || 'Forecast';
+  const items = [
+    { label:'Date',   value: meta.startDate },
+    { label:'Start',  value: meta.startTime },
+    { label:'Speed',  value: meta.speedMph + ' mph' },
+    { label:'Source', value: meta.routeSource === 'rwgps' ? 'RideWithGPS' : 'GPX Upload' }
+  ];
+  if (meta.routeId) items.push({ label:'Route ID', value: meta.routeId });
+  document.getElementById('forecast-meta').innerHTML = items.map(it =>
+    `<div class="meta-item"><div class="meta-label">${it.label}</div><div class="meta-value">${esc(String(it.value ?? '—'))}</div></div>`
+  ).join('');
+}
+
+function showLocalRegenNotice() {
+  const el = document.getElementById('fc-local-notice');
+  if (el) el.style.display = 'flex';
+}
+function hideLocalRegenNotice() {
+  const el = document.getElementById('fc-local-notice');
+  if (el) el.style.display = 'none';
+}
+
+function signInAndSaveRegen() {
+  requireAuth(async () => {
+    try {
+      toast('Saving…');
+      await saveSession(_sessionMeta, _forecastPoints, _waypoints);
+      setGeneratedAt(Date.now());
+      hideLocalRegenNotice();
+      toast('Forecast saved — shared link updated');
+    } catch(e) {
+      toast('Save failed — check connection');
+    }
+  }, 'Sign in to save the refreshed forecast to the shared link.');
+}
+
+function setGeneratedAt(ts) {
+  _forecastGeneratedAt = ts ?? null;
+  const el = document.getElementById('fc-generated-at');
+  if (!el) return;
+  if (!ts) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.textContent = 'Weather fetched ' + fmtRelTime(ts);
+  el.style.display = 'block';
+}
+
+// ── Ride-feel summary panel ──
+// Shared data builder used by both the DOM panel and the canvas export.
+function buildFeelItems(pts) {
+  const feelsLike = pts.map(p => p.feels_like_f);
+  const avgFeels  = feelsLike.reduce((a, b) => a + b) / feelsLike.length;
+  const minFeels  = Math.min(...feelsLike);
+  const maxFeels  = Math.max(...feelsLike);
+
+  let tempEmoji, tempValue;
+  if      (avgFeels < 35) { tempEmoji = '🥶'; tempValue = 'Very Cold'; }
+  else if (avgFeels < 48) { tempEmoji = '🧤'; tempValue = 'Cold'; }
+  else if (avgFeels < 58) { tempEmoji = '🧥'; tempValue = 'Cool'; }
+  else if (avgFeels < 70) { tempEmoji = '😊'; tempValue = 'Comfortable'; }
+  else if (avgFeels < 82) { tempEmoji = '☀️'; tempValue = 'Warm'; }
+  else                    { tempEmoji = '🥵'; tempValue = 'Hot'; }
+  const tempDesc = `${Math.round(minFeels)}–${Math.round(maxFeels)}°F feels like`;
+
+  const maxPrecipProb = Math.max(...pts.map(p => p.precip_prob));
+  const maxPrecipIn   = Math.max(...pts.map(p => p.precip_in));
+  let rainEmoji, rainValue, rainDesc;
+  if      (maxPrecipProb < 10) { rainEmoji = '☀️';  rainValue = 'Clear';            rainDesc = 'No rain expected'; }
+  else if (maxPrecipProb < 25) { rainEmoji = '🌤️'; rainValue = 'Mostly Clear';     rainDesc = `Up to ${maxPrecipProb}% chance`; }
+  else if (maxPrecipProb < 50) { rainEmoji = '⛅';  rainValue = 'Partly Cloudy';    rainDesc = `Up to ${maxPrecipProb}% chance`; }
+  else if (maxPrecipProb < 70) { rainEmoji = '🌦️'; rainValue = 'Possible Showers'; rainDesc = `Up to ${maxPrecipProb}% chance`; }
+  else if (maxPrecipProb < 90) { rainEmoji = '🌧️'; rainValue = 'Likely Rain';      rainDesc = `${maxPrecipProb}% at peak`; }
+  else                         { rainEmoji = '⛈️'; rainValue = 'Heavy Rain';        rainDesc = `${maxPrecipProb}% chance`; }
+  if (maxPrecipIn > 0.1) rainDesc += ` · up to ${maxPrecipIn.toFixed(2)} in/hr`;
+
+  const maxWind = Math.max(...pts.map(p => p.wind_mph));
+  const maxGust = Math.max(...pts.map(p => p.wind_gust_mph));
+  let windEmoji, windValue, windDesc;
+  if      (maxWind < 6)  { windEmoji = '🍃';  windValue = 'Calm';        windDesc = `Max ${Math.round(maxWind)} mph`; }
+  else if (maxWind < 12) { windEmoji = '💨';  windValue = 'Light Breeze'; windDesc = `Max ${Math.round(maxWind)} mph`; }
+  else if (maxWind < 20) { windEmoji = '🌬️'; windValue = 'Breezy';       windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
+  else if (maxWind < 30) { windEmoji = '💨';  windValue = 'Windy';        windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
+  else                   { windEmoji = '🌪️'; windValue = 'Very Windy';   windDesc = `Max ${Math.round(maxWind)} mph, ${Math.round(maxGust)} mph gusts`; }
+
+  return [
+    { emoji: tempEmoji, label: 'Temperature',   value: tempValue, desc: tempDesc },
+    { emoji: rainEmoji, label: 'Precipitation', value: rainValue, desc: rainDesc },
+    { emoji: windEmoji, label: 'Wind',          value: windValue, desc: windDesc },
+  ];
+}
+
+function renderFeelSummary(pts) {
+  document.getElementById('feel-panel').innerHTML = buildFeelItems(pts).map(it =>
+    `<div class="feel-item">
+      <div class="feel-emoji">${it.emoji}</div>
+      <div class="feel-label">${it.label}</div>
+      <div class="feel-value">${it.value}</div>
+      <div class="feel-desc">${esc(it.desc)}</div>
+    </div>`
+  ).join('');
+}
+
+// ── Canvas image export ──
+// Draws the feel panel + 3 weather charts onto an offscreen canvas and saves as PNG.
+// No external library needed: Chart.js canvases are copied with drawImage().
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
+}
+
+async function exportWeatherImage() {
+  if (!_forecastPoints) { toast('No forecast to export'); return; }
+  const btn = document.getElementById('export-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
+  try {
+    await document.fonts.ready;
+
+    const DPR      = Math.min(window.devicePixelRatio || 1, 2);
+    const PAD      = 28;
+    // Use the chart's actual rendered size so drawImage is 1:1 and never blurry.
+    const chartEl  = document.getElementById('chart-temp');
+    const IW       = chartEl?.offsetWidth  || 744;
+    const CHART_H  = chartEl?.offsetHeight || 200;
+    const W        = IW + PAD * 2;
+    const FEEL_H   = 104;
+    const MAP_H    = 200;
+    const HDR_H    = 64;
+    const LBL_H    = 20;
+    const GAP      = 14;
+    const FOOT_H   = 28;
+    const H = PAD + HDR_H + GAP + FEEL_H + GAP + LBL_H + MAP_H + GAP +
+              (LBL_H + CHART_H + GAP) * 3 + FOOT_H + PAD;
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * DPR;
+    canvas.height = H * DPR;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(DPR, DPR);
+
+    // Outer background
+    ctx.fillStyle = '#f0f0f6';
+    ctx.fillRect(0, 0, W, H);
+
+    // White card
+    ctx.fillStyle = '#ffffff';
+    rrect(ctx, PAD / 2, PAD / 2, W - PAD, H - PAD, 14);
+    ctx.fill();
+
+    let y = PAD;
+
+    // ── Header ──
+    const label     = (_sessionMeta?.label) || 'Ride Forecast';
+    const startDate = _sessionMeta?.startDate || _forecastPoints[0]?.timestamp?.slice(0,10) || '';
+    const startTime = _sessionMeta?.startTime || '';
+    const speedMph  = _sessionMeta?.speedMph  || '';
+    const metaStr   = [startDate, startTime, speedMph ? speedMph + ' mph' : ''].filter(Boolean).join(' · ');
+
+    ctx.fillStyle = '#3B82F6';
+    ctx.fillRect(PAD, y + 4, 3, 38);
+
+    ctx.fillStyle = '#111128';
+    ctx.font = 'bold 19px Unbounded, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, PAD + 14, y + 26);
+
+    ctx.fillStyle = 'rgba(17,17,40,0.42)';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(metaStr, PAD + 14, y + 48);
+
+    y += HDR_H + GAP;
+
+    // ── Feel panel ──
+    ctx.fillStyle = '#f7f7fb';
+    rrect(ctx, PAD, y, IW, FEEL_H, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 1;
+    rrect(ctx, PAD, y, IW, FEEL_H, 10);
+    ctx.stroke();
+
+    const colW = IW / 3;
+    buildFeelItems(_forecastPoints).forEach((item, i) => {
+      if (i > 0) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(PAD + i * colW, y + 12);
+        ctx.lineTo(PAD + i * colW, y + FEEL_H - 12);
+        ctx.stroke();
+      }
+      const cx = PAD + i * colW + colW / 2;
+
+      ctx.font = '26px serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#111128';
+      ctx.fillText(item.emoji, cx, y + 30);
+
+      ctx.font = '600 8px Unbounded, sans-serif';
+      ctx.fillStyle = 'rgba(17,17,40,0.35)';
+      ctx.fillText(item.label.toUpperCase(), cx, y + 50);
+
+      ctx.font = '600 13px Inter, sans-serif';
+      ctx.fillStyle = '#111128';
+      ctx.fillText(item.value, cx, y + 68);
+
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(17,17,40,0.5)';
+      // Truncate description if too wide for column
+      let desc = item.desc;
+      while (ctx.measureText(desc).width > colW - 16 && desc.length > 10) desc = desc.slice(0, -4) + '…';
+      ctx.fillText(desc, cx, y + 84);
+    });
+
+    y += FEEL_H + GAP;
+
+    // ── Map ──
+    ctx.font = '600 7.5px Unbounded, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(17,17,40,0.35)';
+    ctx.fillText('ROUTE & WIND', PAD, y + 13);
+    y += LBL_H;
+
+    const mapBitmap = await captureLeafletMap(IW, MAP_H, DPR);
+    ctx.save();
+    rrect(ctx, PAD, y, IW, MAP_H, 8);
+    ctx.clip();
+    if (mapBitmap) {
+      ctx.drawImage(mapBitmap, PAD, y, IW, MAP_H);
+    } else {
+      ctx.fillStyle = '#e8e4df';
+      ctx.fillRect(PAD, y, IW, MAP_H);
+    }
+    ctx.restore();
+    y += MAP_H + GAP;
+
+    // ── Three weather charts ──
+    // Disable tooltips and synchronously redraw before copying canvas pixels.
+    // update('none') goes through the RAF animation loop and won't fire before
+    // drawImage; draw() is synchronous and bypasses the animation system.
+    for (const c of Object.values(_charts)) {
+      if (!c) continue;
+      if (c.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = false;
+      c.draw();
+    }
+    try {
+    for (const { id, title } of [
+      { id: 'chart-temp',   title: 'TEMPERATURE' },
+      { id: 'chart-precip', title: 'PRECIPITATION & CLOUD COVER' },
+      { id: 'chart-wind',   title: 'WIND' },
+    ]) {
+      ctx.font = '600 7.5px Unbounded, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(17,17,40,0.35)';
+      ctx.fillText(title, PAD, y + 13);
+      y += LBL_H;
+
+      const src = document.getElementById(id);
+      if (src?.width) ctx.drawImage(src, PAD, y, IW, CHART_H);
+
+      y += CHART_H + GAP;
+    }
+    } finally {
+      for (const c of Object.values(_charts)) {
+        if (!c) continue;
+        if (c.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = true;
+        c.draw();
+      }
+    }
+
+    // ── Footer ──
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(17,17,40,0.3)';
+    ctx.fillText('Weather data by Open-Meteo.com', W / 2, y + 16);
+
+    const filename = label.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-forecast.png';
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const file = new File([blob], filename, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: label });
+      toast('Shared!');
+    } else {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast('Image saved!');
+    }
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Export image'; }
+  }
+}
+
+// ── Firebase session save/load ──
+async function saveSession(meta, forecastPoints, waypoints) {
+  if (!fb || !isCoordinator) return; // anonymous visitors never write
+  const id = _sessionId || crypto.randomUUID();
+  _sessionId = id;
+  const waypointsJson = meta.routeSource === 'gpx'
+    ? JSON.stringify(waypoints.map(w => [+w.lat.toFixed(6), +w.lng.toFixed(6), +w.ele_m.toFixed(1), Math.round(w.dist_m)]))
+    : null;
+  const now = Date.now();
+  const record = {
+    createdBy: fbAuth?.currentUser?.uid ?? '',
+    createdAt: _sessionMeta?.createdAt ?? now,
+    updatedAt: now,
+    label: meta.label || 'Untitled Forecast',
+    routeSource: meta.routeSource,
+    routeId: meta.routeId || null,
+    routePrivacyCode: meta.routePrivacyCode || null,
+    waypointsJson,
+    startDate: meta.startDate,
+    startTime: meta.startTime,
+    speedMph: meta.speedMph,
+    elevGainM: meta.elevGainM ?? null,
+    forecastPoints,
+    forecastGeneratedAt: now
+  };
+  await Promise.all([
+    fb.dbSet(fb.dbRef(fb.db, `rideSessions/${id}`), record),
+    fb.dbSet(fb.dbRef(fb.db, `rideSessionIndex/${id}`), {
+      label: record.label, createdBy: record.createdBy, createdAt: record.createdAt,
+      routeSource: record.routeSource, startDate: record.startDate,
+      forecastGeneratedAt: now
+    })
+  ]);
+  history.replaceState(null, '', `?id=${id}`);
+}
+
+async function loadSessionById(id) {
+  if (!fb) return null;
+  const snap = await fb.dbGet(fb.dbRef(fb.db, `rideSessions/${id}`));
+  return snap.exists() ? snap.val() : null;
+}
+
+async function deleteSession(id) {
+  if (!fb || !isCoordinator) return;
+  await Promise.all([
+    fb.dbRemove(fb.dbRef(fb.db, `rideSessions/${id}`)),
+    fb.dbRemove(fb.dbRef(fb.db, `rideSessionIndex/${id}`))
+  ]);
+}
+
+// ── Dashboard ──
+async function openDashboard() {
+  if (!isCoordinator) { requireAuth(() => openDashboard(), 'Sign in to view and manage saved sessions.'); return; }
+  showView('view-dashboard');
+  const tbody = document.getElementById('dash-tbody');
+  document.getElementById('dash-empty').style.display = 'none';
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>';
+  if (!fb) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Firebase unavailable</td></tr>'; return; }
+  try {
+    const snap = await fb.dbGet(fb.dbRef(fb.db, 'rideSessionIndex'));
+    if (!snap.exists()) { tbody.innerHTML = ''; document.getElementById('dash-empty').style.display = 'block'; return; }
+    const entries = Object.entries(snap.val()).sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0));
+    tbody.innerHTML = entries.map(([id, s]) => `
+      <tr>
+        <td style="font-weight:600">${esc(s.label||'Untitled')}</td>
+        <td style="color:var(--muted)">${s.routeSource==='rwgps'?'RideWithGPS':'GPX Upload'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(s.startDate||'')}</td>
+        <td style="color:var(--muted);font-size:11px">${s.forecastGeneratedAt ? fmtRelTime(s.forecastGeneratedAt) : '—'}</td>
+        <td class="td-actions">
+          <a href="?id=${esc(id)}" class="btn" style="font-size:10px;padding:5px 10px">View</a>
+          <button class="btn" style="font-size:10px;padding:5px 10px" onclick="copyLink('${esc(id)}')">Copy link</button>
+          <button class="btn btn-danger" style="font-size:10px;padding:5px 10px" onclick="confirmDelete('${esc(id)}')">Delete</button>
+        </td>
+      </tr>`
+    ).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#dc2626;font-size:11px">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function copyLink(id) {
+  const url = location.origin + location.pathname + '?id=' + id;
+  navigator.clipboard.writeText(url).then(() => toast('Link copied!'));
+}
+
+async function confirmDelete(id) {
+  if (!confirm('Delete this session? This cannot be undone.')) return;
+  await deleteSession(id);
+  toast('Session deleted');
+  openDashboard();
+}
+
+// ── Share ──
+function shareSession() {
+  if (_sessionId) {
+    // Session already saved — URL has ?id=UUID, just copy it.
+    navigator.clipboard.writeText(location.href).then(() => toast('Link copied!'));
+    return;
+  }
+  if (!isCoordinator) {
+    // Forecast exists locally but hasn't been saved. Prompt sign-in, then save + copy.
+    requireAuth(async () => {
+      if (_forecastPoints && _sessionMeta) {
+        toast('Saving forecast…');
+        try {
+          await saveSession(_sessionMeta, _forecastPoints, _waypoints);
+          navigator.clipboard.writeText(location.href).then(() => toast('Link copied!'));
+        } catch(e) {
+          toast('Save failed — check connection');
+        }
+      }
+    }, 'Sign in to save this forecast and get a shareable link.');
+    return;
+  }
+  // Coordinator but auto-save hasn't completed yet (rare — e.g. slow connection).
+  if (_forecastPoints && _sessionMeta) {
+    toast('Saving…');
+    saveSession(_sessionMeta, _forecastPoints, _waypoints)
+      .then(() => navigator.clipboard.writeText(location.href).then(() => toast('Link copied!')))
+      .catch(() => toast('Save failed — check connection'));
+  }
+}
+
+// ── Run forecast from form inputs ──
+async function generateForecast() {
+  const isRwgps = document.getElementById('src-rwgps').classList.contains('active');
+  const rwgpsUrl = document.getElementById('rwgps-url').value.trim();
+  const gpxFile  = document.getElementById('gpx-file').files?.[0];
+  const startDate = document.getElementById('start-date').value;
+  const startTime = document.getElementById('start-time').value || '07:00';
+  const speedMph  = parseFloat(document.getElementById('speed-mph').value);
+  const label     = document.getElementById('session-label').value.trim();
+
+  // Validate
+  let ok = true;
+  const setErr = (id, msg) => { document.getElementById(id).textContent = msg; if (msg) ok = false; };
+  setErr('rwgps-error', isRwgps && !rwgpsUrl ? 'Please enter a RideWithGPS URL' : '');
+  setErr('gpx-error',   !isRwgps && !gpxFile ? 'Please select a GPX file' : '');
+  setErr('date-error',  !startDate ? 'Please select a start date' : '');
+  setErr('speed-error', (!speedMph || speedMph < 1 || speedMph > 60) ? 'Enter a speed between 1 and 60 mph' : '');
+  if (!ok) return;
+
+  const genBtn = document.getElementById('generate-btn');
+  genBtn.disabled = true;
+  document.getElementById('loading-state').classList.add('show');
+  setProgress(5, 'Loading route…');
+
+  try {
+    // 1. Load route
+    let waypoints, routeId = null, routePrivacyCode = null;
+    if (isRwgps) {
+      const m = rwgpsUrl.match(/routes\/(\d+)/);
+      if (!m) throw new Error('Could not find a route ID in that URL');
+      routeId = m[1];
+      try { routePrivacyCode = new URL(rwgpsUrl).searchParams.get('privacy_code') || null; } catch(_) {}
+      waypoints = await loadRwgpsRoute(routeId, routePrivacyCode);
+    } else {
+      _elevGainM = null;  // GPX: compute from raw track points
+      waypoints = parseGpx(await gpxFile.text());
+    }
+    setProgress(25, 'Calculating sample points…');
+
+    // 2. Interpolate: treat entered time as browser local (ISO 8601 without Z = local)
+    const startTimeMs = new Date(`${startDate}T${startTime}:00`).getTime();
+    const samples = interpolateByTime(waypoints, startTimeMs, speedMph);
+    setProgress(35, `Fetching weather (0 / ${samples.length})…`);
+
+    // 3. Weather
+    const forecastPoints = await fetchWeatherForSamples(samples, (done, total) => {
+      setProgress(35 + Math.round((done / total) * 55), `Fetching weather (${done} / ${total})…`);
+    });
+    setProgress(93, 'Rendering…');
+
+    // 4. Render
+    _forecastPoints = forecastPoints;
+    _waypoints = waypoints;
+    _sessionId = null;
+    const meta = { label, startDate, startTime, speedMph, routeSource: isRwgps ? 'rwgps' : 'gpx', routeId, routePrivacyCode, elevGainM: _elevGainM };
+    _sessionMeta = meta;  // keep available so a post-auth save can use it
+    renderForecastMeta(meta);
+    showView('view-forecast');
+    await renderCharts(forecastPoints);
+    setTimeout(() => renderMap(forecastPoints, waypoints), 50);
+    renderFeelSummary(forecastPoints); renderSummary(forecastPoints, waypoints);
+    setGeneratedAt(Date.now());
+    hideLocalRegenNotice();
+    setProgress(100, 'Done');
+
+    // 5. Save (coordinator only)
+    if (isCoordinator) {
+      saveSession(meta, forecastPoints, waypoints).catch(e => console.warn('Save failed', e));
+    }
+  } catch(e) {
+    alert('Error generating forecast: ' + e.message);
+  } finally {
+    document.getElementById('loading-state').classList.remove('show');
+    genBtn.disabled = false;
+  }
+}
+
+// ── Regenerate forecast for an existing session (coordinator only) ──
+async function regenForecast() {
+  if (!isCoordinator || !_sessionMeta) return;
+  const s = _sessionMeta;
+  const regenBtn = document.getElementById('fc-regen-btn');
+  regenBtn.disabled = true;
+  toast('Regenerating…');
+  try {
+    let wpts = _waypoints;
+    if (!wpts) {
+      if (s.routeSource === 'rwgps' && s.routeId) wpts = await loadRwgpsRoute(s.routeId, s.routePrivacyCode || null);
+      else if (s.waypointsJson) {
+        const raw = JSON.parse(s.waypointsJson);
+        wpts = raw.map(w => ({ lat:w[0], lng:w[1], ele_m:w[2], dist_m:w[3] }));
+      }
+    }
+    if (!wpts) throw new Error('Cannot reload route data for this session');
+    _waypoints = wpts;
+    const startTimeMs = new Date(`${s.startDate}T${s.startTime||'07:00'}:00`).getTime();
+    const samples = interpolateByTime(wpts, startTimeMs, s.speedMph);
+    const forecastPoints = await fetchWeatherForSamples(samples, () => {});
+    _forecastPoints = forecastPoints;
+    await renderCharts(forecastPoints);
+    renderMap(forecastPoints, wpts);
+    renderFeelSummary(forecastPoints); renderSummary(forecastPoints, wpts);
+    // Coordinator writes back the fresh forecast
+    const meta = { label:s.label, startDate:s.startDate, startTime:s.startTime,
+                   speedMph:s.speedMph, routeSource:s.routeSource, routeId:s.routeId,
+                   routePrivacyCode: s.routePrivacyCode || null, elevGainM: _elevGainM };
+    await saveSession(meta, forecastPoints, wpts);
+    setGeneratedAt(Date.now());
+    toast('Forecast updated');
+  } catch(e) {
+    alert('Regeneration failed: ' + e.message);
+  } finally {
+    regenBtn.disabled = false;
+  }
+}
+
+// ── Load and display a session from ?id= URL param ──
+async function openSessionForecast(id) {
+  showView('view-forecast');
+  hideLocalRegenNotice();
+  document.getElementById('forecast-title').textContent = 'Loading…';
+  document.getElementById('forecast-meta').innerHTML = '';
+  try {
+    const session = await loadSessionById(id);
+    if (!session) { alert('Session not found or has been deleted.'); showView('view-input'); return; }
+    _sessionMeta = session;
+    _sessionId = id;
+    // Restore stored gain so renderSummary doesn't inherit a stale value from a prior load.
+    // loadRwgpsRoute will overwrite this with the live API value if the route is re-fetched.
+    _elevGainM = session.elevGainM ?? null;
+
+    const meta = { label:session.label, startDate:session.startDate, startTime:session.startTime,
+                   speedMph:session.speedMph, routeSource:session.routeSource, routeId:session.routeId,
+                   elevGainM: _elevGainM };
+    renderForecastMeta(meta);
+
+    const age = Date.now() - (session.forecastGeneratedAt || 0);
+    let forecastPoints = session.forecastPoints;
+    let wpts = null;
+
+    const loadWpts = async () => {
+      if (session.waypointsJson) {
+        const raw = JSON.parse(session.waypointsJson);
+        return raw.map(w => ({ lat:w[0], lng:w[1], ele_m:w[2], dist_m:w[3] }));
+      }
+      if (session.routeSource === 'rwgps' && session.routeId) return loadRwgpsRoute(session.routeId, session.routePrivacyCode || null);
+      return null;
+    };
+
+    if (forecastPoints?.length && age < CACHE_TTL_MS) {
+      // Serve from cache — no write needed
+      wpts = await loadWpts();
+    } else {
+      // Stale or missing: regenerate locally; only coordinator may write result back
+      toast('Forecast is stale — regenerating…');
+      wpts = await loadWpts();
+      if (!wpts) { toast('Cannot reload route data for regeneration'); return; }
+      const startTimeMs = new Date(`${session.startDate}T${session.startTime||'07:00'}:00`).getTime();
+      const samples = interpolateByTime(wpts, startTimeMs, session.speedMph);
+      forecastPoints = await fetchWeatherForSamples(samples, () => {});
+      // Coordinator writes the refreshed cache; anonymous visitors do not
+      if (isCoordinator) {
+        saveSession(meta, forecastPoints, wpts).catch(e => console.warn('Cache refresh failed', e));
+      } else {
+        showLocalRegenNotice();
+      }
+    }
+
+    _forecastPoints = forecastPoints;
+    _waypoints = wpts;
+    // Use the stored timestamp for cache hits; fresh Date.now() for stale regenerations.
+    setGeneratedAt(age < CACHE_TTL_MS ? (session.forecastGeneratedAt || Date.now()) : Date.now());
+    await renderCharts(forecastPoints);
+    if (wpts) { setTimeout(() => renderMap(forecastPoints, wpts), 50); renderFeelSummary(forecastPoints); renderSummary(forecastPoints, wpts); }
+  } catch(e) {
+    alert('Error loading forecast: ' + e.message);
+    showView('view-input');
+  }
+}
+
+// ── Startup ──
+function startup() {
+  const params = new URLSearchParams(location.search);
+  const idParam = params.get('id');
+  const dashParam = params.get('dashboard');
+
+  if (idParam) {
+    _sessionId = idParam;
+    openSessionForecast(idParam);
+  } else if (dashParam === '1') {
+    if (isCoordinator) openDashboard();
+    else requireAuth(() => openDashboard(), 'Sign in to view and manage saved sessions.');
+  } else {
+    showView('view-input');
+    document.getElementById('start-date').value = new Date().toISOString().slice(0, 10);
+  }
+}
+
+if (fbAuth) {
+  let _startupDone = false;
+  onAuthStateChanged(fbAuth, user => {
+    isCoordinator = !!(user && !user.isAnonymous);
+    updateAuthUI();
+
+    if (isCoordinator && document.getElementById('auth-overlay').classList.contains('open')) {
+      closeAuthDialog();
+      if (_pendingAuthCb) { _pendingAuthCb(); _pendingAuthCb = null; }
+    }
+
+    if (!_startupDone) {
+      if (user) {
+        _startupDone = true;
+        startup();
+      } else {
+        signInAnonymously(fbAuth);
+      }
+    }
+  });
+} else {
+  startup();
+}
+
+Object.assign(window, {
+  setSource, authBtnClick, submitAuth, closeAuthDialog, overlayBgClick,
+  signOutCoord, openDashboard, shareSession, exportWeatherImage, signInAndSaveRegen,
+  generateForecast, regenForecast, copyLink, confirmDelete,
+  showView: id => showView(id)
+});
+</script>
+</body>
+</html>
