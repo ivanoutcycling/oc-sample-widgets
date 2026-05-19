@@ -189,7 +189,7 @@ canvas { display: block; width: 100%; cursor: crosshair; }
 
 /* ── Stop cards ── */
 .stops-section { padding: 16px 36px 0; }
-.stops-title { font-family: 'Unbounded', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--dimmer); margin-bottom: 10px; }
+.stops-title { font-family: 'Unbounded', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; background: var(--rainbow); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
 .stops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 7px; }
 .stop-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 9px; transition: border-color 0.2s, background 0.2s; cursor: default; }
 .stop-card:hover { border-color: rgba(255,255,255,0.14); }
