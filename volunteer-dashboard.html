@@ -47,6 +47,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .stat-value.orange{color:var(--orange)}
 .stat-value.blue{color:var(--accent)}
 .section-label{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin:0 32px 8px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 32px 8px}
+.section-head .section-label{margin:0}
+.section-head .toggle-pill{font-size:10px;padding:5px 10px}
 .route-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
 .route-cell{background:var(--surface);padding:14px 8px;text-align:center;min-width:0}
 .route-cell .rc-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);margin-bottom:6px;line-height:1.25;min-height:1.8em}
@@ -128,8 +131,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .toast.show{opacity:1}
 .sync-note{padding:0 32px 8px;font-size:10px;color:var(--dimmer);font-family:'DM Mono',monospace}
 @media(max-width:680px){
-  .header,.toolbar,.sync-note,.section-label{padding-left:16px;padding-right:16px}
-  .section-label{margin-left:0;margin-right:0}
+  .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
+  .section-label,.section-head{margin-left:0;margin-right:0}
   .card,.stats-row,.setup-banner,.route-stats,.breakdown{margin-left:16px;margin-right:16px}
   .search-input{max-width:none}
   .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
@@ -166,7 +169,10 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
   </div>
 
-  <div class="section-label" id="route-stats-label" style="display:none">Checked in by route</div>
+  <div class="section-head" id="route-stats-head" style="display:none">
+    <span class="section-label" id="route-stats-label">Registrants by route</span>
+    <span class="toggle-pill" id="route-toggle" onclick="toggleRouteCheckins()">Show check-ins</span>
+  </div>
   <div class="route-stats" id="route-stats" style="display:none"></div>
 
   <div class="breakdown" id="breakdown" style="display:none">
@@ -292,6 +298,7 @@ let _lastSync = null;
 let _user = null;
 let _hideChecked = false;
 let _hidePicked = false;
+let _routeShowCheckins = false;   // route strip: off = totals only, on = checked-in/total
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;   // order key of the rider whose detail sheet is open
 
@@ -586,11 +593,23 @@ function renderRouteStats(rows) {
     el.innerHTML = '<div class="route-cell"><div class="rc-label">No riders yet</div></div>';
     return;
   }
-  el.innerHTML = groups.map(g => `
+  el.innerHTML = groups.map(g => {
+    const value = _routeShowCheckins
+      ? `<span class="done">${g.checked}</span><span class="rc-total">/${g.total}</span>`
+      : `${g.total}`;
+    return `
     <div class="route-cell">
       <div class="rc-label" title="${esc(g.key)}">${esc(g.key)}</div>
-      <div class="rc-value"><span class="done">${g.checked}</span><span class="rc-total">/${g.total}</span></div>
-    </div>`).join('');
+      <div class="rc-value">${value}</div>
+    </div>`;
+  }).join('');
+}
+function toggleRouteCheckins() {
+  _routeShowCheckins = !_routeShowCheckins;
+  document.getElementById('route-toggle').classList.toggle('on', _routeShowCheckins);
+  document.getElementById('route-stats-label').textContent =
+    _routeShowCheckins ? 'Checked in by route' : 'Registrants by route';
+  renderRouteStats(rosterRows());
 }
 
 // ── Rider detail sheet ────────────────────────────────────────────────────────
@@ -666,7 +685,7 @@ function renderSyncNote() {
 // ── App shell wiring ──────────────────────────────────────────────────────────
 function showSignedIn() {
   closeAuth();
-  show('topbar', true); show('stats', true); show('route-stats-label', true); show('route-stats', true);
+  show('topbar', true); show('stats', true); show('route-stats-head', true); show('route-stats', true);
   show('breakdown', true); show('filterbar', true); show('table-card', true);
   document.getElementById('user-badge').textContent = _user.email;
   document.getElementById('event-subtitle').textContent =
@@ -675,7 +694,7 @@ function showSignedIn() {
   render();
 }
 function showSignedOut() {
-  show('topbar', false); show('stats', false); show('route-stats-label', false); show('route-stats', false);
+  show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false);
   openAuth();
@@ -706,7 +725,7 @@ if (!CONFIGURED) {
 
 Object.assign(window, {
   signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
-  render, setSort, toggleHideChecked, toggleHidePicked,
+  render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick
 });
 </script>
