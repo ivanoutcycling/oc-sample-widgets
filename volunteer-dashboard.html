@@ -56,6 +56,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .breakdown{display:grid;grid-template-columns:1fr;gap:16px;margin:0 32px 16px}
 .bd-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-x:auto}
 .bd-title{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
+details.bd-card>summary.bd-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;margin-bottom:0;user-select:none}
+details.bd-card>summary.bd-title::-webkit-details-marker{display:none}
+details.bd-card>summary.bd-title::after{content:'▸';font-size:11px;transition:transform .15s;color:var(--muted)}
+details.bd-card[open]>summary.bd-title{margin-bottom:12px}
+details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .bd-table{width:100%;border-collapse:collapse}
 .bd-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
 .bd-table th:first-child{text-align:left}
@@ -148,14 +153,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     See <code>firebase/database.rules.json</code> and <code>apps-script/roster-sync.gs</code> for the rest.
   </div>
 
-  <!-- Toolbar (hidden until authenticated) -->
-  <div class="toolbar" id="toolbar" style="display:none">
-    <input class="search-input" id="search" type="search" placeholder="Search name…" oninput="render()">
-    <select class="filter-select" id="route-filter" onchange="render()">
-      <option value="">All routes</option>
-    </select>
-    <span class="toggle-pill" id="hide-checked" onclick="toggleHideChecked()">Hide checked-in</span>
-    <span class="toggle-pill" id="hide-picked" onclick="toggleHidePicked()">Hide picked up</span>
+  <!-- Top bar: identity + sign out (hidden until authenticated) -->
+  <div class="toolbar" id="topbar" style="display:none">
     <span class="spacer"></span>
     <span class="user-badge" id="user-badge"></span>
     <button class="btn" onclick="signOutVolunteer()">Sign out</button>
@@ -171,13 +170,23 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   <div class="route-stats" id="route-stats" style="display:none"></div>
 
   <div class="breakdown" id="breakdown" style="display:none">
-    <div class="bd-card">
-      <div class="bd-title">By Jersey Size</div>
+    <details class="bd-card">
+      <summary class="bd-title">By Jersey Size</summary>
       <table class="bd-table">
         <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
         <tbody id="bd-size"></tbody>
       </table>
-    </div>
+    </details>
+  </div>
+
+  <!-- Filter bar: search + filters, below the summaries (hidden until authenticated) -->
+  <div class="toolbar filterbar" id="filterbar" style="display:none">
+    <input class="search-input" id="search" type="search" placeholder="Search name…" oninput="render()">
+    <select class="filter-select" id="route-filter" onchange="render()">
+      <option value="">All routes</option>
+    </select>
+    <span class="toggle-pill" id="hide-checked" onclick="toggleHideChecked()">Hide checked-in</span>
+    <span class="toggle-pill" id="hide-picked" onclick="toggleHidePicked()">Hide picked up</span>
   </div>
 
   <div class="card" id="table-card" style="display:none">
@@ -657,7 +666,8 @@ function renderSyncNote() {
 // ── App shell wiring ──────────────────────────────────────────────────────────
 function showSignedIn() {
   closeAuth();
-  show('toolbar', true); show('stats', true); show('route-stats-label', true); show('route-stats', true); show('breakdown', true); show('table-card', true);
+  show('topbar', true); show('stats', true); show('route-stats-label', true); show('route-stats', true);
+  show('breakdown', true); show('filterbar', true); show('table-card', true);
   document.getElementById('user-badge').textContent = _user.email;
   document.getElementById('event-subtitle').textContent =
     EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
@@ -665,7 +675,8 @@ function showSignedIn() {
   render();
 }
 function showSignedOut() {
-  show('toolbar', false); show('stats', false); show('route-stats-label', false); show('route-stats', false); show('breakdown', false); show('table-card', false);
+  show('topbar', false); show('stats', false); show('route-stats-label', false); show('route-stats', false);
+  show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false);
   openAuth();
 }
