@@ -420,18 +420,20 @@ function subscribeData() {
     renderSyncNote();
   }, () => {});
 
-  // Privileged tier: success reading /restricted/auditLog means this account is on the
-  // emergency-access allowlist (enforced by rules). The error path = not privileged.
-  onValue(dbQuery(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), limitToLast(150)), snap => {
-    const justGranted = !_privileged;
+  // Privilege probe. IMPORTANT: we use a one-shot get(), not a persistent onValue().
+  // A permanently permission-denied onValue on restricted/auditLog interferes with a
+  // non-privileged user's OWN writes to that same path (logAudit), which in turn was
+  // disrupting their check-in/jersey writes from reflecting. So non-privileged users keep
+  // NO active listener on restricted/*; only authorized users attach the live audit feed.
+  const auditQuery = dbQuery(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), limitToLast(150));
+  dbGet(auditQuery).then(snap => {
     _privileged = true;
     document.getElementById('audit-card').style.display = '';
     renderAudit(snap.val() || {});
-    // Only re-render an open sheet when privilege FIRST turns on — otherwise every audit
-    // write (including our own emergency_view) would rebuild the sheet and collapse the
-    // emergency disclosure the user just opened.
-    if (justGranted && _openOrder) renderDetail();
-  }, () => {
+    if (_openOrder) renderDetail();   // reveal the emergency section if a sheet is open
+    // Now that we know we're allowed, attach the live feed (privileged users only).
+    onValue(auditQuery, s => renderAudit(s.val() || {}), e => console.warn('audit feed', e));
+  }).catch(() => {
     _privileged = false;
     document.getElementById('audit-card').style.display = 'none';
   });
