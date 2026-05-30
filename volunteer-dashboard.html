@@ -423,10 +423,14 @@ function subscribeData() {
   // Privileged tier: success reading /restricted/auditLog means this account is on the
   // emergency-access allowlist (enforced by rules). The error path = not privileged.
   onValue(dbQuery(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), limitToLast(150)), snap => {
+    const justGranted = !_privileged;
     _privileged = true;
     document.getElementById('audit-card').style.display = '';
     renderAudit(snap.val() || {});
-    if (_openOrder) renderDetail();   // reveal the emergency section if a sheet is open
+    // Only re-render an open sheet when privilege FIRST turns on — otherwise every audit
+    // write (including our own emergency_view) would rebuild the sheet and collapse the
+    // emergency disclosure the user just opened.
+    if (justGranted && _openOrder) renderDetail();
   }, () => {
     _privileged = false;
     document.getElementById('audit-card').style.display = 'none';
@@ -680,6 +684,8 @@ function openDetail(orderKey) {
 }
 function closeDetail() {
   _openOrder = null;
+  // Reset the emergency block so reopening any rider starts collapsed & unloaded.
+  delete document.getElementById('detail-emergency').dataset.order;
   document.getElementById('detail-overlay').classList.remove('open');
 }
 function detailBgClick(e) {
@@ -734,19 +740,26 @@ function renderDetail() {
 
   // Emergency contact: only authorized accounts see it; the read is also rules-gated,
   // so non-privileged users can't fetch it even if forced. Rendered as a collapsible
-  // <details> that loads (and audits) once on first open and stays open.
+  // <details> that loads (and audits) once on first open and stays open. The block is
+  // idempotent — if it's already rendered for this same rider it is left untouched, so a
+  // background re-render (another volunteer's check-in, our own audit write) can't collapse
+  // a disclosure the user just opened.
   const em = document.getElementById('detail-emergency');
   if (_privileged) {
-    em.innerHTML = `<details class="emergency-details" id="emergency-details">
-        <summary class="emergency-summary">🚑 Emergency contact</summary>
-        <div class="emergency-body" id="emergency-body"><div class="emergency-box muted">Loading…</div></div>
-      </details>`;
-    let loaded = false;
-    document.getElementById('emergency-details').addEventListener('toggle', function () {
-      if (this.open && !loaded) { loaded = true; revealEmergency(r.orderNumber, r.name); }
-    });
+    if (em.dataset.order !== r.orderNumber) {
+      em.dataset.order = r.orderNumber;
+      em.innerHTML = `<details class="emergency-details" id="emergency-details">
+          <summary class="emergency-summary">🚑 Emergency contact</summary>
+          <div class="emergency-body" id="emergency-body"><div class="emergency-box muted">Open to load…</div></div>
+        </details>`;
+      let loaded = false;
+      document.getElementById('emergency-details').addEventListener('toggle', function () {
+        if (this.open && !loaded) { loaded = true; revealEmergency(r.orderNumber, r.name); }
+      });
+    }
   } else {
     em.innerHTML = '';
+    delete em.dataset.order;
   }
 }
 
