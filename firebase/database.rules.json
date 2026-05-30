@@ -29,6 +29,20 @@
           "$other": { ".validate": false }
         }
       }
+    },
+
+    "jerseys": {
+      "$eventId": {
+        ".read": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+        "$orderNumber": {
+          ".write": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+          ".validate": "newData.hasChildren(['pickedUp', 'by']) || !newData.exists()",
+          "pickedUp": { ".validate": "newData.isBoolean()" },
+          "by": { ".validate": "newData.isString() && newData.val() == auth.token.email" },
+          "at": { ".validate": "newData.isNumber() || newData.val() == now" },
+          "$other": { ".validate": false }
+        }
+      }
     }
   }
 }

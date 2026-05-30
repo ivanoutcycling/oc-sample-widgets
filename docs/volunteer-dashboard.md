@@ -13,8 +13,9 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                           │  columns into Firebase — PII never enters the payload
                           ▼
               Firebase Realtime Database (dedicated OutCycling.org project)
-                /eventRoster/{eventId}   safe roster   (sync writes, volunteers read)
-                /checkins/{eventId}      check-in state (volunteers read + write, realtime)
+                /eventRoster/{eventId}   safe roster     (sync writes, volunteers read)
+                /checkins/{eventId}      check-in state   (volunteers read + write, realtime)
+                /jerseys/{eventId}       jersey-pickup    (volunteers read + write, realtime)
                 /meta/{eventId}/lastSync sync timestamp
                           ▲
                           │  Google sign-in restricted to @outcycling.org,
@@ -25,9 +26,13 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
 
 - **Auth:** volunteers sign in with their existing `@outcycling.org` Google account — no new
   accounts. The page only *hints* at the domain; the actual enforcement is in the database rules.
-- **Concurrency:** check-ins are written to `/checkins` and streamed back via realtime listeners,
-  so multiple volunteers on different devices see each other's check-ins instantly. Each record
-  stores who checked the rider in and when.
+- **Concurrency:** check-ins and jersey pickups are written to `/checkins` and `/jerseys` and
+  streamed back via realtime listeners, so multiple volunteers on different devices see each
+  other's updates instantly. Each record stores who did it and when.
+- **Two independent annotations:** *Check-In* (rider has arrived) and *Jersey Picked Up* are
+  tracked separately, so a jersey table and a check-in table can run as different stations.
+- **Live breakdown stats:** the dashboard shows totals plus a per-route and per-jersey-size
+  breakdown of how many riders signed up, checked in, and picked up their jersey.
 - **The master sheet is never modified** by the dashboard.
 
 ### What volunteers can see (allowlist)
@@ -81,5 +86,10 @@ opening the dashboard with `?event=<id>`.
    email/phone/address/payment fields are present.
 3. Edit a jersey size in the sheet → within ~5 min (or immediately on save) the dashboard updates.
 4. Open the dashboard on two devices, check the same rider in on one → the other updates live;
-   `/checkins` shows `by` + `at`. Undo works.
-5. Confirm the master sheet is unchanged after check-ins.
+   `/checkins` shows `by` + `at`. Undo works. Repeat for the 👕 jersey toggle (`/jerseys`).
+5. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
+6. Confirm the master sheet is unchanged after check-ins / jersey pickups.
+
+> **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`. If you
+> published the rules before this change, **re-publish them** (Realtime Database → Rules) or
+> jersey writes will be denied.

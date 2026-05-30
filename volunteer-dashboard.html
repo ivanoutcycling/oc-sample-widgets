@@ -28,6 +28,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
 .btn-green{background:var(--green);border-color:var(--green);color:#fff}
 .btn-green:hover{background:#08923f;border-color:#08923f;color:#fff}
+.btn-blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-blue:hover{background:#2563eb;border-color:#2563eb;color:#fff}
 .btn-undo{background:rgba(0,168,74,0.08);border-color:rgba(0,168,74,0.3);color:#08923f}
 .btn-undo:hover{background:rgba(0,168,74,0.16)}
 .user-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.5px;padding:4px 9px;border-radius:5px;background:rgba(0,180,80,0.1);color:#00a84a;border:1px solid rgba(0,180,80,0.2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -43,6 +45,21 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .stat-value{font-size:22px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace}
 .stat-value.green{color:var(--green)}
 .stat-value.orange{color:var(--orange)}
+.stat-value.blue{color:var(--accent)}
+.breakdown{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 32px 16px}
+.bd-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-x:auto}
+.bd-title{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
+.bd-table{width:100%;border-collapse:collapse}
+.bd-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.bd-table th:first-child{text-align:left}
+.bd-table td{padding:7px 8px;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.04)}
+.bd-num{text-align:right;font-family:'DM Mono',monospace;font-weight:500}
+.bd-table tbody tr:last-child td{border-bottom:none}
+.bd-total td{font-weight:700;border-top:1.5px solid var(--border)!important;padding-top:9px}
+.icon-toggle{width:38px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;line-height:1;color:var(--dimmer);border:1.5px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;transition:all .15s;padding:0}
+.icon-toggle:hover{border-color:rgba(0,0,0,0.25);box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.icon-toggle.on-green{background:var(--green);border-color:var(--green);color:#fff}
+.icon-toggle.on-blue{background:var(--accent);border-color:var(--accent);color:#fff}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 0;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
 .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
 .dash-table{width:100%;border-collapse:collapse;min-width:640px}
@@ -60,8 +77,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .jersey-tag{font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
 .waiver-yes{color:var(--green);font-weight:600}
 .waiver-no{color:#dc2626;font-weight:600}
-.checkin-meta{font-size:9.5px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.3}
-.td-status{white-space:nowrap}
 .empty-state{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
 .empty-state .big{font-size:28px;margin-bottom:10px}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:center;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
@@ -78,9 +93,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .detail-close{position:absolute;top:12px;right:12px;border:none;background:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}
 .detail-close:hover{color:var(--text);background:var(--card)}
 .detail-name{font-family:'Unbounded',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.4px;color:var(--text);margin:0 32px 8px 0;line-height:1.1}
-.detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:6px;margin-bottom:18px}
+.detail-statuses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;padding:4px 10px;border-radius:6px}
 .detail-status.in{background:rgba(0,168,74,0.12);color:#08923f;border:1px solid rgba(0,168,74,0.3)}
-.detail-status.out{background:rgba(224,104,0,0.1);color:var(--orange);border:1px solid rgba(224,104,0,0.3)}
+.detail-status.jersey{background:rgba(59,130,246,0.12);color:#2563eb;border:1px solid rgba(59,130,246,0.3)}
+.detail-status.out{background:rgba(17,17,40,0.05);color:var(--muted);border:1px solid var(--border)}
+.detail-actions{display:flex;flex-direction:column;gap:10px}
 .detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
 .detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
 .detail-grid .dv{font-size:13.5px;color:var(--text);font-weight:500}
@@ -137,7 +155,24 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   <div class="stats-row" id="stats" style="display:none">
     <div class="stat-item"><div class="stat-label">Registered</div><div class="stat-value" id="stat-total">0</div></div>
     <div class="stat-item"><div class="stat-label">Checked In</div><div class="stat-value green" id="stat-checked">0</div></div>
-    <div class="stat-item"><div class="stat-label">Remaining</div><div class="stat-value orange" id="stat-remaining">0</div></div>
+    <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
+  </div>
+
+  <div class="breakdown" id="breakdown" style="display:none">
+    <div class="bd-card">
+      <div class="bd-title">By Route</div>
+      <table class="bd-table">
+        <thead><tr><th>Route</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
+        <tbody id="bd-route"></tbody>
+      </table>
+    </div>
+    <div class="bd-card">
+      <div class="bd-title">By Jersey Size</div>
+      <table class="bd-table">
+        <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
+        <tbody id="bd-size"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card" id="table-card" style="display:none">
@@ -147,12 +182,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
         <tr>
           <th class="sortable" onclick="setSort('name')">Rider</th>
           <th class="sortable" onclick="setSort('route')">Route</th>
-          <th>Jersey</th>
+          <th>Size</th>
           <th class="col-item">Registration</th>
           <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
           <th>Waiver</th>
-          <th class="sortable" onclick="setSort('checked')">Status</th>
-          <th></th>
+          <th class="sortable" onclick="setSort('checked')">Check-In</th>
+          <th class="sortable" onclick="setSort('picked')">Pickup</th>
         </tr>
       </thead>
       <tbody id="roster-body"></tbody>
@@ -185,9 +220,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   <div class="detail-panel">
     <button class="detail-close" onclick="closeDetail()" aria-label="Close">×</button>
     <div class="detail-name" id="detail-name"></div>
-    <span class="detail-status" id="detail-status"></span>
+    <div class="detail-statuses" id="detail-statuses"></div>
     <div id="detail-body"></div>
-    <button class="detail-action-btn" id="detail-action"></button>
+    <div class="detail-actions">
+      <button class="detail-action-btn" id="detail-action-checkin"></button>
+      <button class="detail-action-btn" id="detail-action-jersey"></button>
+    </div>
   </div>
 </div>
 
@@ -235,6 +273,7 @@ if (CONFIGURED) {
 // ── Runtime state ─────────────────────────────────────────────────────────────
 let _roster = {};      // orderNumber → roster record
 let _checkins = {};    // orderNumber → { checkedIn, by, at }
+let _jerseys = {};     // orderNumber → { pickedUp, by, at }
 let _lastSync = null;
 let _user = null;
 let _hideChecked = false;
@@ -315,6 +354,11 @@ function subscribeData() {
     render();
   }, err => { console.error('checkins read denied', err); });
 
+  onValue(dbRef(fb.db, `jerseys/${EVENT_ID}`), snap => {
+    _jerseys = snap.val() || {};
+    render();
+  }, err => { console.error('jerseys read denied', err); });
+
   onValue(dbRef(fb.db, `meta/${EVENT_ID}/lastSync`), snap => {
     _lastSync = snap.val();
     renderSyncNote();
@@ -338,11 +382,28 @@ async function undoCheckIn(orderNumber) {
     toast('Check-in undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
+async function pickUpJersey(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbSet(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`), {
+      pickedUp: true, by: _user.email, at: serverTimestamp()
+    });
+    toast('Jersey marked picked up');
+  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+}
+async function undoPickUp(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`));
+    toast('Jersey pickup undone');
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
 
 // ── Rendering ──────────────────────────────────────────────────────────────
 function rosterRows() {
   return Object.entries(_roster).map(([orderNumber, r]) => {
     const c = _checkins[orderNumber];
+    const j = _jerseys[orderNumber];
     return {
       orderNumber,
       orderLabel: r.orderNumber || orderNumber,
@@ -355,7 +416,10 @@ function rosterRows() {
       waiver: !!r.waiver,
       checked: !!(c && c.checkedIn),
       checkedBy: c?.by || '',
-      checkedAt: c?.at || 0
+      checkedAt: c?.at || 0,
+      picked: !!(j && j.pickedUp),
+      pickedBy: j?.by || '',
+      pickedAt: j?.at || 0
     };
   });
 }
@@ -411,20 +475,22 @@ function render() {
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
       <td class="col-created">${fmtDate(r.createdAt)}</td>
       <td>${r.waiver ? '<span class="waiver-yes">✓</span>' : '<span class="waiver-no">✗</span>'}</td>
-      <td class="td-status">${r.checked
-        ? `<div class="checkin-meta">✅ ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? '<br>' + fmtTime(r.checkedAt) : ''}</div>`
-        : '<span style="color:var(--dimmer)">—</span>'}</td>
       <td>${r.checked
-        ? `<button class="btn btn-undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">Undo</button>`
-        : `<button class="btn btn-green" onclick="event.stopPropagation();checkIn('${esc(r.orderNumber)}')">Check in</button>`}</td>
+        ? `<button class="icon-toggle on-green" title="Checked in by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+        : `<button class="icon-toggle" title="Tap to check in" onclick="event.stopPropagation();checkIn('${esc(r.orderNumber)}')">✓</button>`}</td>
+      <td>${r.picked
+        ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
+        : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
     </tr>`).join('');
 
   const allRows = rosterRows();
   const total = allRows.length;
   const checked = allRows.filter(r => r.checked).length;
+  const picked = allRows.filter(r => r.picked).length;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-checked').textContent = checked;
-  document.getElementById('stat-remaining').textContent = total - checked;
+  document.getElementById('stat-jerseys').textContent = picked;
+  renderBreakdown(allRows);
 
   const empty = document.getElementById('empty-state');
   const emptyMsg = document.getElementById('empty-msg');
@@ -438,6 +504,51 @@ function render() {
   }
 
   if (_openOrder) renderDetail();   // keep an open sheet in sync with live data
+}
+
+// ── Breakdown stats (by route, by jersey size) ────────────────────────────────
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
+function groupCounts(rows, keyFn, order) {
+  const map = {};
+  rows.forEach(r => {
+    const k = keyFn(r) || '(none)';
+    if (!map[k]) map[k] = { total: 0, checked: 0, picked: 0 };
+    map[k].total++;
+    if (r.checked) map[k].checked++;
+    if (r.picked) map[k].picked++;
+  });
+  const keys = Object.keys(map);
+  keys.sort((a, b) => {
+    if (order) {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      if (ia !== -1 || ib !== -1) {
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      }
+    }
+    return a.localeCompare(b);
+  });
+  return keys.map(k => ({ key: k, ...map[k] }));
+}
+function bdRowsHtml(groups, asRouteTag) {
+  const body = groups.map(g => `<tr>
+      <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
+      <td class="bd-num">${g.total}</td>
+      <td class="bd-num">${g.checked}</td>
+      <td class="bd-num">${g.picked}</td>
+    </tr>`).join('');
+  const tot = groups.reduce((a, g) => ({
+    total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked
+  }), { total: 0, checked: 0, picked: 0 });
+  const footer = groups.length ? `<tr class="bd-total">
+      <td>Total</td><td class="bd-num">${tot.total}</td><td class="bd-num">${tot.checked}</td><td class="bd-num">${tot.picked}</td>
+    </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
+  return body + footer;
+}
+function renderBreakdown(rows) {
+  document.getElementById('bd-route').innerHTML = bdRowsHtml(groupCounts(rows, r => r.route), true);
+  document.getElementById('bd-size').innerHTML = bdRowsHtml(groupCounts(rows, r => r.jerseySize, SIZE_ORDER), false);
 }
 
 // ── Rider detail sheet ────────────────────────────────────────────────────────
@@ -458,31 +569,46 @@ function renderDetail() {
   if (!r) { closeDetail(); return; }   // rider no longer in roster (e.g. re-synced)
 
   document.getElementById('detail-name').textContent = r.name;
-  const statusEl = document.getElementById('detail-status');
-  statusEl.className = 'detail-status ' + (r.checked ? 'in' : 'out');
-  statusEl.textContent = r.checked ? '✅ Checked In' : '◦ Not Checked In';
+  document.getElementById('detail-statuses').innerHTML =
+    `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? '✅ Checked In' : '◦ Not Checked In'}</span>` +
+    `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>`;
+
+  const notes = [];
+  if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
+  if (r.picked) notes.push(`Jersey by ${esc((r.pickedBy || '').split('@')[0])}${r.pickedAt ? ' at ' + fmtTime(r.pickedAt) : ''}`);
 
   document.getElementById('detail-body').innerHTML = `
     <div class="detail-grid">
       <div class="dl">Route</div><div class="dv">${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</div>
-      <div class="dl">Jersey</div><div class="dv">${esc(r.jerseySize) || '—'}</div>
+      <div class="dl">Jersey Size</div><div class="dv">${esc(r.jerseySize) || '—'}</div>
       <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
       <div class="dl">Quantity</div><div class="dv">${esc(r.quantity)}</div>
       <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
       <div class="dl">Waiver</div><div class="dv">${r.waiver ? '<span class="waiver-yes">✓ Acknowledged</span>' : '<span class="waiver-no">✗ Not signed</span>'}</div>
       <div class="dl">Order</div><div class="dv">${esc(r.orderLabel)}</div>
     </div>
-    ${r.checked ? `<div class="detail-checked-note">Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}</div>` : ''}`;
+    ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}`;
 
-  const btn = document.getElementById('detail-action');
+  const cBtn = document.getElementById('detail-action-checkin');
   if (r.checked) {
-    btn.className = 'detail-action-btn btn-undo';
-    btn.textContent = 'Undo Check-In';
-    btn.onclick = () => undoCheckIn(r.orderNumber);
+    cBtn.className = 'detail-action-btn btn-undo';
+    cBtn.textContent = 'Undo Check-In';
+    cBtn.onclick = () => undoCheckIn(r.orderNumber);
   } else {
-    btn.className = 'detail-action-btn btn-green';
-    btn.textContent = '✓ Check In ' + r.name;
-    btn.onclick = () => checkIn(r.orderNumber);
+    cBtn.className = 'detail-action-btn btn-green';
+    cBtn.textContent = '✓ Check In';
+    cBtn.onclick = () => checkIn(r.orderNumber);
+  }
+
+  const jBtn = document.getElementById('detail-action-jersey');
+  if (r.picked) {
+    jBtn.className = 'detail-action-btn btn-undo';
+    jBtn.textContent = 'Undo Jersey Pickup';
+    jBtn.onclick = () => undoPickUp(r.orderNumber);
+  } else {
+    jBtn.className = 'detail-action-btn btn-blue';
+    jBtn.textContent = '👕 Jersey Picked Up';
+    jBtn.onclick = () => pickUpJersey(r.orderNumber);
   }
 }
 
@@ -498,7 +624,7 @@ function renderSyncNote() {
 // ── App shell wiring ──────────────────────────────────────────────────────────
 function showSignedIn() {
   closeAuth();
-  show('toolbar', true); show('stats', true); show('table-card', true);
+  show('toolbar', true); show('stats', true); show('breakdown', true); show('table-card', true);
   document.getElementById('user-badge').textContent = _user.email;
   document.getElementById('event-subtitle').textContent =
     EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
@@ -506,7 +632,7 @@ function showSignedIn() {
   render();
 }
 function showSignedOut() {
-  show('toolbar', false); show('stats', false); show('table-card', false);
+  show('toolbar', false); show('stats', false); show('breakdown', false); show('table-card', false);
   show('sync-note', false);
   openAuth();
 }
@@ -535,7 +661,7 @@ if (!CONFIGURED) {
 }
 
 Object.assign(window, {
-  signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn,
+  signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
   render, setSort, toggleHideChecked,
   openDetail, closeDetail, detailBgClick
 });
