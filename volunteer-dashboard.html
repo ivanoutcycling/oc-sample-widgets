@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ride Check-In — Volunteer Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f0f6;--surface:#ffffff;--card:#f7f7fb;--border:rgba(0,0,0,0.09);
+  --text:#111128;--muted:rgba(17,17,40,0.52);--dimmer:rgba(17,17,40,0.3);
+  --accent:#3B82F6;--green:#00a84a;--orange:#e06800;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.shell{max-width:1000px;margin:0 auto;padding:0 0 60px}
+.header{padding:28px 32px 8px}
+.accent-bar{height:3px;background:var(--accent);border-radius:2px;margin-bottom:20px;box-shadow:0 0 16px rgba(59,130,246,0.2)}
+.eyebrow{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:5px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;opacity:0.6}
+.title{font-family:'Unbounded',sans-serif;font-size:clamp(20px,4vw,34px);font-weight:900;line-height:0.95;letter-spacing:-0.5px;color:var(--text)}
+.subtitle{font-size:11px;font-weight:300;color:var(--muted);margin-top:6px}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 32px 12px;flex-wrap:wrap}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none;box-shadow:0 1px 2px rgba(0,0,0,0.05);text-decoration:none}
+.btn:hover{color:var(--text);border-color:rgba(0,0,0,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.09)}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff}
+.btn-green:hover{background:#08923f;border-color:#08923f;color:#fff}
+.btn-blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-blue:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-undo{background:rgba(0,168,74,0.08);border-color:rgba(0,168,74,0.3);color:#08923f}
+.btn-undo:hover{background:rgba(0,168,74,0.16)}
+.user-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.5px;padding:4px 9px;border-radius:5px;background:rgba(0,180,80,0.1);color:#00a84a;border:1px solid rgba(0,180,80,0.2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.search-input,.filter-select{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color 0.15s}
+.search-input{min-width:200px;flex:1;max-width:280px}
+.search-input:focus,.filter-select:focus{border-color:rgba(59,130,246,0.5)}
+.toggle-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);user-select:none}
+.toggle-pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.stats-row{display:flex;gap:0;margin:0 32px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.stat-item{flex:1;padding:16px;text-align:center;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:5px}
+.stat-value{font-size:22px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace}
+.stat-value.green{color:var(--green)}
+.stat-value.orange{color:var(--orange)}
+.stat-value.blue{color:var(--accent)}
+.section-label{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin:0 32px 8px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 32px 8px}
+.section-head .section-label{margin:0}
+.section-head .toggle-pill{font-size:10px;padding:5px 10px}
+.route-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.route-cell{background:var(--surface);padding:14px 8px;text-align:center;min-width:0}
+.route-cell .rc-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);margin-bottom:6px;line-height:1.25;min-height:1.8em}
+.route-cell .rc-value{font-size:21px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace;line-height:1}
+.route-cell .rc-value .done{color:var(--green)}
+.route-cell .rc-total{color:var(--dimmer);font-size:15px}
+.breakdown{display:grid;grid-template-columns:1fr;gap:16px;margin:0 32px 16px}
+.bd-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-x:auto}
+.bd-title{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
+details.bd-card>summary.bd-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;margin-bottom:0;user-select:none}
+details.bd-card>summary.bd-title::-webkit-details-marker{display:none}
+details.bd-card>summary.bd-title::after{content:'▸';font-size:11px;transition:transform .15s;color:var(--muted)}
+details.bd-card[open]>summary.bd-title{margin-bottom:12px}
+details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
+.bd-table{width:100%;border-collapse:collapse}
+.bd-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.bd-table th:first-child{text-align:left}
+.bd-table td{padding:7px 8px;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.04)}
+.bd-num{text-align:right;font-family:'DM Mono',monospace;font-weight:500}
+.bd-table tbody tr:last-child td{border-bottom:none}
+.bd-total td{font-weight:700;border-top:1.5px solid var(--border)!important;padding-top:9px}
+.icon-toggle{width:38px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;line-height:1;color:var(--dimmer);border:1.5px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;transition:all .15s;padding:0}
+.icon-toggle:hover{border-color:rgba(0,0,0,0.25);box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.icon-toggle.on-green{background:var(--green);border-color:var(--green);color:#fff}
+.icon-toggle.on-blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 0;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
+.dash-table{width:100%;border-collapse:collapse;min-width:640px}
+.dash-table th{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);padding:12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.dash-table th.sortable{cursor:pointer;user-select:none}
+.dash-table th.sortable:hover{color:var(--text)}
+.dash-table td{padding:11px 12px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:middle}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table tbody tr{cursor:pointer}
+.dash-table tbody tr:hover td{background:var(--card)}
+.dash-table tr.checked td{background:rgba(0,168,74,0.045)}
+.dash-table tr.checked:hover td{background:rgba(0,168,74,0.08)}
+.name-cell{font-weight:600}
+.route-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:5px;background:rgba(59,130,246,0.1);color:#2563eb;border:1px solid rgba(59,130,246,0.18)}
+.jersey-tag{font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
+.waiver-yes{color:var(--green);font-weight:600}
+.waiver-no{color:#dc2626;font-weight:600}
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
+.empty-state .big{font-size:28px;margin-bottom:10px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:center;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.overlay.open{display:flex}
+.overlay-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:400px;padding:32px;box-shadow:0 16px 48px rgba(0,0,0,0.15);text-align:center}
+.overlay-panel h3{font-family:'Unbounded',sans-serif;font-size:13px;letter-spacing:1px;color:var(--text);margin-bottom:10px}
+.overlay-panel p{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.google-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:12px 18px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:#3c4043;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.google-btn:hover{box-shadow:0 3px 10px rgba(0,0,0,0.12);border-color:rgba(0,0,0,0.2)}
+.google-btn svg{width:18px;height:18px;flex-shrink:0}
+.ov-status{font-size:11px;color:var(--muted);min-height:16px;margin-top:14px}
+.ov-status.error{color:#dc2626}
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:440px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left;position:relative}
+.detail-close{position:absolute;top:12px;right:12px;border:none;background:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}
+.detail-close:hover{color:var(--text);background:var(--card)}
+.detail-name{font-family:'Unbounded',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.4px;color:var(--text);margin:0 32px 8px 0;line-height:1.1}
+.detail-statuses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;padding:4px 10px;border-radius:6px}
+.detail-status.in{background:rgba(0,168,74,0.12);color:#08923f;border:1px solid rgba(0,168,74,0.3)}
+.detail-status.jersey{background:rgba(59,130,246,0.12);color:#2563eb;border:1px solid rgba(59,130,246,0.3)}
+.detail-status.out{background:rgba(17,17,40,0.05);color:var(--muted);border:1px solid var(--border)}
+.detail-actions{display:flex;flex-direction:column;gap:10px}
+.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
+.detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
+.detail-grid .dv{font-size:13.5px;color:var(--text);font-weight:500}
+.detail-checked-note{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin:-4px 0 16px;line-height:1.4}
+.detail-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;padding:14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all 0.15s}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(max-width:560px){
+  #detail-overlay{align-items:flex-end;padding:0}
+  #detail-overlay .detail-panel{max-width:none;border-radius:18px 18px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom))}
+  #detail-overlay.open .detail-panel{animation:sheetUp .22s ease}
+}
+.setup-banner{display:none;margin:0 32px 16px;padding:14px 18px;background:rgba(224,104,0,0.07);border:1px solid rgba(224,104,0,0.3);border-radius:10px;font-size:12px;color:var(--text);line-height:1.6}
+.setup-banner code{font-family:'DM Mono',monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:4px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
+.toast.show{opacity:1}
+.sync-note{padding:0 32px 8px;font-size:10px;color:var(--dimmer);font-family:'DM Mono',monospace}
+@media(max-width:680px){
+  .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
+  .section-label,.section-head{margin-left:0;margin-right:0}
+  .card,.stats-row,.setup-banner,.route-stats,.breakdown{margin-left:16px;margin-right:16px}
+  .search-input{max-width:none}
+  .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="header">
+    <div class="accent-bar"></div>
+    <div class="eyebrow">OutCycling · Volunteer</div>
+    <div class="title">Ride Check-In</div>
+    <div class="subtitle" id="event-subtitle">Registered riders &amp; day-of check-in</div>
+  </div>
+
+  <div class="setup-banner" id="setup-banner">
+    <strong>Setup needed:</strong> this dashboard isn't connected to a Firebase project yet.
+    Replace the placeholder <code>FIREBASE_CONFIG</code> near the top of the script in
+    <code>volunteer-dashboard.html</code> with your OutCycling.org Firebase project's web config.
+    See <code>firebase/database.rules.json</code> and <code>apps-script/roster-sync.gs</code> for the rest.
+  </div>
+
+  <!-- Top bar: identity + sign out (hidden until authenticated) -->
+  <div class="toolbar" id="topbar" style="display:none">
+    <span class="spacer"></span>
+    <span class="user-badge" id="user-badge"></span>
+    <button class="btn" onclick="signOutVolunteer()">Sign out</button>
+  </div>
+
+  <div class="stats-row" id="stats" style="display:none">
+    <div class="stat-item"><div class="stat-label">Registered</div><div class="stat-value" id="stat-total">0</div></div>
+    <div class="stat-item"><div class="stat-label">Checked In</div><div class="stat-value green" id="stat-checked">0</div></div>
+    <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
+  </div>
+
+  <div class="section-head" id="route-stats-head" style="display:none">
+    <span class="section-label" id="route-stats-label">Registrants by route</span>
+    <span class="toggle-pill" id="route-toggle" onclick="toggleRouteCheckins()">Show check-ins</span>
+  </div>
+  <div class="route-stats" id="route-stats" style="display:none"></div>
+
+  <div class="breakdown" id="breakdown" style="display:none">
+    <details class="bd-card">
+      <summary class="bd-title">By Jersey Size</summary>
+      <table class="bd-table">
+        <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
+        <tbody id="bd-size"></tbody>
+      </table>
+    </details>
+  </div>
+
+  <!-- Filter bar: search + filters, below the summaries (hidden until authenticated) -->
+  <div class="toolbar filterbar" id="filterbar" style="display:none">
+    <input class="search-input" id="search" type="search" placeholder="Search name…" oninput="render()">
+    <select class="filter-select" id="route-filter" onchange="render()">
+      <option value="">All routes</option>
+    </select>
+    <span class="toggle-pill" id="hide-checked" onclick="toggleHideChecked()">Hide checked-in</span>
+    <span class="toggle-pill" id="hide-picked" onclick="toggleHidePicked()">Hide picked up</span>
+  </div>
+
+  <div class="card" id="table-card" style="display:none">
+    <div class="table-scroll">
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th class="sortable" onclick="setSort('name')">Rider</th>
+          <th class="sortable" onclick="setSort('route')">Route</th>
+          <th>Size</th>
+          <th class="col-item">Registration</th>
+          <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
+          <th>Waiver</th>
+          <th class="sortable" onclick="setSort('checked')">Check-In</th>
+          <th class="sortable" onclick="setSort('picked')">Pickup</th>
+        </tr>
+      </thead>
+      <tbody id="roster-body"></tbody>
+    </table>
+    </div>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="big">🚲</div>
+      <div id="empty-msg">No riders match your filters.</div>
+    </div>
+  </div>
+
+  <div class="sync-note" id="sync-note" style="display:none"></div>
+</div>
+
+<!-- ═══ SIGN-IN OVERLAY ═══ -->
+<div class="overlay" id="auth-overlay">
+  <div class="overlay-panel">
+    <h3>Volunteer Sign In</h3>
+    <p>Sign in with your <strong>@outcycling.org</strong> Google account to view the rider roster and manage check-in.</p>
+    <button class="google-btn" id="google-signin-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="ov-status" id="auth-status"></div>
+  </div>
+</div>
+
+<!-- ═══ RIDER DETAIL (modal on desktop, bottom sheet on mobile) ═══ -->
+<div class="overlay" id="detail-overlay" onclick="detailBgClick(event)">
+  <div class="detail-panel">
+    <button class="detail-close" onclick="closeDetail()" aria-label="Close">×</button>
+    <div class="detail-name" id="detail-name"></div>
+    <div class="detail-statuses" id="detail-statuses"></div>
+    <div id="detail-body"></div>
+    <div class="detail-actions">
+      <button class="detail-action-btn" id="detail-action-checkin"></button>
+      <button class="detail-action-btn" id="detail-action-jersey"></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref as dbRef, onValue, set as dbSet, remove as dbRemove, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+// ── Config ──────────────────────────────────────────────────────────────────
+// Web config from the dedicated OutCycling.org Firebase project (widgets-2e848).
+// These values are public client identifiers and are safe to commit, exactly like
+// the existing widgets' Firebase config — security is enforced by database rules.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA4zZ7DElWWi9oxN_VwO284LFkCYJWC_eY",
+  authDomain: "widgets-2e848.firebaseapp.com",
+  databaseURL: "https://widgets-2e848-default-rtdb.firebaseio.com",
+  projectId: "widgets-2e848",
+  storageBucket: "widgets-2e848.firebasestorage.app",
+  messagingSenderId: "469117752003",
+  appId: "1:469117752003:web:a5ae9713708d7b7cd2c876"
+};
+
+const ALLOWED_DOMAIN = 'outcycling.org';
+// Which event/roster to show. Override with ?event=<id> to run multiple rides.
+const EVENT_ID = new URLSearchParams(location.search).get('event') || 'default';
+
+const CONFIGURED = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE');
+
+// ── Firebase init ─────────────────────────────────────────────────────────────
+let fb = null, fbAuth = null, provider = null;
+if (CONFIGURED) {
+  try {
+    const app = initializeApp(FIREBASE_CONFIG, 'volunteer-dashboard');
+    fb = { db: getDatabase(app) };
+    fbAuth = getAuth(app);
+    provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: 'select_account' });
+  } catch (e) { console.error('Firebase init failed', e); }
+}
+
+// ── Runtime state ─────────────────────────────────────────────────────────────
+let _roster = {};      // orderNumber → roster record
+let _checkins = {};    // orderNumber → { checkedIn, by, at }
+let _jerseys = {};     // orderNumber → { pickedUp, by, at }
+let _lastSync = null;
+let _user = null;
+let _hideChecked = false;
+let _hidePicked = false;
+let _routeShowCheckins = false;   // route strip: off = totals only, on = checked-in/total
+let _sort = { key: 'name', dir: 1 };
+let _openOrder = null;   // order key of the rider whose detail sheet is open
+
+// ── UI helpers ──────────────────────────────────────────────────────────────
+let _toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function setAuthStatus(msg, isError) {
+  const el = document.getElementById('auth-status');
+  el.textContent = msg || '';
+  el.classList.toggle('error', !!isError);
+}
+function openAuth() { document.getElementById('auth-overlay').classList.add('open'); }
+function closeAuth() { document.getElementById('auth-overlay').classList.remove('open'); }
+function show(id, on) { document.getElementById(id).style.display = on ? '' : 'none'; }
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function fmtDate(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d)) return esc(v);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+function fmtTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  if (isNaN(d)) return '';
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function signInWithGoogle() {
+  if (!fbAuth) return;
+  setAuthStatus('Opening Google sign-in…');
+  try {
+    await signInWithPopup(fbAuth, provider);
+    // onAuthStateChanged handles the rest
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+      setAuthStatus('');
+    } else {
+      console.error(e);
+      setAuthStatus('Sign-in failed: ' + (e.message || e.code), true);
+    }
+  }
+}
+async function signOutVolunteer() {
+  if (fbAuth) await fbSignOut(fbAuth);
+}
+
+function isAllowed(user) {
+  return !!(user && user.email && user.emailVerified &&
+            user.email.toLowerCase().endsWith('@' + ALLOWED_DOMAIN));
+}
+
+// ── Data subscriptions (realtime) ─────────────────────────────────────────────
+let _subscribed = false;
+function subscribeData() {
+  if (_subscribed || !fb) return;
+  _subscribed = true;
+  onValue(dbRef(fb.db, `eventRoster/${EVENT_ID}`), snap => {
+    _roster = snap.val() || {};
+    render();
+  }, err => { console.error('roster read denied', err); toast('Could not load roster — access denied'); });
+
+  onValue(dbRef(fb.db, `checkins/${EVENT_ID}`), snap => {
+    _checkins = snap.val() || {};
+    render();
+  }, err => { console.error('checkins read denied', err); });
+
+  onValue(dbRef(fb.db, `jerseys/${EVENT_ID}`), snap => {
+    _jerseys = snap.val() || {};
+    render();
+  }, err => { console.error('jerseys read denied', err); });
+
+  onValue(dbRef(fb.db, `meta/${EVENT_ID}/lastSync`), snap => {
+    _lastSync = snap.val();
+    renderSyncNote();
+  }, () => {});
+}
+
+// ── Check-in actions ──────────────────────────────────────────────────────────
+async function checkIn(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbSet(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`), {
+      checkedIn: true, by: _user.email, at: serverTimestamp()
+    });
+    toast('Checked in');
+  } catch (e) { console.error(e); toast('Check-in failed: ' + (e.message || e.code)); }
+}
+async function undoCheckIn(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`));
+    toast('Check-in undone');
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+async function pickUpJersey(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbSet(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`), {
+      pickedUp: true, by: _user.email, at: serverTimestamp()
+    });
+    toast('Jersey marked picked up');
+  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+}
+async function undoPickUp(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`));
+    toast('Jersey pickup undone');
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+
+// ── Rendering ──────────────────────────────────────────────────────────────
+function rosterRows() {
+  return Object.entries(_roster).map(([orderNumber, r]) => {
+    const c = _checkins[orderNumber];
+    const j = _jerseys[orderNumber];
+    return {
+      orderNumber,
+      orderLabel: r.orderNumber || orderNumber,
+      name: r.name || '(no name)',
+      route: r.route || '',
+      jerseySize: r.jerseySize || '',
+      lineItemName: r.lineItemName || '',
+      quantity: r.quantity || 1,
+      createdAt: r.createdAt || '',
+      waiver: !!r.waiver,
+      checked: !!(c && c.checkedIn),
+      checkedBy: c?.by || '',
+      checkedAt: c?.at || 0,
+      picked: !!(j && j.pickedUp),
+      pickedBy: j?.by || '',
+      pickedAt: j?.at || 0
+    };
+  });
+}
+
+function populateRouteFilter(rows) {
+  const sel = document.getElementById('route-filter');
+  const current = sel.value;
+  const routes = [...new Set(rows.map(r => r.route).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All routes</option>' +
+    routes.map(rt => `<option value="${esc(rt)}">${esc(rt)}</option>`).join('');
+  if (routes.includes(current)) sel.value = current;
+}
+
+function setSort(key) {
+  if (_sort.key === key) _sort.dir *= -1;
+  else _sort = { key, dir: 1 };
+  render();
+}
+function toggleHideChecked() {
+  _hideChecked = !_hideChecked;
+  if (_hideChecked) _hidePicked = false;   // only one hide-filter active at a time
+  syncFilterPills();
+  render();
+}
+function toggleHidePicked() {
+  _hidePicked = !_hidePicked;
+  if (_hidePicked) _hideChecked = false;
+  syncFilterPills();
+  render();
+}
+function syncFilterPills() {
+  document.getElementById('hide-checked').classList.toggle('on', _hideChecked);
+  document.getElementById('hide-picked').classList.toggle('on', _hidePicked);
+}
+
+function render() {
+  if (!_user || !isAllowed(_user)) return;
+  let rows = rosterRows();
+  populateRouteFilter(rows);
+
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const routeF = document.getElementById('route-filter').value;
+  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
+  if (routeF) rows = rows.filter(r => r.route === routeF);
+  if (_hideChecked) rows = rows.filter(r => !r.checked);
+  if (_hidePicked) rows = rows.filter(r => !r.picked);
+
+  const { key, dir } = _sort;
+  rows.sort((a, b) => {
+    let av = a[key], bv = b[key];
+    if (key === 'checked') { av = a.checked ? 1 : 0; bv = b.checked ? 1 : 0; }
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return a.name.localeCompare(b.name);
+  });
+
+  const body = document.getElementById('roster-body');
+  body.innerHTML = rows.map(r => `
+    <tr class="${r.checked ? 'checked' : ''}" onclick="openDetail('${esc(r.orderNumber)}')">
+      <td class="name-cell">${esc(r.name)}</td>
+      <td>${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</td>
+      <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
+      <td class="col-item">${esc(r.lineItemName) || '—'}</td>
+      <td class="col-created">${fmtDate(r.createdAt)}</td>
+      <td>${r.waiver ? '<span class="waiver-yes">✓</span>' : '<span class="waiver-no">✗</span>'}</td>
+      <td>${r.checked
+        ? `<button class="icon-toggle on-green" title="Checked in by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+        : `<button class="icon-toggle" title="Tap to check in" onclick="event.stopPropagation();checkIn('${esc(r.orderNumber)}')">✓</button>`}</td>
+      <td>${r.picked
+        ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
+        : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
+    </tr>`).join('');
+
+  const allRows = rosterRows();
+  const total = allRows.length;
+  const checked = allRows.filter(r => r.checked).length;
+  const picked = allRows.filter(r => r.picked).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-checked').textContent = checked;
+  document.getElementById('stat-jerseys').textContent = picked;
+  renderRouteStats(allRows);
+  renderBreakdown(allRows);
+
+  const empty = document.getElementById('empty-state');
+  const emptyMsg = document.getElementById('empty-msg');
+  if (rows.length === 0) {
+    empty.style.display = '';
+    emptyMsg.textContent = total === 0
+      ? 'No riders yet — the roster syncs from the registration spreadsheet every few minutes.'
+      : 'No riders match your filters.';
+  } else {
+    empty.style.display = 'none';
+  }
+
+  if (_openOrder) renderDetail();   // keep an open sheet in sync with live data
+}
+
+// ── Breakdown stats (by route, by jersey size) ────────────────────────────────
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
+function groupCounts(rows, keyFn, order) {
+  const map = {};
+  rows.forEach(r => {
+    const k = keyFn(r) || '(none)';
+    if (!map[k]) map[k] = { total: 0, checked: 0, picked: 0 };
+    map[k].total++;
+    if (r.checked) map[k].checked++;
+    if (r.picked) map[k].picked++;
+  });
+  const keys = Object.keys(map);
+  keys.sort((a, b) => {
+    if (order) {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      if (ia !== -1 || ib !== -1) {
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      }
+    }
+    return a.localeCompare(b);
+  });
+  return keys.map(k => ({ key: k, ...map[k] }));
+}
+function bdRowsHtml(groups, asRouteTag) {
+  const body = groups.map(g => `<tr>
+      <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
+      <td class="bd-num">${g.total}</td>
+      <td class="bd-num">${g.checked}</td>
+      <td class="bd-num">${g.picked}</td>
+    </tr>`).join('');
+  const tot = groups.reduce((a, g) => ({
+    total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked
+  }), { total: 0, checked: 0, picked: 0 });
+  const footer = groups.length ? `<tr class="bd-total">
+      <td>Total</td><td class="bd-num">${tot.total}</td><td class="bd-num">${tot.checked}</td><td class="bd-num">${tot.picked}</td>
+    </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
+  return body + footer;
+}
+function renderBreakdown(rows) {
+  document.getElementById('bd-size').innerHTML = bdRowsHtml(groupCounts(rows, r => r.jerseySize, SIZE_ORDER), false);
+}
+// Compact, prominent per-route check-in progress (checked-in / total). Wraps on
+// mobile via auto-fit grid, so it never needs horizontal scrolling.
+function renderRouteStats(rows) {
+  const groups = groupCounts(rows, r => r.route);
+  const el = document.getElementById('route-stats');
+  if (!groups.length) {
+    el.innerHTML = '<div class="route-cell"><div class="rc-label">No riders yet</div></div>';
+    return;
+  }
+  el.innerHTML = groups.map(g => {
+    const value = _routeShowCheckins
+      ? `<span class="done">${g.checked}</span><span class="rc-total">/${g.total}</span>`
+      : `${g.total}`;
+    return `
+    <div class="route-cell">
+      <div class="rc-label" title="${esc(g.key)}">${esc(g.key)}</div>
+      <div class="rc-value">${value}</div>
+    </div>`;
+  }).join('');
+}
+function toggleRouteCheckins() {
+  _routeShowCheckins = !_routeShowCheckins;
+  document.getElementById('route-toggle').classList.toggle('on', _routeShowCheckins);
+  document.getElementById('route-stats-label').textContent =
+    _routeShowCheckins ? 'Checked in by route' : 'Registrants by route';
+  renderRouteStats(rosterRows());
+}
+
+// ── Rider detail sheet ────────────────────────────────────────────────────────
+function openDetail(orderKey) {
+  _openOrder = orderKey;
+  renderDetail();
+  document.getElementById('detail-overlay').classList.add('open');
+}
+function closeDetail() {
+  _openOrder = null;
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+function detailBgClick(e) {
+  if (e.target.id === 'detail-overlay') closeDetail();
+}
+function renderDetail() {
+  const r = rosterRows().find(x => x.orderNumber === _openOrder);
+  if (!r) { closeDetail(); return; }   // rider no longer in roster (e.g. re-synced)
+
+  document.getElementById('detail-name').textContent = r.name;
+  document.getElementById('detail-statuses').innerHTML =
+    `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? '✅ Checked In' : '◦ Not Checked In'}</span>` +
+    `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>`;
+
+  const notes = [];
+  if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
+  if (r.picked) notes.push(`Jersey by ${esc((r.pickedBy || '').split('@')[0])}${r.pickedAt ? ' at ' + fmtTime(r.pickedAt) : ''}`);
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-grid">
+      <div class="dl">Route</div><div class="dv">${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</div>
+      <div class="dl">Jersey Size</div><div class="dv">${esc(r.jerseySize) || '—'}</div>
+      <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
+      <div class="dl">Quantity</div><div class="dv">${esc(r.quantity)}</div>
+      <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
+      <div class="dl">Waiver</div><div class="dv">${r.waiver ? '<span class="waiver-yes">✓ Acknowledged</span>' : '<span class="waiver-no">✗ Not signed</span>'}</div>
+      <div class="dl">Order</div><div class="dv">${esc(r.orderLabel)}</div>
+    </div>
+    ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}`;
+
+  const cBtn = document.getElementById('detail-action-checkin');
+  if (r.checked) {
+    cBtn.className = 'detail-action-btn btn-undo';
+    cBtn.textContent = 'Undo Check-In';
+    cBtn.onclick = () => undoCheckIn(r.orderNumber);
+  } else {
+    cBtn.className = 'detail-action-btn btn-green';
+    cBtn.textContent = '✓ Check In';
+    cBtn.onclick = () => checkIn(r.orderNumber);
+  }
+
+  const jBtn = document.getElementById('detail-action-jersey');
+  if (r.picked) {
+    jBtn.className = 'detail-action-btn btn-undo';
+    jBtn.textContent = 'Undo Jersey Pickup';
+    jBtn.onclick = () => undoPickUp(r.orderNumber);
+  } else {
+    jBtn.className = 'detail-action-btn btn-blue';
+    jBtn.textContent = '👕 Jersey Picked Up';
+    jBtn.onclick = () => pickUpJersey(r.orderNumber);
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && _openOrder) closeDetail(); });
+
+function renderSyncNote() {
+  const note = document.getElementById('sync-note');
+  if (!_lastSync) { note.style.display = 'none'; return; }
+  note.style.display = '';
+  note.textContent = `Roster last synced from spreadsheet: ${new Date(_lastSync).toLocaleString()}`;
+}
+
+// ── App shell wiring ──────────────────────────────────────────────────────────
+function showSignedIn() {
+  closeAuth();
+  show('topbar', true); show('stats', true); show('route-stats-head', true); show('route-stats', true);
+  show('breakdown', true); show('filterbar', true); show('table-card', true);
+  document.getElementById('user-badge').textContent = _user.email;
+  document.getElementById('event-subtitle').textContent =
+    EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
+  subscribeData();
+  render();
+}
+function showSignedOut() {
+  show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
+  show('breakdown', false); show('filterbar', false); show('table-card', false);
+  show('sync-note', false);
+  openAuth();
+}
+
+if (!CONFIGURED) {
+  document.getElementById('setup-banner').style.display = 'block';
+} else if (fbAuth) {
+  onAuthStateChanged(fbAuth, user => {
+    if (user && isAllowed(user)) {
+      _user = user;
+      showSignedIn();
+    } else if (user) {
+      // Signed in with a non-allowed account.
+      _user = null;
+      setAuthStatus(`${user.email || 'That account'} is not an @${ALLOWED_DOMAIN} account. Sign in with your OutCycling account.`, true);
+      fbSignOut(fbAuth);
+      showSignedOut();
+    } else {
+      _user = null;
+      showSignedOut();
+    }
+  });
+} else {
+  setAuthStatus('Could not initialize sign-in.', true);
+  openAuth();
+}
+
+Object.assign(window, {
+  signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
+  render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
+  openDetail, closeDetail, detailBgClick
+});
+</script>
+</body>
+</html>
