@@ -62,8 +62,12 @@ single source of truth — new sheet columns leak nothing until explicitly added
 - Create a service account in the Firebase project ("Firebase Realtime Database Admin" role),
   download its JSON key.
 - In Apps Script → **Project Settings → Script Properties**, add:
-  `SERVICE_ACCOUNT_JSON`, `DATABASE_URL`, `EVENT_ID` (default `default`), and optionally
-  `SHEET_NAME`. **Never commit these.**
+  - `SERVICE_ACCOUNT_JSON` = the entire downloaded service-account JSON
+  - `DATABASE_URL` = `https://widgets-2e848-default-rtdb.firebaseio.com`
+  - `EVENT_ID` = `default`
+  - `SHEET_NAME` = the orders tab name (optional; defaults to the first sheet)
+
+  **Never commit these.**
 - Run `installTriggers()` once and authorize. The roster then syncs every 5 minutes and on edit.
 
 ## Multiple events

@@ -1,9 +1,4 @@
 {
-  "//": "Realtime Database security rules for the OutCycling volunteer dashboard.",
-  "//1": "Enforcement layer — the client only HINTS at the org domain; access is decided here.",
-  "//2": "eventRoster: read by any verified @outcycling.org user; written only by the Apps",
-  "//3": "  Script sync (a service account / Admin token, which bypasses these rules).",
-  "//4": "checkins: read + written by any verified @outcycling.org user, with light validation.",
   "rules": {
     ".read": false,
     ".write": false,
