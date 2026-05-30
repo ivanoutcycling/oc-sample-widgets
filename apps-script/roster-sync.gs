@@ -4,7 +4,11 @@
  * Runs inside the Google Sheet that Squarespace syncs orders into. On a timer
  * (and on edit) it copies ONLY a safe allowlist of columns into the dashboard's
  * Firebase Realtime Database. Sensitive PII (email, phone, billing address,
- * emergency contact, payment/financial data) is NEVER read into the payload.
+ * payment/financial data) is NEVER read into the payload.
+ *
+ * Emergency contacts are the one exception: they ARE pulled, but written ONLY to
+ * the access-restricted /restricted/emergencyContacts node (readable by a small
+ * hard-coded allowlist in the security rules), never to /eventRoster.
  *
  * Security model: the allowlist below is the single source of truth for what
  * leaves this spreadsheet. Adding a new column to the sheet does nothing until
@@ -25,7 +29,7 @@
  */
 
 // Maps a safe output field → the exact spreadsheet header it comes from.
-// Only these columns are ever read. Everything else stays in the sheet.
+// Only these columns are ever read into the roster. Everything else stays in the sheet.
 var ALLOWLIST = {
   name:         'Product Form: Name',
   route:        'Product Form: Route',
@@ -38,6 +42,11 @@ var ALLOWLIST = {
 // Header for the order id (used as the record key) and the waiver checkbox.
 var ORDER_HEADER  = 'Order Number';
 var WAIVER_HEADER = 'Product Form: I have read and acknowledge the ride waiver at https://www.outcycling.org/terms';
+
+// Emergency contact columns. SENSITIVE: written ONLY to the access-restricted
+// /restricted/emergencyContacts node, never to /eventRoster.
+var EMERGENCY_NAME_HEADER  = 'Product Form: Emergency Contact Name';
+var EMERGENCY_PHONE_HEADER = 'Product Form: Emergency Contact Phone';
 
 // Columns consulted ONLY to drop cancelled/refunded rows — never written out.
 var CANCELLED_HEADER = 'Cancelled at';
@@ -58,7 +67,7 @@ function toBool_(v) {
   return !/^(no|false|0|unchecked|n)$/.test(s);
 }
 
-/** Read the orders sheet and build the safe roster object keyed by order number. */
+/** Read the orders sheet and build the safe roster + the restricted emergency map. */
 function buildRoster_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetName = prop_('SHEET_NAME', null);
@@ -66,7 +75,7 @@ function buildRoster_() {
   if (!sheet) throw new Error('Sheet not found: ' + sheetName);
 
   var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return {};
+  if (values.length < 2) return { roster: {}, emergency: {} };
 
   var headers = values[0].map(function (h) { return String(h).trim(); });
   var col = {};
@@ -75,6 +84,7 @@ function buildRoster_() {
   if (!(ORDER_HEADER in col)) throw new Error('Missing "' + ORDER_HEADER + '" column');
 
   var roster = {};
+  var emergency = {};
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
     var rawOrder = row[col[ORDER_HEADER]];
@@ -105,8 +115,20 @@ function buildRoster_() {
     if (WAIVER_HEADER in col && toBool_(row[col[WAIVER_HEADER]])) rec.waiver = true;
 
     roster[key] = rec;
+
+    // Emergency contact → restricted map only (first non-empty value per order wins).
+    var em = emergency[key] || {};
+    if (EMERGENCY_NAME_HEADER in col && !em.name) {
+      var nm = String(row[col[EMERGENCY_NAME_HEADER]] == null ? '' : row[col[EMERGENCY_NAME_HEADER]]).trim();
+      if (nm) em.name = nm;
+    }
+    if (EMERGENCY_PHONE_HEADER in col && !em.phone) {
+      var ph = String(row[col[EMERGENCY_PHONE_HEADER]] == null ? '' : row[col[EMERGENCY_PHONE_HEADER]]).trim();
+      if (ph) em.phone = ph;
+    }
+    if (em.name || em.phone) emergency[key] = em;
   }
-  return roster;
+  return { roster: roster, emergency: emergency };
 }
 
 /** Exchange the service-account JSON for an OAuth access token (RTDB + userinfo scopes). */
@@ -153,16 +175,56 @@ function rtdbPut_(token, path, value) {
   }
 }
 
+/** GET a path from the Realtime Database; returns the parsed value (or null). */
+function rtdbGet_(token, path) {
+  var base = prop_('DATABASE_URL', '').replace(/\/$/, '');
+  if (!base) throw new Error('DATABASE_URL script property is missing');
+  var url = base + '/' + path + '.json?access_token=' + encodeURIComponent(token);
+  var res = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+  if (res.getResponseCode() >= 300) {
+    throw new Error('RTDB read failed (' + res.getResponseCode() + '): ' + res.getContentText());
+  }
+  var txt = res.getContentText();
+  return (txt && txt !== 'null') ? JSON.parse(txt) : null;
+}
+
+/** Append an audit-log entry via the admin token (POST to a list = push with generated key). */
+function rtdbAudit_(token, eventId, action, target) {
+  var base = prop_('DATABASE_URL', '').replace(/\/$/, '');
+  var url = base + '/restricted/auditLog/' + eventId + '.json?access_token=' + encodeURIComponent(token);
+  UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ ts: Date.now(), actor: 'sync', action: action, target: String(target) }),
+    muteHttpExceptions: true
+  });
+}
+
 /** Main entry point: build the safe roster and overwrite it in the database. */
 function syncRoster() {
   var eventId = prop_('EVENT_ID', 'default');
-  var roster = buildRoster_();
+  var built = buildRoster_();
+  var roster = built.roster, emergency = built.emergency;
   var token = getAccessToken_();
+
+  // Diff against the previous roster so we can audit-log newly added registrations.
+  var prev = rtdbGet_(token, 'eventRoster/' + eventId) || {};
+
   // Overwrite the roster node (registrations removed from the sheet disappear here too).
   // Check-in state lives under a separate /checkins node and is untouched.
   rtdbPut_(token, 'eventRoster/' + eventId, roster);
+  // Emergency contacts go ONLY to the access-restricted node, never to /eventRoster.
+  rtdbPut_(token, 'restricted/emergencyContacts/' + eventId, emergency);
   rtdbPut_(token, 'meta/' + eventId + '/lastSync', Date.now());
   rtdbPut_(token, 'meta/' + eventId + '/count', Object.keys(roster).length);
+
+  // Audit-log each new rider (order key present now but not in the previous snapshot).
+  Object.keys(roster).forEach(function (key) {
+    if (!(key in prev)) {
+      rtdbAudit_(token, eventId, 'rider_added', roster[key].name || roster[key].orderNumber || key);
+    }
+  });
+
   Logger.log('Synced %s registrations to event "%s"', Object.keys(roster).length, eventId);
 }
 

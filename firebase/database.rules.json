@@ -43,6 +43,28 @@
           "$other": { ".validate": false }
         }
       }
+    },
+
+    "restricted": {
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'pres@outcycling.org' || auth.token.email == 'med@outcycling.org')",
+
+      "emergencyContacts": {
+        "$eventId": { ".write": false }
+      },
+
+      "auditLog": {
+        "$eventId": {
+          "$entry": {
+            ".write": "!data.exists() && newData.exists() && auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+            ".validate": "newData.hasChildren(['ts', 'actor', 'action'])",
+            "actor":  { ".validate": "newData.val() == auth.token.email" },
+            "action": { ".validate": "newData.isString()" },
+            "target": { ".validate": "newData.isString()" },
+            "ts":     { ".validate": "newData.val() == now || newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
     }
   }
 }
