@@ -51,6 +51,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .dash-table th.sortable:hover{color:var(--text)}
 .dash-table td{padding:11px 12px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:middle}
 .dash-table tr:last-child td{border-bottom:none}
+.dash-table tbody tr{cursor:pointer}
 .dash-table tbody tr:hover td{background:var(--card)}
 .dash-table tr.checked td{background:rgba(0,168,74,0.045)}
 .dash-table tr.checked:hover td{background:rgba(0,168,74,0.08)}
@@ -73,6 +74,24 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .google-btn svg{width:18px;height:18px;flex-shrink:0}
 .ov-status{font-size:11px;color:var(--muted);min-height:16px;margin-top:14px}
 .ov-status.error{color:#dc2626}
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:440px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left;position:relative}
+.detail-close{position:absolute;top:12px;right:12px;border:none;background:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}
+.detail-close:hover{color:var(--text);background:var(--card)}
+.detail-name{font-family:'Unbounded',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.4px;color:var(--text);margin:0 32px 8px 0;line-height:1.1}
+.detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:6px;margin-bottom:18px}
+.detail-status.in{background:rgba(0,168,74,0.12);color:#08923f;border:1px solid rgba(0,168,74,0.3)}
+.detail-status.out{background:rgba(224,104,0,0.1);color:var(--orange);border:1px solid rgba(224,104,0,0.3)}
+.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
+.detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
+.detail-grid .dv{font-size:13.5px;color:var(--text);font-weight:500}
+.detail-checked-note{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin:-4px 0 16px;line-height:1.4}
+.detail-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;padding:14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all 0.15s}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(max-width:560px){
+  #detail-overlay{align-items:flex-end;padding:0}
+  #detail-overlay .detail-panel{max-width:none;border-radius:18px 18px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom))}
+  #detail-overlay.open .detail-panel{animation:sheetUp .22s ease}
+}
 .setup-banner{display:none;margin:0 32px 16px;padding:14px 18px;background:rgba(224,104,0,0.07);border:1px solid rgba(224,104,0,0.3);border-radius:10px;font-size:12px;color:var(--text);line-height:1.6}
 .setup-banner code{font-family:'DM Mono',monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:4px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
@@ -161,6 +180,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   </div>
 </div>
 
+<!-- ═══ RIDER DETAIL (modal on desktop, bottom sheet on mobile) ═══ -->
+<div class="overlay" id="detail-overlay" onclick="detailBgClick(event)">
+  <div class="detail-panel">
+    <button class="detail-close" onclick="closeDetail()" aria-label="Close">×</button>
+    <div class="detail-name" id="detail-name"></div>
+    <span class="detail-status" id="detail-status"></span>
+    <div id="detail-body"></div>
+    <button class="detail-action-btn" id="detail-action"></button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -209,6 +239,7 @@ let _lastSync = null;
 let _user = null;
 let _hideChecked = false;
 let _sort = { key: 'name', dir: 1 };
+let _openOrder = null;   // order key of the rider whose detail sheet is open
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -314,10 +345,12 @@ function rosterRows() {
     const c = _checkins[orderNumber];
     return {
       orderNumber,
+      orderLabel: r.orderNumber || orderNumber,
       name: r.name || '(no name)',
       route: r.route || '',
       jerseySize: r.jerseySize || '',
       lineItemName: r.lineItemName || '',
+      quantity: r.quantity || 1,
       createdAt: r.createdAt || '',
       waiver: !!r.waiver,
       checked: !!(c && c.checkedIn),
@@ -371,7 +404,7 @@ function render() {
 
   const body = document.getElementById('roster-body');
   body.innerHTML = rows.map(r => `
-    <tr class="${r.checked ? 'checked' : ''}">
+    <tr class="${r.checked ? 'checked' : ''}" onclick="openDetail('${esc(r.orderNumber)}')">
       <td class="name-cell">${esc(r.name)}</td>
       <td>${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</td>
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
@@ -382,8 +415,8 @@ function render() {
         ? `<div class="checkin-meta">✅ ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? '<br>' + fmtTime(r.checkedAt) : ''}</div>`
         : '<span style="color:var(--dimmer)">—</span>'}</td>
       <td>${r.checked
-        ? `<button class="btn btn-undo" onclick="undoCheckIn('${esc(r.orderNumber)}')">Undo</button>`
-        : `<button class="btn btn-green" onclick="checkIn('${esc(r.orderNumber)}')">Check in</button>`}</td>
+        ? `<button class="btn btn-undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">Undo</button>`
+        : `<button class="btn btn-green" onclick="event.stopPropagation();checkIn('${esc(r.orderNumber)}')">Check in</button>`}</td>
     </tr>`).join('');
 
   const allRows = rosterRows();
@@ -403,7 +436,57 @@ function render() {
   } else {
     empty.style.display = 'none';
   }
+
+  if (_openOrder) renderDetail();   // keep an open sheet in sync with live data
 }
+
+// ── Rider detail sheet ────────────────────────────────────────────────────────
+function openDetail(orderKey) {
+  _openOrder = orderKey;
+  renderDetail();
+  document.getElementById('detail-overlay').classList.add('open');
+}
+function closeDetail() {
+  _openOrder = null;
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+function detailBgClick(e) {
+  if (e.target.id === 'detail-overlay') closeDetail();
+}
+function renderDetail() {
+  const r = rosterRows().find(x => x.orderNumber === _openOrder);
+  if (!r) { closeDetail(); return; }   // rider no longer in roster (e.g. re-synced)
+
+  document.getElementById('detail-name').textContent = r.name;
+  const statusEl = document.getElementById('detail-status');
+  statusEl.className = 'detail-status ' + (r.checked ? 'in' : 'out');
+  statusEl.textContent = r.checked ? '✅ Checked In' : '◦ Not Checked In';
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-grid">
+      <div class="dl">Route</div><div class="dv">${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</div>
+      <div class="dl">Jersey</div><div class="dv">${esc(r.jerseySize) || '—'}</div>
+      <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
+      <div class="dl">Quantity</div><div class="dv">${esc(r.quantity)}</div>
+      <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
+      <div class="dl">Waiver</div><div class="dv">${r.waiver ? '<span class="waiver-yes">✓ Acknowledged</span>' : '<span class="waiver-no">✗ Not signed</span>'}</div>
+      <div class="dl">Order</div><div class="dv">${esc(r.orderLabel)}</div>
+    </div>
+    ${r.checked ? `<div class="detail-checked-note">Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}</div>` : ''}`;
+
+  const btn = document.getElementById('detail-action');
+  if (r.checked) {
+    btn.className = 'detail-action-btn btn-undo';
+    btn.textContent = 'Undo Check-In';
+    btn.onclick = () => undoCheckIn(r.orderNumber);
+  } else {
+    btn.className = 'detail-action-btn btn-green';
+    btn.textContent = '✓ Check In ' + r.name;
+    btn.onclick = () => checkIn(r.orderNumber);
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && _openOrder) closeDetail(); });
 
 function renderSyncNote() {
   const note = document.getElementById('sync-note');
@@ -453,7 +536,8 @@ if (!CONFIGURED) {
 
 Object.assign(window, {
   signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn,
-  render, setSort, toggleHideChecked
+  render, setSort, toggleHideChecked,
+  openDetail, closeDetail, detailBgClick
 });
 </script>
 </body>
