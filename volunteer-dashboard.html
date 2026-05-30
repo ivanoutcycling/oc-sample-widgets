@@ -432,12 +432,23 @@ function subscribeData() {
 }
 
 // ── Check-in actions ──────────────────────────────────────────────────────────
+function riderName(orderNumber) {
+  return (_roster[orderNumber] && (_roster[orderNumber].name || _roster[orderNumber].orderNumber)) || orderNumber;
+}
+// Append an audit entry. Fire-and-forget: never block or fail the primary action.
+function logAudit(action, target) {
+  if (!fb || !_user) return;
+  dbPush(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), {
+    ts: serverTimestamp(), actor: _user.email, action, target: String(target)
+  }).catch(e => console.warn('audit log failed', e));
+}
 async function checkIn(orderNumber) {
   if (!fb || !_user) return;
   try {
     await dbSet(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`), {
       checkedIn: true, by: _user.email, at: serverTimestamp()
     });
+    logAudit('checkin', riderName(orderNumber));
     toast('Checked in');
   } catch (e) { console.error(e); toast('Check-in failed: ' + (e.message || e.code)); }
 }
@@ -445,6 +456,7 @@ async function undoCheckIn(orderNumber) {
   if (!fb || !_user) return;
   try {
     await dbRemove(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`));
+    logAudit('checkin_undo', riderName(orderNumber));
     toast('Check-in undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
@@ -454,6 +466,7 @@ async function pickUpJersey(orderNumber) {
     await dbSet(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`), {
       pickedUp: true, by: _user.email, at: serverTimestamp()
     });
+    logAudit('jersey', riderName(orderNumber));
     toast('Jersey marked picked up');
   } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
 }
@@ -461,6 +474,7 @@ async function undoPickUp(orderNumber) {
   if (!fb || !_user) return;
   try {
     await dbRemove(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`));
+    logAudit('jersey_undo', riderName(orderNumber));
     toast('Jersey pickup undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
