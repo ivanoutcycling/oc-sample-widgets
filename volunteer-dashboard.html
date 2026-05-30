@@ -114,6 +114,31 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .detail-status.jersey{background:rgba(59,130,246,0.12);color:#2563eb;border:1px solid rgba(59,130,246,0.3)}
 .detail-status.out{background:rgba(17,17,40,0.05);color:var(--muted);border:1px solid var(--border)}
 .detail-actions{display:flex;flex-direction:column;gap:10px}
+.emergency-details{border:1px solid rgba(220,38,38,0.3);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.emergency-summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;user-select:none;padding:12px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:#dc2626;background:rgba(220,38,38,0.06)}
+.emergency-summary::-webkit-details-marker{display:none}
+.emergency-summary::after{content:'▸';font-size:11px;transition:transform .15s}
+.emergency-details[open] .emergency-summary::after{transform:rotate(90deg)}
+.emergency-body{padding:12px 16px}
+.emergency-box{margin:0}
+.emergency-box.muted{color:var(--muted);font-size:12px}
+.emergency-box .eb-row{display:flex;gap:12px;font-size:14px;padding:3px 0}
+.emergency-box .eb-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);min-width:54px;align-self:center}
+.emergency-box a{color:var(--accent);text-decoration:none;font-weight:600}
+.audit-card{margin:0 32px 16px}
+#audit-body{max-height:340px;overflow-y:auto}
+.audit-row{display:grid;grid-template-columns:120px 90px 1fr;gap:8px;padding:7px 4px;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,0.04);align-items:baseline}
+.audit-row:last-child{border-bottom:none}
+.audit-when{color:var(--dimmer);font-family:'DM Mono',monospace;font-size:10px}
+.audit-who{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.audit-action{color:var(--muted)}
+.audit-target{font-weight:500;grid-column:2 / -1}
+.audit-empty{color:var(--dimmer);font-size:12px;padding:8px 4px}
+@media(max-width:680px){
+  .audit-row{grid-template-columns:1fr auto}
+  .audit-when{grid-column:1 / -1}
+  .audit-target{grid-column:1 / -1}
+}
 .detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
 .detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
 .detail-grid .dv{font-size:13.5px;color:var(--text);font-weight:500}
@@ -133,7 +158,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 @media(max-width:680px){
   .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
   .section-label,.section-head{margin-left:0;margin-right:0}
-  .card,.stats-row,.setup-banner,.route-stats,.breakdown{margin-left:16px;margin-right:16px}
+  .card,.stats-row,.setup-banner,.route-stats,.breakdown,.audit-card{margin-left:16px;margin-right:16px}
   .search-input{max-width:none}
   .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
 }
@@ -219,6 +244,12 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- Activity log: visible only to accounts authorized for restricted data -->
+  <details class="bd-card audit-card" id="audit-card" style="display:none">
+    <summary class="bd-title">Activity Log</summary>
+    <div id="audit-body"></div>
+  </details>
+
   <div class="sync-note" id="sync-note" style="display:none"></div>
 </div>
 
@@ -242,6 +273,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="detail-name" id="detail-name"></div>
     <div class="detail-statuses" id="detail-statuses"></div>
     <div id="detail-body"></div>
+    <div id="detail-emergency"></div>
     <div class="detail-actions">
       <button class="detail-action-btn" id="detail-action-checkin"></button>
       <button class="detail-action-btn" id="detail-action-jersey"></button>
@@ -253,7 +285,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref as dbRef, onValue, set as dbSet, remove as dbRemove, serverTimestamp }
+import { getDatabase, ref as dbRef, onValue, set as dbSet, remove as dbRemove, serverTimestamp,
+         push as dbPush, query as dbQuery, limitToLast, get as dbGet }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -299,6 +332,7 @@ let _user = null;
 let _hideChecked = false;
 let _hidePicked = false;
 let _routeShowCheckins = false;   // route strip: off = totals only, on = checked-in/total
+let _privileged = false;          // can read /restricted (emergency contacts + audit log)
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;   // order key of the rider whose detail sheet is open
 
@@ -385,15 +419,44 @@ function subscribeData() {
     _lastSync = snap.val();
     renderSyncNote();
   }, () => {});
+
+  // Privilege probe. IMPORTANT: we use a one-shot get(), not a persistent onValue().
+  // A permanently permission-denied onValue on restricted/auditLog interferes with a
+  // non-privileged user's OWN writes to that same path (logAudit), which in turn was
+  // disrupting their check-in/jersey writes from reflecting. So non-privileged users keep
+  // NO active listener on restricted/*; only authorized users attach the live audit feed.
+  const auditQuery = dbQuery(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), limitToLast(150));
+  dbGet(auditQuery).then(snap => {
+    _privileged = true;
+    document.getElementById('audit-card').style.display = '';
+    renderAudit(snap.val() || {});
+    if (_openOrder) renderDetail();   // reveal the emergency section if a sheet is open
+    // Now that we know we're allowed, attach the live feed (privileged users only).
+    onValue(auditQuery, s => renderAudit(s.val() || {}), e => console.warn('audit feed', e));
+  }).catch(() => {
+    _privileged = false;
+    document.getElementById('audit-card').style.display = 'none';
+  });
 }
 
 // ── Check-in actions ──────────────────────────────────────────────────────────
+function riderName(orderNumber) {
+  return (_roster[orderNumber] && (_roster[orderNumber].name || _roster[orderNumber].orderNumber)) || orderNumber;
+}
+// Append an audit entry. Fire-and-forget: never block or fail the primary action.
+function logAudit(action, target) {
+  if (!fb || !_user) return;
+  dbPush(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), {
+    ts: serverTimestamp(), actor: _user.email, action, target: String(target)
+  }).catch(e => console.warn('audit log failed', e));
+}
 async function checkIn(orderNumber) {
   if (!fb || !_user) return;
   try {
     await dbSet(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`), {
       checkedIn: true, by: _user.email, at: serverTimestamp()
     });
+    logAudit('checkin', riderName(orderNumber));
     toast('Checked in');
   } catch (e) { console.error(e); toast('Check-in failed: ' + (e.message || e.code)); }
 }
@@ -401,6 +464,7 @@ async function undoCheckIn(orderNumber) {
   if (!fb || !_user) return;
   try {
     await dbRemove(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`));
+    logAudit('checkin_undo', riderName(orderNumber));
     toast('Check-in undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
@@ -410,6 +474,7 @@ async function pickUpJersey(orderNumber) {
     await dbSet(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`), {
       pickedUp: true, by: _user.email, at: serverTimestamp()
     });
+    logAudit('jersey', riderName(orderNumber));
     toast('Jersey marked picked up');
   } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
 }
@@ -417,6 +482,7 @@ async function undoPickUp(orderNumber) {
   if (!fb || !_user) return;
   try {
     await dbRemove(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`));
+    logAudit('jersey_undo', riderName(orderNumber));
     toast('Jersey pickup undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
@@ -620,6 +686,8 @@ function openDetail(orderKey) {
 }
 function closeDetail() {
   _openOrder = null;
+  // Reset the emergency block so reopening any rider starts collapsed & unloaded.
+  delete document.getElementById('detail-emergency').dataset.order;
   document.getElementById('detail-overlay').classList.remove('open');
 }
 function detailBgClick(e) {
@@ -671,6 +739,76 @@ function renderDetail() {
     jBtn.textContent = '👕 Jersey Picked Up';
     jBtn.onclick = () => pickUpJersey(r.orderNumber);
   }
+
+  // Emergency contact: only authorized accounts see it; the read is also rules-gated,
+  // so non-privileged users can't fetch it even if forced. Rendered as a collapsible
+  // <details> that loads (and audits) once on first open and stays open. The block is
+  // idempotent — if it's already rendered for this same rider it is left untouched, so a
+  // background re-render (another volunteer's check-in, our own audit write) can't collapse
+  // a disclosure the user just opened.
+  const em = document.getElementById('detail-emergency');
+  if (_privileged) {
+    if (em.dataset.order !== r.orderNumber) {
+      em.dataset.order = r.orderNumber;
+      em.innerHTML = `<details class="emergency-details" id="emergency-details">
+          <summary class="emergency-summary">🚑 Emergency contact</summary>
+          <div class="emergency-body" id="emergency-body"><div class="emergency-box muted">Open to load…</div></div>
+        </details>`;
+      let loaded = false;
+      document.getElementById('emergency-details').addEventListener('toggle', function () {
+        if (this.open && !loaded) { loaded = true; revealEmergency(r.orderNumber, r.name); }
+      });
+    }
+  } else {
+    em.innerHTML = '';
+    delete em.dataset.order;
+  }
+}
+
+// Fetch + display a rider's emergency contact (privileged only), and audit the view.
+async function revealEmergency(orderNumber, name) {
+  const body = document.getElementById('emergency-body');
+  if (!body) return;
+  try {
+    const snap = await dbGet(dbRef(fb.db, `restricted/emergencyContacts/${EVENT_ID}/${orderNumber}`));
+    const c = snap.val();
+    logAudit('emergency_view', name);
+    if (!c || (!c.name && !c.phone)) {
+      body.innerHTML = '<div class="emergency-box muted">No emergency contact on file.</div>';
+      return;
+    }
+    const phone = c.phone ? `<a href="tel:${esc(String(c.phone).replace(/[^+\d]/g,''))}">${esc(c.phone)}</a>` : '—';
+    body.innerHTML = `<div class="emergency-box">
+        <div class="eb-row"><span class="eb-label">Name</span><span>${esc(c.name) || '—'}</span></div>
+        <div class="eb-row"><span class="eb-label">Phone</span><span>${phone}</span></div>
+      </div>`;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="emergency-box muted">Could not load (access denied).</div>';
+  }
+}
+
+// Render the audit-log panel (privileged only), newest entries first.
+const AUDIT_LABEL = {
+  checkin: 'checked in', checkin_undo: 'undid check-in',
+  jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
+  emergency_view: 'viewed emergency contact', rider_added: 'rider added'
+};
+function renderAudit(obj) {
+  const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const body = document.getElementById('audit-body');
+  if (!entries.length) { body.innerHTML = '<div class="audit-empty">No activity yet.</div>'; return; }
+  body.innerHTML = entries.map(e => {
+    const who = (e.actor || '').split('@')[0] || e.actor || 'someone';
+    const when = e.ts ? new Date(e.ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const action = AUDIT_LABEL[e.action] || e.action;
+    return `<div class="audit-row">
+        <span class="audit-when">${esc(when)}</span>
+        <span class="audit-who">${esc(who)}</span>
+        <span class="audit-action">${esc(action)}</span>
+        <span class="audit-target">${esc(e.target || '')}</span>
+      </div>`;
+  }).join('');
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && _openOrder) closeDetail(); });
@@ -696,7 +834,8 @@ function showSignedIn() {
 function showSignedOut() {
   show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
-  show('sync-note', false);
+  show('sync-note', false); show('audit-card', false);
+  _privileged = false;
   openAuth();
 }
 

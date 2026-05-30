@@ -13,10 +13,13 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                           │  columns into Firebase — PII never enters the payload
                           ▼
               Firebase Realtime Database (dedicated OutCycling.org project)
-                /eventRoster/{eventId}   safe roster     (sync writes, volunteers read)
-                /checkins/{eventId}      check-in state   (volunteers read + write, realtime)
-                /jerseys/{eventId}       jersey-pickup    (volunteers read + write, realtime)
+                /eventRoster/{eventId}   safe roster      (sync writes, volunteers read)
+                /checkins/{eventId}      check-in state    (volunteers read + write, realtime)
+                /jerseys/{eventId}       jersey-pickup     (volunteers read + write, realtime)
                 /meta/{eventId}/lastSync sync timestamp
+                /restricted/             AUTHORIZED ACCOUNTS ONLY (hard-coded in rules):
+                  emergencyContacts/…    emergency name+phone (sync writes; gated read)
+                  auditLog/…             activity log (append by any org user; gated read)
                           ▲
                           │  Google sign-in restricted to @outcycling.org,
                           │  enforced by firebase/database.rules.json
@@ -41,10 +44,31 @@ Rider name, route option, jersey size, registration tier (line item), quantity, 
 date, and whether the waiver was acknowledged.
 
 ### What is never synced (everything else)
-Email, phone, billing name/address, emergency contact name/phone, payment method/reference, all
-financial columns, private notes, channel info. Cancelled/refunded orders are filtered out (using
-those columns server-side without ever exporting them). The allowlist in `roster-sync.gs` is the
-single source of truth — new sheet columns leak nothing until explicitly added there.
+Email, phone, billing name/address, payment method/reference, all financial columns, private
+notes, channel info. Cancelled/refunded orders are filtered out (using those columns server-side
+without ever exporting them). The allowlist in `roster-sync.gs` is the single source of truth —
+new sheet columns leak nothing until explicitly added there.
+
+### Restricted data — emergency contacts & activity log (authorized accounts only)
+Emergency contact name/phone **is** synced, but ONLY to `/restricted/emergencyContacts`, which is
+never world- or even org-wide-readable. Read access is limited to a small list of emails
+**hard-coded in `firebase/database.rules.json`** (the `/restricted` `.read` expression). Those same
+accounts also see an **Activity Log** at the bottom of the page recording rider additions,
+check-ins, jersey pickups, the undo of each, and every emergency-contact reveal (who · what · when).
+
+- In the rider detail sheet, authorized users get a **🚑 Show emergency contact** button; the fetch
+  is itself rules-gated, so non-authorized users can't retrieve it even by forcing the call. Each
+  reveal writes an `emergency_view` audit entry.
+- Audit entries are **append-only**: any verified `@outcycling.org` user can write their own action
+  (so their check-ins get logged) but **cannot read the log back** — only authorized accounts can.
+
+**Managing who has access:** edit the email list in the single `/restricted` `.read` line of
+`firebase/database.rules.json`, then **Publish** (Realtime Database → Rules). Add a clause like
+`auth.token.email == 'name@outcycling.org'`; remove it to revoke. Takes effect immediately; no
+sign-out needed. This one list governs **both** emergency-contact visibility and the activity log.
+
+**Data handling:** after the event, delete `/restricted/emergencyContacts/{eventId}` (and optionally
+the audit log) from the Firebase console.
 
 ## Setup
 
@@ -94,3 +118,21 @@ opening the dashboard with `?event=<id>`.
 > **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`. If you
 > published the rules before this change, **re-publish them** (Realtime Database → Rules) or
 > jersey writes will be denied.
+
+## Enabling restricted emergency contacts + activity log
+1. **Edit the authorized-email list.** In `firebase/database.rules.json`, the `/restricted` `.read`
+   line currently has **placeholders** `pres@outcycling.org` and `med@outcycling.org`. Replace them
+   with the real coordinator emails (add/remove `auth.token.email == '…'` clauses), then **Publish**
+   the rules in the Firebase console.
+2. **Add the emergency columns to the sync.** `roster-sync.gs` already reads
+   `Product Form: Emergency Contact Name` and `Product Form: Emergency Contact Phone` into
+   `/restricted/emergencyContacts` (never `/eventRoster`). No Script Property changes are needed; the
+   existing admin service-account token can write `/restricted` (Admin bypasses rules). Re-run
+   `installTriggers()` only if you haven't already.
+3. **Verify the gate:** sign in as a listed account → the 🚑 button appears in a rider's detail sheet
+   and an **Activity Log** card shows at the bottom. Sign in as a non-listed `@outcycling.org` user →
+   neither appears, and a forced read of `/restricted/...` is denied in the console network tab.
+4. **Verify auditing:** a listed user reveals a contact → an `emergency_view` row appears. A normal
+   volunteer's check-in/jersey toggle appears as a row for listed users (the volunteer can't read the
+   log). Add a sheet row → after sync, a `rider_added` row (actor `sync`) appears.
+5. **After the event:** delete `/restricted/emergencyContacts/{eventId}` from the console.
