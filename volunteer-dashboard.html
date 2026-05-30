@@ -155,6 +155,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
       <option value="">All routes</option>
     </select>
     <span class="toggle-pill" id="hide-checked" onclick="toggleHideChecked()">Hide checked-in</span>
+    <span class="toggle-pill" id="hide-picked" onclick="toggleHidePicked()">Hide picked up</span>
     <span class="spacer"></span>
     <span class="user-badge" id="user-badge"></span>
     <button class="btn" onclick="signOutVolunteer()">Sign out</button>
@@ -281,6 +282,7 @@ let _jerseys = {};     // orderNumber → { pickedUp, by, at }
 let _lastSync = null;
 let _user = null;
 let _hideChecked = false;
+let _hidePicked = false;
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;   // order key of the rider whose detail sheet is open
 
@@ -444,8 +446,19 @@ function setSort(key) {
 }
 function toggleHideChecked() {
   _hideChecked = !_hideChecked;
-  document.getElementById('hide-checked').classList.toggle('on', _hideChecked);
+  if (_hideChecked) _hidePicked = false;   // only one hide-filter active at a time
+  syncFilterPills();
   render();
+}
+function toggleHidePicked() {
+  _hidePicked = !_hidePicked;
+  if (_hidePicked) _hideChecked = false;
+  syncFilterPills();
+  render();
+}
+function syncFilterPills() {
+  document.getElementById('hide-checked').classList.toggle('on', _hideChecked);
+  document.getElementById('hide-picked').classList.toggle('on', _hidePicked);
 }
 
 function render() {
@@ -458,6 +471,7 @@ function render() {
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
   if (routeF) rows = rows.filter(r => r.route === routeF);
   if (_hideChecked) rows = rows.filter(r => !r.checked);
+  if (_hidePicked) rows = rows.filter(r => !r.picked);
 
   const { key, dir } = _sort;
   rows.sort((a, b) => {
@@ -681,7 +695,7 @@ if (!CONFIGURED) {
 
 Object.assign(window, {
   signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
-  render, setSort, toggleHideChecked,
+  render, setSort, toggleHideChecked, toggleHidePicked,
   openDetail, closeDetail, detailBgClick
 });
 </script>
