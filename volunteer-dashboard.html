@@ -732,12 +732,19 @@ function renderDetail() {
     jBtn.onclick = () => pickUpJersey(r.orderNumber);
   }
 
-  // Emergency contact: only authorized accounts see the reveal control; the read
-  // itself is also rules-gated, so non-privileged users can't fetch it even if forced.
+  // Emergency contact: only authorized accounts see it; the read is also rules-gated,
+  // so non-privileged users can't fetch it even if forced. Rendered as a collapsible
+  // <details> that loads (and audits) once on first open and stays open.
   const em = document.getElementById('detail-emergency');
   if (_privileged) {
-    em.innerHTML = `<button class="detail-action-btn btn-emergency" id="reveal-emergency">🚑 Show emergency contact</button>`;
-    document.getElementById('reveal-emergency').onclick = () => revealEmergency(r.orderNumber, r.name);
+    em.innerHTML = `<details class="emergency-details" id="emergency-details">
+        <summary class="emergency-summary">🚑 Emergency contact</summary>
+        <div class="emergency-body" id="emergency-body"><div class="emergency-box muted">Loading…</div></div>
+      </details>`;
+    let loaded = false;
+    document.getElementById('emergency-details').addEventListener('toggle', function () {
+      if (this.open && !loaded) { loaded = true; revealEmergency(r.orderNumber, r.name); }
+    });
   } else {
     em.innerHTML = '';
   }
@@ -745,25 +752,24 @@ function renderDetail() {
 
 // Fetch + display a rider's emergency contact (privileged only), and audit the view.
 async function revealEmergency(orderNumber, name) {
-  const em = document.getElementById('detail-emergency');
-  em.innerHTML = '<div class="emergency-box">Loading…</div>';
+  const body = document.getElementById('emergency-body');
+  if (!body) return;
   try {
     const snap = await dbGet(dbRef(fb.db, `restricted/emergencyContacts/${EVENT_ID}/${orderNumber}`));
     const c = snap.val();
     logAudit('emergency_view', name);
     if (!c || (!c.name && !c.phone)) {
-      em.innerHTML = '<div class="emergency-box muted">No emergency contact on file.</div>';
+      body.innerHTML = '<div class="emergency-box muted">No emergency contact on file.</div>';
       return;
     }
     const phone = c.phone ? `<a href="tel:${esc(String(c.phone).replace(/[^+\d]/g,''))}">${esc(c.phone)}</a>` : '—';
-    em.innerHTML = `<div class="emergency-box">
-        <div class="eb-title">🚑 Emergency Contact</div>
+    body.innerHTML = `<div class="emergency-box">
         <div class="eb-row"><span class="eb-label">Name</span><span>${esc(c.name) || '—'}</span></div>
         <div class="eb-row"><span class="eb-label">Phone</span><span>${phone}</span></div>
       </div>`;
   } catch (e) {
     console.error(e);
-    em.innerHTML = '<div class="emergency-box muted">Could not load (access denied).</div>';
+    body.innerHTML = '<div class="emergency-box muted">Could not load (access denied).</div>';
   }
 }
 
