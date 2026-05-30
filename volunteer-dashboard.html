@@ -46,7 +46,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .stat-value.green{color:var(--green)}
 .stat-value.orange{color:var(--orange)}
 .stat-value.blue{color:var(--accent)}
-.breakdown{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 32px 16px}
+.section-label{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin:0 32px 8px}
+.route-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.route-cell{background:var(--surface);padding:14px 8px;text-align:center;min-width:0}
+.route-cell .rc-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);margin-bottom:6px;line-height:1.25;min-height:1.8em}
+.route-cell .rc-value{font-size:21px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace;line-height:1}
+.route-cell .rc-value .done{color:var(--green)}
+.route-cell .rc-total{color:var(--dimmer);font-size:15px}
+.breakdown{display:grid;grid-template-columns:1fr;gap:16px;margin:0 32px 16px}
 .bd-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-x:auto}
 .bd-title{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
 .bd-table{width:100%;border-collapse:collapse}
@@ -116,8 +123,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .toast.show{opacity:1}
 .sync-note{padding:0 32px 8px;font-size:10px;color:var(--dimmer);font-family:'DM Mono',monospace}
 @media(max-width:680px){
-  .header,.toolbar,.sync-note{padding-left:16px;padding-right:16px}
-  .card,.stats-row,.setup-banner{margin-left:16px;margin-right:16px}
+  .header,.toolbar,.sync-note,.section-label{padding-left:16px;padding-right:16px}
+  .section-label{margin-left:0;margin-right:0}
+  .card,.stats-row,.setup-banner,.route-stats,.breakdown{margin-left:16px;margin-right:16px}
   .search-input{max-width:none}
   .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
 }
@@ -158,14 +166,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
     <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
   </div>
 
+  <div class="section-label" id="route-stats-label" style="display:none">Checked in by route</div>
+  <div class="route-stats" id="route-stats" style="display:none"></div>
+
   <div class="breakdown" id="breakdown" style="display:none">
-    <div class="bd-card">
-      <div class="bd-title">By Route</div>
-      <table class="bd-table">
-        <thead><tr><th>Route</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
-        <tbody id="bd-route"></tbody>
-      </table>
-    </div>
     <div class="bd-card">
       <div class="bd-title">By Jersey Size</div>
       <table class="bd-table">
@@ -490,6 +494,7 @@ function render() {
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-checked').textContent = checked;
   document.getElementById('stat-jerseys').textContent = picked;
+  renderRouteStats(allRows);
   renderBreakdown(allRows);
 
   const empty = document.getElementById('empty-state');
@@ -547,8 +552,22 @@ function bdRowsHtml(groups, asRouteTag) {
   return body + footer;
 }
 function renderBreakdown(rows) {
-  document.getElementById('bd-route').innerHTML = bdRowsHtml(groupCounts(rows, r => r.route), true);
   document.getElementById('bd-size').innerHTML = bdRowsHtml(groupCounts(rows, r => r.jerseySize, SIZE_ORDER), false);
+}
+// Compact, prominent per-route check-in progress (checked-in / total). Wraps on
+// mobile via auto-fit grid, so it never needs horizontal scrolling.
+function renderRouteStats(rows) {
+  const groups = groupCounts(rows, r => r.route);
+  const el = document.getElementById('route-stats');
+  if (!groups.length) {
+    el.innerHTML = '<div class="route-cell"><div class="rc-label">No riders yet</div></div>';
+    return;
+  }
+  el.innerHTML = groups.map(g => `
+    <div class="route-cell">
+      <div class="rc-label" title="${esc(g.key)}">${esc(g.key)}</div>
+      <div class="rc-value"><span class="done">${g.checked}</span><span class="rc-total">/${g.total}</span></div>
+    </div>`).join('');
 }
 
 // ── Rider detail sheet ────────────────────────────────────────────────────────
@@ -624,7 +643,7 @@ function renderSyncNote() {
 // ── App shell wiring ──────────────────────────────────────────────────────────
 function showSignedIn() {
   closeAuth();
-  show('toolbar', true); show('stats', true); show('breakdown', true); show('table-card', true);
+  show('toolbar', true); show('stats', true); show('route-stats-label', true); show('route-stats', true); show('breakdown', true); show('table-card', true);
   document.getElementById('user-badge').textContent = _user.email;
   document.getElementById('event-subtitle').textContent =
     EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
@@ -632,7 +651,7 @@ function showSignedIn() {
   render();
 }
 function showSignedOut() {
-  show('toolbar', false); show('stats', false); show('breakdown', false); show('table-card', false);
+  show('toolbar', false); show('stats', false); show('route-stats-label', false); show('route-stats', false); show('breakdown', false); show('table-card', false);
   show('sync-note', false);
   openAuth();
 }

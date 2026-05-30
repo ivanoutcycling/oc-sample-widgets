@@ -31,8 +31,9 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   other's updates instantly. Each record stores who did it and when.
 - **Two independent annotations:** *Check-In* (rider has arrived) and *Jersey Picked Up* are
   tracked separately, so a jersey table and a check-in table can run as different stations.
-- **Live breakdown stats:** the dashboard shows totals plus a per-route and per-jersey-size
-  breakdown of how many riders signed up, checked in, and picked up their jersey.
+- **Live breakdown stats:** the dashboard shows overall totals, a compact per-route strip of
+  checked-in / signed-up counts (styled like the summary, wraps on mobile), and a per-jersey-size
+  table of signed-up / checked-in / picked-up counts.
 - **The master sheet is never modified** by the dashboard.
 
 ### What volunteers can see (allowlist)
