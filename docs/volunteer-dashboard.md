@@ -13,22 +13,33 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                           │  columns into Firebase — PII never enters the payload
                           ▼
               Firebase Realtime Database (dedicated OutCycling.org project)
+                /acl/superAdmins/{email}  super-admin allowlist (console-managed)
+                /acl/volunteers/{email}   volunteer allowlist  (super-admins manage in-app)
                 /eventRoster/{eventId}   safe roster      (sync writes, volunteers read)
                 /checkins/{eventId}      check-in state    (volunteers read + write, realtime)
                 /jerseys/{eventId}       jersey-pickup     (volunteers read + write, realtime)
                 /meta/{eventId}/lastSync sync timestamp
-                /restricted/             AUTHORIZED ACCOUNTS ONLY (hard-coded in rules):
-                  emergencyContacts/…    emergency name+phone (sync writes; gated read)
-                  auditLog/…             activity log (append by any org user; gated read)
+                /restricted/
+                  emergencyContacts/…    emergency name+phone (sync writes; volunteers + super-admins read)
+                  auditLog/…             activity log (append by anyone with access; super-admins read)
                           ▲
-                          │  Google sign-in restricted to @outcycling.org,
-                          │  enforced by firebase/database.rules.json
+                          │  Any verified Google account may sign in; ROLE is decided by
+                          │  the /acl lists, enforced by firebase/database.rules.json
                           │
               volunteer-dashboard.html (static page, like the other widgets)
 ```
 
-- **Auth:** volunteers sign in with their existing `@outcycling.org` Google account — no new
-  accounts. The page only *hints* at the domain; the actual enforcement is in the database rules.
+- **Auth & roles:** anyone can sign in with *any* verified Google account, but access is
+  **allowlist-driven**, not by email domain. A user's role is read from two global lists:
+  - **Super-admin** (`/acl/superAdmins`): everything a volunteer can do **plus** read the
+    Activity Log **plus** add/remove volunteers from the app.
+  - **Volunteer** (`/acl/volunteers`): the dashboard, check-in/out, jersey pickup, and viewing
+    emergency contacts — but **not** the Activity Log.
+  - **Anyone in neither list:** no access — they see a "not authorized yet" screen.
+
+  Enforcement is in the database rules; the page UI only mirrors it. Emails are keyed lowercased
+  with `.` replaced by `,` (RTDB keys can't contain `.`) — e.g. `Jo.Lee@gmail.com` →
+  `jo,lee@gmail,com`. Gmail dot/alias normalization is **not** applied, so add the exact address.
 - **Concurrency:** check-ins and jersey pickups are written to `/checkins` and `/jerseys` and
   streamed back via realtime listeners, so multiple volunteers on different devices see each
   other's updates instantly. Each record stores who did it and when.
@@ -49,26 +60,37 @@ notes, channel info. Cancelled/refunded orders are filtered out (using those col
 without ever exporting them). The allowlist in `roster-sync.gs` is the single source of truth —
 new sheet columns leak nothing until explicitly added there.
 
-### Restricted data — emergency contacts & activity log (authorized accounts only)
+### Restricted data — emergency contacts & activity log
 Emergency contact name/phone **is** synced, but ONLY to `/restricted/emergencyContacts`, which is
-never world- or even org-wide-readable. Read access is limited to a small list of emails
-**hard-coded in `firebase/database.rules.json`** (the `/restricted` `.read` expression). Those same
-accounts also see an **Activity Log** at the bottom of the page recording rider additions,
-check-ins, jersey pickups, the undo of each, and every emergency-contact reveal (who · what · when).
+never world-readable. Read access requires a role (volunteer **or** super-admin) — accounts in
+neither allowlist can't retrieve it even by forcing the call.
 
-- In the rider detail sheet, authorized users get a **🚑 Show emergency contact** button; the fetch
-  is itself rules-gated, so non-authorized users can't retrieve it even by forcing the call. Each
-  reveal writes an `emergency_view` audit entry.
-- Audit entries are **append-only**: any verified `@outcycling.org` user can write their own action
-  (so their check-ins get logged) but **cannot read the log back** — only authorized accounts can.
+- In the rider detail sheet, anyone with access gets a **🚑 Show emergency contact** disclosure.
+  Each reveal writes an `emergency_view` audit entry.
+- The **Activity Log** (rider additions, check-ins, jersey pickups, the undo of each, every
+  emergency-contact reveal, and volunteer add/remove — who · what · when) is readable by
+  **super-admins only**.
+- Audit entries are **append-only**: anyone with access can write their own action (so their
+  check-ins and emergency-views get logged) but **cannot read the log back** — only super-admins can.
 
-**Managing who has access:** edit the email list in the single `/restricted` `.read` line of
-`firebase/database.rules.json`, then **Publish** (Realtime Database → Rules). Add a clause like
-`auth.token.email == 'name@outcycling.org'`; remove it to revoke. Takes effect immediately; no
-sign-out needed. This one list governs **both** emergency-contact visibility and the activity log.
+**Managing who has access (super-admins):** open the dashboard's **Manage Volunteers** card (visible
+to super-admins) and add or remove volunteer emails. Changes take effect on the volunteer's next
+sign-in/refresh; each add/remove is itself audited. The **super-admin** list is console-managed only
+(the rules make `/acl/superAdmins` read-only from the app) — see "Seeding the first super-admin".
 
 **Data handling:** after the event, delete `/restricted/emergencyContacts/{eventId}` (and optionally
 the audit log) from the Firebase console.
+
+### Seeding the first super-admin (console)
+The app cannot bootstrap its own first super-admin by design. In the Firebase console → Realtime
+Database, create:
+
+```
+/acl/superAdmins/<email-lowercased-dots-as-commas>: true
+```
+
+e.g. key `ivan@outcycling,org` with value `true` (a boolean). That account can then sign in, see the
+**Manage Volunteers** card, and add everyone else. To add more super-admins, repeat in the console.
 
 ## Setup
 
@@ -105,8 +127,10 @@ Run several rides off one project by giving each its own `EVENT_ID` in Script Pr
 opening the dashboard with `?event=<id>`.
 
 ## Verification checklist
-1. Sign in with an `@outcycling.org` account → roster loads. Sign in with a personal Gmail →
-   rejected, no data shown.
+1. Seed a super-admin in the console (see "Seeding the first super-admin"). Sign in as that account
+   → roster loads, Activity Log + Manage Volunteers cards show. Sign in with an account in **no**
+   allowlist → "not authorized yet" screen, no data shown. Add that account via Manage Volunteers,
+   refresh → roster loads, but **no** Activity Log card (volunteer, not super-admin).
 2. In the Firebase console, inspect `/eventRoster` and the page's network traffic — confirm no
    email/phone/address/payment fields are present.
 3. Edit a jersey size in the sheet → within ~5 min (or immediately on save) the dashboard updates.
@@ -120,19 +144,20 @@ opening the dashboard with `?event=<id>`.
 > jersey writes will be denied.
 
 ## Enabling restricted emergency contacts + activity log
-1. **Edit the authorized-email list.** In `firebase/database.rules.json`, the `/restricted` `.read`
-   line currently has **placeholders** `pres@outcycling.org` and `med@outcycling.org`. Replace them
-   with the real coordinator emails (add/remove `auth.token.email == '…'` clauses), then **Publish**
-   the rules in the Firebase console.
+1. **Seed at least one super-admin** in the console (see "Seeding the first super-admin"), then have
+   them add volunteers via the **Manage Volunteers** card. Volunteers can view emergency contacts;
+   only super-admins read the Activity Log.
 2. **Add the emergency columns to the sync.** `roster-sync.gs` already reads
    `Product Form: Emergency Contact Name` and `Product Form: Emergency Contact Phone` into
    `/restricted/emergencyContacts` (never `/eventRoster`). No Script Property changes are needed; the
    existing admin service-account token can write `/restricted` (Admin bypasses rules). Re-run
    `installTriggers()` only if you haven't already.
-3. **Verify the gate:** sign in as a listed account → the 🚑 button appears in a rider's detail sheet
-   and an **Activity Log** card shows at the bottom. Sign in as a non-listed `@outcycling.org` user →
-   neither appears, and a forced read of `/restricted/...` is denied in the console network tab.
-4. **Verify auditing:** a listed user reveals a contact → an `emergency_view` row appears. A normal
-   volunteer's check-in/jersey toggle appears as a row for listed users (the volunteer can't read the
-   log). Add a sheet row → after sync, a `rider_added` row (actor `sync`) appears.
+3. **Verify the gate:** sign in as a volunteer → the 🚑 disclosure appears in a rider's detail sheet,
+   but **no** Activity Log card. Sign in as a super-admin → both appear. Sign in as an account in no
+   list → "not authorized yet" screen, and a forced read of `/restricted/...` is denied in the
+   console network tab.
+4. **Verify auditing:** anyone with access reveals a contact → an `emergency_view` row appears in the
+   super-admin's Activity Log. A volunteer's check-in/jersey toggle appears as a row (the volunteer
+   can't read the log). A super-admin add/remove shows `volunteer_added`/`volunteer_removed`. Add a
+   sheet row → after sync, a `rider_added` row (actor `sync`) appears.
 5. **After the event:** delete `/restricted/emergencyContacts/{eventId}` from the console.
