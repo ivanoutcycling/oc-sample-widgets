@@ -39,7 +39,10 @@ var ALLOWLIST = {
   createdAt:    'Created at'
 };
 
-// Header for the order id (used as the record key) and the waiver checkbox.
+// Header for the order id (the base of each record key) and the waiver checkbox.
+// NOTE: an order number is NOT unique per rider — a single checkout can register
+// several people (group registration), so the key is order number + a per-registrant
+// suffix when needed. See buildRoster_() for how registrants are split out.
 var ORDER_HEADER  = 'Order Number';
 var WAIVER_HEADER = 'Product Form: I have read and acknowledge the ride waiver at https://www.outcycling.org/terms';
 
@@ -67,6 +70,45 @@ function toBool_(v) {
   return !/^(no|false|0|unchecked|n)$/.test(s);
 }
 
+/**
+ * Build one safe roster record (and its restricted emergency entry) from a set of
+ * spreadsheet rows that all belong to the SAME registrant, and store them under `key`.
+ *
+ * A single registrant can span several rows because Squarespace splits multi-line-item
+ * orders across rows and the form fields live on whichever row carried them — so we merge
+ * across the given rows, preferring the first non-empty value seen.
+ */
+function addRecord_(roster, emergency, col, key, orderNumber, rows) {
+  var rec = { orderNumber: orderNumber, waiver: false };
+  var em = {};
+
+  rows.forEach(function (row) {
+    Object.keys(ALLOWLIST).forEach(function (field) {
+      var header = ALLOWLIST[field];
+      if (!(header in col)) return;
+      var val = row[col[header]];
+      if (val instanceof Date) val = val.toISOString();
+      val = (val == null) ? '' : (typeof val === 'string' ? val.trim() : val);
+      if (rec[field] == null || rec[field] === '') rec[field] = val;
+    });
+
+    if (WAIVER_HEADER in col && toBool_(row[col[WAIVER_HEADER]])) rec.waiver = true;
+
+    // Emergency contact → restricted map only (first non-empty value wins).
+    if (EMERGENCY_NAME_HEADER in col && !em.name) {
+      var nm = String(row[col[EMERGENCY_NAME_HEADER]] == null ? '' : row[col[EMERGENCY_NAME_HEADER]]).trim();
+      if (nm) em.name = nm;
+    }
+    if (EMERGENCY_PHONE_HEADER in col && !em.phone) {
+      var ph = String(row[col[EMERGENCY_PHONE_HEADER]] == null ? '' : row[col[EMERGENCY_PHONE_HEADER]]).trim();
+      if (ph) em.phone = ph;
+    }
+  });
+
+  roster[key] = rec;
+  if (em.name || em.phone) emergency[key] = em;
+}
+
 /** Read the orders sheet and build the safe roster + the restricted emergency map. */
 function buildRoster_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -83,8 +125,10 @@ function buildRoster_() {
 
   if (!(ORDER_HEADER in col)) throw new Error('Missing "' + ORDER_HEADER + '" column');
 
-  var roster = {};
-  var emergency = {};
+  // ── Pass 1 ────────────────────────────────────────────────────────────────
+  // Keep surviving rows, grouped by order number in first-seen (sheet) order.
+  var orderKeys = [];                 // preserves the order in which orders appear
+  var rowsByOrder = {};               // orderKey → { orderNumber, rows: [...] }
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
     var rawOrder = row[col[ORDER_HEADER]];
@@ -97,37 +141,49 @@ function buildRoster_() {
       if (fin === 'refunded' || fin === 'voided' || fin === 'partially_refunded') continue;
     }
 
-    var key = sanitizeKey_(rawOrder);
-    var rec = roster[key] || { orderNumber: String(rawOrder).trim(), waiver: false };
+    var okey = sanitizeKey_(rawOrder);
+    if (!(okey in rowsByOrder)) {
+      rowsByOrder[okey] = { orderNumber: String(rawOrder).trim(), rows: [] };
+      orderKeys.push(okey);
+    }
+    rowsByOrder[okey].rows.push(row);
+  }
 
-    // Copy only allowlisted fields; prefer the first non-empty value seen for the order
-    // (Squarespace splits multi-line-item orders across rows; the registrant form fields
-    // live on the row that has them).
-    Object.keys(ALLOWLIST).forEach(function (field) {
-      var header = ALLOWLIST[field];
-      if (!(header in col)) return;
-      var val = row[col[header]];
-      if (val instanceof Date) val = val.toISOString();
-      val = (val == null) ? '' : (typeof val === 'string' ? val.trim() : val);
-      if (rec[field] == null || rec[field] === '') rec[field] = val;
+  // ── Pass 2 ────────────────────────────────────────────────────────────────
+  // Emit one roster record PER REGISTRANT, not per order. A row carries a
+  // registrant when it has a non-empty "Product Form: Name"; group registrations
+  // (one checkout, several riders) put multiple such rows under one order number.
+  // Keying by order number alone collapsed those riders into one and silently
+  // dropped the rest — this splits them back out so nobody is lost.
+  var nameCol = (ALLOWLIST.name in col) ? col[ALLOWLIST.name] : -1;
+  var roster = {};
+  var emergency = {};
+
+  orderKeys.forEach(function (okey) {
+    var grp = rowsByOrder[okey];
+    var rows = grp.rows;
+
+    // Rows that actually represent a registrant (have a name on them).
+    var registrantRows = (nameCol < 0) ? [] : rows.filter(function (row) {
+      return String(row[nameCol] == null ? '' : row[nameCol]).trim() !== '';
     });
 
-    if (WAIVER_HEADER in col && toBool_(row[col[WAIVER_HEADER]])) rec.waiver = true;
-
-    roster[key] = rec;
-
-    // Emergency contact → restricted map only (first non-empty value per order wins).
-    var em = emergency[key] || {};
-    if (EMERGENCY_NAME_HEADER in col && !em.name) {
-      var nm = String(row[col[EMERGENCY_NAME_HEADER]] == null ? '' : row[col[EMERGENCY_NAME_HEADER]]).trim();
-      if (nm) em.name = nm;
+    if (registrantRows.length <= 1) {
+      // Zero or one registrant: one record per order, merging every row — this
+      // preserves the original behaviour (and the bare order-number key, so any
+      // existing check-in / jersey state stays attached) for the common case.
+      addRecord_(roster, emergency, col, okey, grp.orderNumber, rows);
+    } else {
+      // Group registration: one record per registrant row. The first registrant
+      // keeps the plain order key (check-in continuity); the rest get a stable
+      // "__2", "__3" … suffix so each rider has a distinct, repeatable identity.
+      registrantRows.forEach(function (row, i) {
+        var key = (i === 0) ? okey : okey + '__' + (i + 1);
+        addRecord_(roster, emergency, col, key, grp.orderNumber, [row]);
+      });
     }
-    if (EMERGENCY_PHONE_HEADER in col && !em.phone) {
-      var ph = String(row[col[EMERGENCY_PHONE_HEADER]] == null ? '' : row[col[EMERGENCY_PHONE_HEADER]]).trim();
-      if (ph) em.phone = ph;
-    }
-    if (em.name || em.phone) emergency[key] = em;
-  }
+  });
+
   return { roster: roster, emergency: emergency };
 }
 
