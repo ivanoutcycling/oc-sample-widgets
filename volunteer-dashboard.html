@@ -134,6 +134,15 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .audit-action{color:var(--muted)}
 .audit-target{font-weight:500;grid-column:2 / -1}
 .audit-empty{color:var(--dimmer);font-size:12px;padding:8px 4px}
+.manage-card{margin:0 32px 16px}
+.manage-add{display:flex;gap:8px;padding:6px 4px 12px}
+.manage-add .search-input{flex:1}
+.manage-row{display:flex;align-items:center;gap:10px;padding:7px 4px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,0.04)}
+.manage-row:last-child{border-bottom:none}
+.manage-em{flex:1;font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manage-remove{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1;flex:none}
+.manage-remove:hover{color:#c0392b;border-color:rgba(192,57,43,0.4)}
+.manage-empty{color:var(--dimmer);font-size:12px;padding:8px 4px}
 @media(max-width:680px){
   .audit-row{grid-template-columns:1fr auto}
   .audit-when{grid-column:1 / -1}
@@ -158,7 +167,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 @media(max-width:680px){
   .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
   .section-label,.section-head{margin-left:0;margin-right:0}
-  .card,.stats-row,.setup-banner,.route-stats,.breakdown,.audit-card{margin-left:16px;margin-right:16px}
+  .card,.stats-row,.setup-banner,.route-stats,.breakdown,.audit-card,.manage-card{margin-left:16px;margin-right:16px}
   .search-input{max-width:none}
   .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
 }
@@ -244,10 +253,22 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     </div>
   </div>
 
-  <!-- Activity log: visible only to accounts authorized for restricted data -->
+  <!-- Activity log: super-admins only -->
   <details class="bd-card audit-card" id="audit-card" style="display:none">
     <summary class="bd-title">Activity Log</summary>
     <div id="audit-body"></div>
+  </details>
+
+  <!-- Volunteer management: super-admins only. Controls who can see the dashboard
+       and emergency contacts. (Super-admins themselves are managed in the console.) -->
+  <details class="bd-card manage-card" id="manage-card" style="display:none">
+    <summary class="bd-title">Manage Volunteers</summary>
+    <div class="manage-add">
+      <input class="search-input" id="manage-email" type="email" placeholder="volunteer@example.com"
+             onkeydown="if(event.key==='Enter')addVolunteer()">
+      <button class="btn" onclick="addVolunteer()">Add</button>
+    </div>
+    <div id="manage-list"></div>
   </details>
 
   <div class="sync-note" id="sync-note" style="display:none"></div>
@@ -257,12 +278,15 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 <div class="overlay" id="auth-overlay">
   <div class="overlay-panel">
     <h3>Volunteer Sign In</h3>
-    <p>Sign in with your <strong>@outcycling.org</strong> Google account to view the rider roster and manage check-in.</p>
+    <p>Sign in with your <strong>Google account</strong> to view the rider roster and manage check-in. Access is granted by an OutCycling super-admin.</p>
     <button class="google-btn" id="google-signin-btn" onclick="signInWithGoogle()">
       <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Sign in with Google
     </button>
     <div class="ov-status" id="auth-status"></div>
+    <div id="locked-actions" style="display:none;margin-top:14px">
+      <button class="btn" onclick="signOutVolunteer()">Sign out / use another account</button>
+    </div>
   </div>
 </div>
 
@@ -305,9 +329,13 @@ const FIREBASE_CONFIG = {
   appId: "1:469117752003:web:a5ae9713708d7b7cd2c876"
 };
 
-const ALLOWED_DOMAIN = 'outcycling.org';
 // Which event/roster to show. Override with ?event=<id> to run multiple rides.
 const EVENT_ID = new URLSearchParams(location.search).get('event') || 'default';
+
+// Access is allowlist-driven (not by email domain). A user's role is read from
+// the global /acl lists, keyed by their email lowercased with '.' replaced by ','
+// (RTDB keys cannot contain '.'). The same encoding is used by the security rules.
+const aclKey = email => String(email || '').toLowerCase().replace(/\./g, ',');
 
 const CONFIGURED = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE');
 
@@ -319,7 +347,7 @@ if (CONFIGURED) {
     fb = { db: getDatabase(app) };
     fbAuth = getAuth(app);
     provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: 'select_account' });
+    provider.setCustomParameters({ prompt: 'select_account' });
   } catch (e) { console.error('Firebase init failed', e); }
 }
 
@@ -332,7 +360,9 @@ let _user = null;
 let _hideChecked = false;
 let _hidePicked = false;
 let _routeShowCheckins = false;   // route strip: off = totals only, on = checked-in/total
-let _privileged = false;          // can read /restricted (emergency contacts + audit log)
+let _role = 'none';               // 'none' | 'volunteer' | 'superadmin'
+const hasAccess = () => _role !== 'none';            // sees dashboard + emergency contacts
+const isSuperAdmin = () => _role === 'superadmin';   // also reads audit log + manages volunteers
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;   // order key of the rider whose detail sheet is open
 
@@ -390,9 +420,27 @@ async function signOutVolunteer() {
   if (fbAuth) await fbSignOut(fbAuth);
 }
 
+// A usable Google account. Whether the account actually has access is decided by
+// its role in the /acl lists (see determineRole), not by email domain.
 function isAllowed(user) {
-  return !!(user && user.email && user.emailVerified &&
-            user.email.toLowerCase().endsWith('@' + ALLOWED_DOMAIN));
+  return !!(user && user.email && user.emailVerified);
+}
+
+// Determine the signed-in user's role from the /acl lists. Each user can read its
+// OWN entry under acl/superAdmins and acl/volunteers (rules grant own-entry reads),
+// so these one-shot get()s succeed for anyone signed in. Returns 'superadmin',
+// 'volunteer', or 'none'.
+async function determineRole() {
+  const key = aclKey(_user.email);
+  try {
+    const sa = await dbGet(dbRef(fb.db, `acl/superAdmins/${key}`));
+    if (sa.val() === true) return 'superadmin';
+    const vol = await dbGet(dbRef(fb.db, `acl/volunteers/${key}`));
+    if (vol.val() === true) return 'volunteer';
+  } catch (e) {
+    console.warn('role check failed', e);
+  }
+  return 'none';
 }
 
 // ── Data subscriptions (realtime) ─────────────────────────────────────────────
@@ -419,24 +467,21 @@ function subscribeData() {
     _lastSync = snap.val();
     renderSyncNote();
   }, () => {});
+}
 
-  // Privilege probe. IMPORTANT: we use a one-shot get(), not a persistent onValue().
-  // A permanently permission-denied onValue on restricted/auditLog interferes with a
-  // non-privileged user's OWN writes to that same path (logAudit), which in turn was
-  // disrupting their check-in/jersey writes from reflecting. So non-privileged users keep
-  // NO active listener on restricted/*; only authorized users attach the live audit feed.
+// Super-admin-only live feeds. IMPORTANT: only super-admins ever attach a listener
+// under restricted/*. A permanently permission-denied onValue on restricted/auditLog
+// interferes with a non-super-admin's OWN writes to that same path (logAudit), which
+// in turn disrupted their check-in/jersey writes from reflecting. Volunteers keep NO
+// active listener on restricted/*; they only fire-and-forget audit appends and read
+// emergency contacts on demand via get().
+let _adminSubscribed = false;
+function subscribeAdmin() {
+  if (_adminSubscribed || !fb) return;
+  _adminSubscribed = true;
   const auditQuery = dbQuery(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), limitToLast(150));
-  dbGet(auditQuery).then(snap => {
-    _privileged = true;
-    document.getElementById('audit-card').style.display = '';
-    renderAudit(snap.val() || {});
-    if (_openOrder) renderDetail();   // reveal the emergency section if a sheet is open
-    // Now that we know we're allowed, attach the live feed (privileged users only).
-    onValue(auditQuery, s => renderAudit(s.val() || {}), e => console.warn('audit feed', e));
-  }).catch(() => {
-    _privileged = false;
-    document.getElementById('audit-card').style.display = 'none';
-  });
+  onValue(auditQuery, s => renderAudit(s.val() || {}), e => console.warn('audit feed', e));
+  onValue(dbRef(fb.db, 'acl/volunteers'), s => renderVolunteers(s.val() || {}), e => console.warn('volunteers feed', e));
 }
 
 // ── Check-in actions ──────────────────────────────────────────────────────────
@@ -485,6 +530,43 @@ async function undoPickUp(orderNumber) {
     logAudit('jersey_undo', riderName(orderNumber));
     toast('Jersey pickup undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+
+// ── Volunteer management (super-admins only) ────────────────────────────────────
+// Super-admins maintain the volunteer allowlist — i.e. who may see the dashboard
+// and emergency contacts. (The super-admin list itself is console-managed; rules
+// make acl/superAdmins read-only here.) Writes are gated by the security rules too.
+async function addVolunteer() {
+  if (!fb || !isSuperAdmin()) return;
+  const input = document.getElementById('manage-email');
+  const email = (input.value || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('Enter a valid email'); return; }
+  try {
+    await dbSet(dbRef(fb.db, `acl/volunteers/${aclKey(email)}`), true);
+    logAudit('volunteer_added', email);
+    input.value = '';
+    toast('Volunteer added');
+  } catch (e) { console.error(e); toast('Add failed: ' + (e.message || e.code)); }
+}
+async function removeVolunteer(email) {
+  if (!fb || !isSuperAdmin()) return;
+  try {
+    await dbRemove(dbRef(fb.db, `acl/volunteers/${aclKey(email)}`));
+    logAudit('volunteer_removed', email);
+    toast('Volunteer removed');
+  } catch (e) { console.error(e); toast('Remove failed: ' + (e.message || e.code)); }
+}
+// Render the volunteer allowlist (decode key ',' → '.'); each row removable.
+function renderVolunteers(obj) {
+  const body = document.getElementById('manage-list');
+  if (!body) return;
+  const emails = Object.keys(obj || {}).filter(k => obj[k] === true)
+    .map(k => k.replace(/,/g, '.')).sort();
+  if (!emails.length) { body.innerHTML = '<div class="manage-empty">No volunteers yet. Add one above.</div>'; return; }
+  body.innerHTML = emails.map(em => `<div class="manage-row">
+      <span class="manage-em">${esc(em)}</span>
+      <button class="manage-remove" title="Remove" onclick="removeVolunteer('${esc(em).replace(/'/g, "\\'")}')">✕</button>
+    </div>`).join('');
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -740,14 +822,14 @@ function renderDetail() {
     jBtn.onclick = () => pickUpJersey(r.orderNumber);
   }
 
-  // Emergency contact: only authorized accounts see it; the read is also rules-gated,
-  // so non-privileged users can't fetch it even if forced. Rendered as a collapsible
-  // <details> that loads (and audits) once on first open and stays open. The block is
-  // idempotent — if it's already rendered for this same rider it is left untouched, so a
-  // background re-render (another volunteer's check-in, our own audit write) can't collapse
-  // a disclosure the user just opened.
+  // Emergency contact: every account with access (volunteers + super-admins) sees it;
+  // the read is also rules-gated, so accounts without access can't fetch it even if
+  // forced. Rendered as a collapsible <details> that loads (and audits) once on first
+  // open and stays open. The block is idempotent — if it's already rendered for this
+  // same rider it is left untouched, so a background re-render (another volunteer's
+  // check-in, our own audit write) can't collapse a disclosure the user just opened.
   const em = document.getElementById('detail-emergency');
-  if (_privileged) {
+  if (hasAccess()) {
     if (em.dataset.order !== r.orderNumber) {
       em.dataset.order = r.orderNumber;
       em.innerHTML = `<details class="emergency-details" id="emergency-details">
@@ -792,7 +874,8 @@ async function revealEmergency(orderNumber, name) {
 const AUDIT_LABEL = {
   checkin: 'checked in', checkin_undo: 'undid check-in',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
-  emergency_view: 'viewed emergency contact', rider_added: 'rider added'
+  emergency_view: 'viewed emergency contact', rider_added: 'rider added',
+  volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer'
 };
 function renderAudit(obj) {
   const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -821,6 +904,11 @@ function renderSyncNote() {
 }
 
 // ── App shell wiring ──────────────────────────────────────────────────────────
+function hideAppSurfaces() {
+  show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
+  show('breakdown', false); show('filterbar', false); show('table-card', false);
+  show('sync-note', false); show('audit-card', false); show('manage-card', false);
+}
 function showSignedIn() {
   closeAuth();
   show('topbar', true); show('stats', true); show('route-stats-head', true); show('route-stats', true);
@@ -828,28 +916,43 @@ function showSignedIn() {
   document.getElementById('user-badge').textContent = _user.email;
   document.getElementById('event-subtitle').textContent =
     EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
+  // Super-admins additionally see the activity log and the volunteer-management panel.
+  show('audit-card', isSuperAdmin());
+  show('manage-card', isSuperAdmin());
+  if (isSuperAdmin()) subscribeAdmin();
   subscribeData();
   render();
 }
 function showSignedOut() {
-  show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
-  show('breakdown', false); show('filterbar', false); show('table-card', false);
-  show('sync-note', false); show('audit-card', false);
-  _privileged = false;
+  hideAppSurfaces();
+  document.getElementById('locked-actions').style.display = 'none';
+  setAuthStatus('');
+  _role = 'none';
+  openAuth();
+}
+// Signed in with a verified Google account that isn't on any allowlist.
+function showNoAccess() {
+  hideAppSurfaces();
+  _role = 'none';
+  document.getElementById('locked-actions').style.display = '';
+  setAuthStatus(`${_user && _user.email ? _user.email : 'That account'} isn't authorized yet. Ask an OutCycling super-admin to add you, then sign in again.`, true);
   openAuth();
 }
 
 if (!CONFIGURED) {
   document.getElementById('setup-banner').style.display = 'block';
 } else if (fbAuth) {
-  onAuthStateChanged(fbAuth, user => {
+  onAuthStateChanged(fbAuth, async user => {
     if (user && isAllowed(user)) {
       _user = user;
-      showSignedIn();
+      setAuthStatus('Checking access…');
+      _role = await determineRole();
+      if (hasAccess()) showSignedIn();
+      else showNoAccess();
     } else if (user) {
-      // Signed in with a non-allowed account.
+      // Signed in with an unverified account — can't be authorized.
       _user = null;
-      setAuthStatus(`${user.email || 'That account'} is not an @${ALLOWED_DOMAIN} account. Sign in with your OutCycling account.`, true);
+      setAuthStatus(`${user.email || 'That account'} has no verified email. Use a Google account with a verified email.`, true);
       fbSignOut(fbAuth);
       showSignedOut();
     } else {
@@ -864,6 +967,7 @@ if (!CONFIGURED) {
 
 Object.assign(window, {
   signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
+  addVolunteer, removeVolunteer,
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick
 });

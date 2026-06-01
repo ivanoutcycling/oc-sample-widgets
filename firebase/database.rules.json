@@ -3,25 +3,44 @@
     ".read": false,
     ".write": false,
 
+    "acl": {
+      ".read": false,
+      ".write": false,
+      "superAdmins": {
+        ".write": false,
+        "$e": {
+          ".read": "auth != null && $e == auth.token.email.toLowerCase().replace('.', ',')"
+        }
+      },
+      "volunteers": {
+        ".read": "auth != null && auth.token.email_verified == true && root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true",
+        ".write": "auth != null && auth.token.email_verified == true && root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true",
+        "$e": {
+          ".read": "auth != null && $e == auth.token.email.toLowerCase().replace('.', ',')",
+          ".validate": "newData.isBoolean() || !newData.exists()"
+        }
+      }
+    },
+
     "eventRoster": {
       "$eventId": {
-        ".read": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+        ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
         ".write": false
       }
     },
 
     "meta": {
       "$eventId": {
-        ".read": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+        ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
         ".write": false
       }
     },
 
     "checkins": {
       "$eventId": {
-        ".read": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+        ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
         "$orderNumber": {
-          ".write": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+          ".write": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
           ".validate": "newData.hasChildren(['checkedIn', 'by']) || !newData.exists()",
           "checkedIn": { ".validate": "newData.isBoolean()" },
           "by": { ".validate": "newData.isString() && newData.val() == auth.token.email" },
@@ -33,9 +52,9 @@
 
     "jerseys": {
       "$eventId": {
-        ".read": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+        ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
         "$orderNumber": {
-          ".write": "auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+          ".write": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
           ".validate": "newData.hasChildren(['pickedUp', 'by']) || !newData.exists()",
           "pickedUp": { ".validate": "newData.isBoolean()" },
           "by": { ".validate": "newData.isString() && newData.val() == auth.token.email" },
@@ -46,16 +65,18 @@
     },
 
     "restricted": {
-      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'pres@outcycling.org' || auth.token.email == 'med@outcycling.org')",
-
       "emergencyContacts": {
-        "$eventId": { ".write": false }
+        "$eventId": {
+          ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
+          ".write": false
+        }
       },
 
       "auditLog": {
         "$eventId": {
+          ".read": "auth != null && auth.token.email_verified == true && root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true",
           "$entry": {
-            ".write": "!data.exists() && newData.exists() && auth != null && auth.token.email_verified == true && auth.token.email.matches(/@outcycling[.]org$/)",
+            ".write": "!data.exists() && newData.exists() && auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
             ".validate": "newData.hasChildren(['ts', 'actor', 'action'])",
             "actor":  { ".validate": "newData.val() == auth.token.email" },
             "action": { ".validate": "newData.isString()" },
