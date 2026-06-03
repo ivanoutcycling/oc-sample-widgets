@@ -177,6 +177,16 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
 .toast.show{opacity:1}
 .sync-note{padding:0 32px 8px;font-size:10px;color:var(--dimmer);font-family:'DM Mono',monospace}
+/* ── Field overrides (route / jersey size editing) ─────────────────────────── */
+.field-edit-btn{background:none;border:none;color:var(--dimmer);cursor:pointer;font-size:13px;padding:1px 5px;border-radius:4px;line-height:1;vertical-align:middle;opacity:0.55;margin-left:4px;transition:opacity .15s}
+.field-edit-btn:hover{opacity:1;color:var(--accent);background:rgba(59,130,246,0.1)}
+.field-edit-row{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.field-edit-select{background:var(--surface);border:1.5px solid rgba(59,130,246,0.5);border-radius:7px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;outline:none;cursor:pointer;flex:1}
+.field-edit-confirm{background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px;line-height:1;transition:background .15s}
+.field-edit-confirm:hover{background:#08923f}
+.field-edit-cancel{background:rgba(17,17,40,0.07);color:var(--muted);border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px;line-height:1;transition:background .15s}
+.field-edit-cancel:hover{background:rgba(17,17,40,0.14);color:var(--text)}
+.override-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:0.3px;padding:1px 6px;border-radius:4px;background:rgba(234,179,8,0.15);color:#92600a;border:1px solid rgba(234,179,8,0.35);margin-left:5px;vertical-align:middle}
 @media(max-width:680px){
   .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
   .section-label,.section-head{margin-left:0;margin-right:0}
@@ -385,6 +395,7 @@ if (CONFIGURED) {
 let _roster = {};      // orderNumber → roster record
 let _checkins = {};    // orderNumber → { checkedIn, by, at }
 let _jerseys = {};     // orderNumber → { pickedUp, by, at }
+let _overrides = {};   // orderNumber → { route?, jerseySize?, by, at } — day-of corrections
 let _inventory = {};   // { sizes: { <size>: count } } — jersey stock (super-admin managed)
 let _invEnabled = true; // per-user toggle: show count / stock comparison in breakdown
 let _lastSync = null;
@@ -397,7 +408,8 @@ const hasAccess = () => _role !== 'none';            // sees dashboard + emergen
 const isSuperAdmin = () => _role === 'superadmin';   // also reads audit log + manages volunteers
 const invEnabled = () => _invEnabled;   // x / y comparison mode on?
 let _sort = { key: 'name', dir: 1 };
-let _openOrder = null;   // order key of the rider whose detail sheet is open
+let _openOrder = null;    // order key of the rider whose detail sheet is open
+let _editingField = null; // 'route' | 'jerseySize' | null — inline edit state in detail sheet
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -495,6 +507,11 @@ function subscribeData() {
     _jerseys = snap.val() || {};
     render();
   }, err => { console.error('jerseys read denied', err); });
+
+  onValue(dbRef(fb.db, `overrides/${EVENT_ID}`), snap => {
+    _overrides = snap.val() || {};
+    render();
+  }, err => { console.warn('overrides read denied', err); });
 
   onValue(dbRef(fb.db, `jerseyInventory/${EVENT_ID}`), snap => {
     _inventory = snap.val() || {};
@@ -654,16 +671,19 @@ function rosterRows() {
   return Object.entries(_roster).map(([orderNumber, r]) => {
     const c = _checkins[orderNumber];
     const j = _jerseys[orderNumber];
+    const ov = _overrides[orderNumber];
     return {
       orderNumber,
       orderLabel: r.orderNumber || orderNumber,
       name: r.name || '(no name)',
-      route: r.route || '',
-      jerseySize: r.jerseySize || '',
+      route: (ov && ov.route != null) ? ov.route : (r.route || ''),
+      jerseySize: (ov && ov.jerseySize != null) ? ov.jerseySize : (r.jerseySize || ''),
       lineItemName: r.lineItemName || '',
       quantity: r.quantity || 1,
       createdAt: r.createdAt || '',
       waiver: !!r.waiver,
+      routeOverridden: !!(ov && ov.route != null),
+      jerseySizeOverridden: !!(ov && ov.jerseySize != null),
       checked: !!(c && c.checkedIn),
       checkedBy: c?.by || '',
       checkedAt: c?.at || 0,
@@ -870,11 +890,13 @@ function toggleRouteCheckins() {
 // ── Rider detail sheet ────────────────────────────────────────────────────────
 function openDetail(orderKey) {
   _openOrder = orderKey;
+  _editingField = null;
   renderDetail();
   document.getElementById('detail-overlay').classList.add('open');
 }
 function closeDetail() {
   _openOrder = null;
+  _editingField = null;
   // Reset the emergency block so reopening any rider starts collapsed & unloaded.
   delete document.getElementById('detail-emergency').dataset.order;
   document.getElementById('detail-overlay').classList.remove('open');
@@ -895,10 +917,37 @@ function renderDetail() {
   if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
   if (r.picked) notes.push(`Jersey by ${esc((r.pickedBy || '').split('@')[0])}${r.pickedAt ? ' at ' + fmtTime(r.pickedAt) : ''}`);
 
+  const allRoutes = [...new Set([
+    ...Object.values(_roster).map(rec => rec.route).filter(Boolean),
+    ...(r.route ? [r.route] : [])
+  ])].sort();
+
+  const routeVal = _editingField === 'route'
+    ? `<span class="field-edit-row">
+         <select class="field-edit-select" id="field-edit-select">
+           <option value="">— none —</option>
+           ${allRoutes.map(rt => `<option value="${esc(rt)}"${rt === r.route ? ' selected' : ''}>${esc(rt)}</option>`).join('')}
+         </select>
+         <button class="field-edit-confirm" onclick="saveFieldEdit('${esc(r.orderNumber)}','route')" title="Save">✓</button>
+         <button class="field-edit-cancel" onclick="cancelFieldEdit()" title="Cancel">✕</button>
+       </span>`
+    : `${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}${r.routeOverridden ? ' <span class="override-badge">edited</span>' : ''}<button class="field-edit-btn" title="Edit route" onclick="startEditField('route')">✎</button>`;
+
+  const sizeVal = _editingField === 'jerseySize'
+    ? `<span class="field-edit-row">
+         <select class="field-edit-select" id="field-edit-select">
+           <option value="">— none —</option>
+           ${SIZE_ORDER.map(sz => `<option value="${esc(sz)}"${sz === r.jerseySize ? ' selected' : ''}>${esc(sz)}</option>`).join('')}
+         </select>
+         <button class="field-edit-confirm" onclick="saveFieldEdit('${esc(r.orderNumber)}','jerseySize')" title="Save">✓</button>
+         <button class="field-edit-cancel" onclick="cancelFieldEdit()" title="Cancel">✕</button>
+       </span>`
+    : `${esc(r.jerseySize) || '—'}${r.jerseySizeOverridden ? ' <span class="override-badge">edited</span>' : ''}<button class="field-edit-btn" title="Edit jersey size" onclick="startEditField('jerseySize')">✎</button>`;
+
   document.getElementById('detail-body').innerHTML = `
     <div class="detail-grid">
-      <div class="dl">Route</div><div class="dv">${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</div>
-      <div class="dl">Jersey Size</div><div class="dv">${esc(r.jerseySize) || '—'}</div>
+      <div class="dl">Route</div><div class="dv">${routeVal}</div>
+      <div class="dl">Jersey Size</div><div class="dv">${sizeVal}</div>
       <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
       <div class="dl">Quantity</div><div class="dv">${esc(r.quantity)}</div>
       <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
@@ -977,13 +1026,47 @@ async function revealEmergency(orderNumber, name) {
   }
 }
 
+// ── Field override actions (route / jersey size) ──────────────────────────────
+function startEditField(field) {
+  _editingField = field;
+  renderDetail();
+}
+function cancelFieldEdit() {
+  _editingField = null;
+  renderDetail();
+}
+async function saveFieldEdit(orderNumber, field) {
+  if (!fb || !_user) return;
+  const sel = document.getElementById('field-edit-select');
+  if (!sel) return;
+  const newVal = sel.value;
+  const r = rosterRows().find(x => x.orderNumber === orderNumber);
+  const oldVal = r ? r[field] : '';
+  if (newVal === oldVal) { _editingField = null; renderDetail(); return; }
+  try {
+    const existing = _overrides[orderNumber] || {};
+    const update = { by: _user.email, at: serverTimestamp() };
+    // Preserve the other field's override if already set
+    const otherField = field === 'route' ? 'jerseySize' : 'route';
+    if (existing[otherField] != null) update[otherField] = existing[otherField];
+    update[field] = newVal;
+    await dbSet(dbRef(fb.db, `overrides/${EVENT_ID}/${orderNumber}`), update);
+    const label = field === 'route' ? 'route' : 'jersey size';
+    logAudit(field === 'route' ? 'route_override' : 'jersey_override',
+      `${r ? r.name : orderNumber}: ${label} "${oldVal || '(none)'}" → "${newVal || '(none)'}"`)
+    _editingField = null;
+    toast(`${field === 'route' ? 'Route' : 'Jersey size'} updated`);
+  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+}
+
 // Render the audit-log panel (privileged only), newest entries first.
 const AUDIT_LABEL = {
   checkin: 'checked in', checkin_undo: 'undid check-in',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
-  inventory_update: 'updated jersey inventory'
+  inventory_update: 'updated jersey inventory',
+  route_override: 'updated route', jersey_override: 'updated jersey size'
 };
 function renderAudit(obj) {
   const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -1079,7 +1162,8 @@ Object.assign(window, {
   signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
   addVolunteer, removeVolunteer, toggleInventory, saveInventory,
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
-  openDetail, closeDetail, detailBgClick
+  openDetail, closeDetail, detailBgClick,
+  startEditField, cancelFieldEdit, saveFieldEdit
 });
 </script>
 </body>
