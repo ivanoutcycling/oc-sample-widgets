@@ -143,6 +143,19 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .manage-remove{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1;flex:none}
 .manage-remove:hover{color:#c0392b;border-color:rgba(192,57,43,0.4)}
 .manage-empty{color:var(--dimmer);font-size:12px;padding:8px 4px}
+/* Jersey inventory (super-admin) */
+.inv-toggle-row{display:flex;align-items:center;gap:9px;padding:4px 4px 12px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none}
+.inv-toggle-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none}
+.inv-hint{color:var(--dimmer);font-size:11px;padding:0 4px 10px;line-height:1.4}
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;padding:4px 4px 12px}
+.inv-cell{display:flex;flex-direction:column;gap:4px}
+.inv-size{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding-left:2px}
+.inv-input{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:7px 9px;outline:none;width:100%;-webkit-appearance:none}
+.inv-input:focus{border-color:rgba(59,130,246,0.5)}
+.inv-actions{display:flex;justify-content:flex-end;padding:2px 4px}
+/* x / y comparison cells in the jersey-size breakdown */
+.bd-num.inv-over{background:rgba(220,38,38,0.14);color:#b91c1c;border-radius:6px}
+.bd-num.inv-equal{background:rgba(234,179,8,0.20);color:#92600a;border-radius:6px}
 @media(max-width:680px){
   .audit-row{grid-template-columns:1fr auto}
   .audit-when{grid-column:1 / -1}
@@ -271,6 +284,21 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div id="manage-list"></div>
   </details>
 
+  <!-- Jersey inventory: super-admins only. Sets how many jerseys exist per size and,
+       when enabled, shows a count / inventory comparison in the size breakdown. -->
+  <details class="bd-card inventory-card" id="inventory-card" style="display:none">
+    <summary class="bd-title">Jersey Inventory</summary>
+    <label class="inv-toggle-row">
+      <input type="checkbox" id="inv-enabled" onchange="toggleInventory()">
+      <span>Show inventory comparison (count&nbsp;/&nbsp;stock) in the size breakdown</span>
+    </label>
+    <div class="inv-hint">When on, the By&nbsp;Jersey&nbsp;Size columns read <b>count&nbsp;/&nbsp;stock</b>.
+      Cells turn <b style="color:#b91c1c">red</b> when the count exceeds stock and
+      <b style="color:#92600a">yellow</b> when they’re exactly equal.</div>
+    <div class="inv-grid" id="inv-grid"></div>
+    <div class="inv-actions"><button class="btn" onclick="saveInventory()">Save inventory</button></div>
+  </details>
+
   <div class="sync-note" id="sync-note" style="display:none"></div>
 </div>
 
@@ -355,6 +383,7 @@ if (CONFIGURED) {
 let _roster = {};      // orderNumber → roster record
 let _checkins = {};    // orderNumber → { checkedIn, by, at }
 let _jerseys = {};     // orderNumber → { pickedUp, by, at }
+let _inventory = {};   // { enabled: bool, sizes: { <size>: count } } — jersey stock
 let _lastSync = null;
 let _user = null;
 let _hideChecked = false;
@@ -363,6 +392,7 @@ let _routeShowCheckins = false;   // route strip: off = totals only, on = checke
 let _role = 'none';               // 'none' | 'volunteer' | 'superadmin'
 const hasAccess = () => _role !== 'none';            // sees dashboard + emergency contacts
 const isSuperAdmin = () => _role === 'superadmin';   // also reads audit log + manages volunteers
+const invEnabled = () => !!(_inventory && _inventory.enabled);   // x / y comparison mode on?
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;   // order key of the rider whose detail sheet is open
 
@@ -462,6 +492,12 @@ function subscribeData() {
     _jerseys = snap.val() || {};
     render();
   }, err => { console.error('jerseys read denied', err); });
+
+  onValue(dbRef(fb.db, `jerseyInventory/${EVENT_ID}`), snap => {
+    _inventory = snap.val() || {};
+    renderInventoryForm();   // keep the super-admin form in sync with stored values
+    render();                // re-render breakdown so x / y reflects current stock
+  }, err => { console.warn('inventory read denied', err); });
 
   onValue(dbRef(fb.db, `meta/${EVENT_ID}/lastSync`), snap => {
     _lastSync = snap.val();
@@ -567,6 +603,53 @@ function renderVolunteers(obj) {
       <span class="manage-em">${esc(em)}</span>
       <button class="manage-remove" title="Remove" onclick="removeVolunteer('${esc(em).replace(/'/g, "\\'")}')">✕</button>
     </div>`).join('');
+}
+
+// ── Jersey inventory (super-admins only) ────────────────────────────────────────
+// Super-admins set per-size jersey stock and flip the comparison toggle. Both are
+// stored in Firebase (jerseyInventory/{eventId}) so every signed-in volunteer sees
+// the same count / stock figures. Writes are gated by the security rules too.
+async function toggleInventory() {
+  if (!fb || !isSuperAdmin()) return;
+  const on = !!document.getElementById('inv-enabled').checked;
+  try {
+    await dbSet(dbRef(fb.db, `jerseyInventory/${EVENT_ID}/enabled`), on);
+    logAudit(on ? 'inventory_on' : 'inventory_off', 'jersey inventory');
+    toast(on ? 'Inventory comparison on' : 'Inventory comparison off');
+  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+}
+async function saveInventory() {
+  if (!fb || !isSuperAdmin()) return;
+  const sizes = {};
+  document.querySelectorAll('#inv-grid .inv-input').forEach(inp => {
+    const raw = (inp.value || '').trim();
+    if (raw === '') return;                 // blank ⇒ no stock recorded for this size
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n >= 0) sizes[inp.dataset.size] = n;
+  });
+  try {
+    await dbSet(dbRef(fb.db, `jerseyInventory/${EVENT_ID}/sizes`), Object.keys(sizes).length ? sizes : null);
+    logAudit('inventory_update', 'jersey inventory');
+    toast('Inventory saved');
+  } catch (e) { console.error(e); toast('Save failed: ' + (e.message || e.code)); }
+}
+// Populate the form from stored values. Only re-renders the size inputs when the
+// super-admin isn't mid-edit, so a live sync never clobbers what they're typing.
+function renderInventoryForm() {
+  const grid = document.getElementById('inv-grid');
+  if (!grid) return;
+  const box = document.getElementById('inv-enabled');
+  if (box) box.checked = invEnabled();
+  if (grid.contains(document.activeElement)) return;
+  const sizes = (_inventory && _inventory.sizes) || {};
+  grid.innerHTML = SIZE_ORDER.map(sz => {
+    const v = Number.isFinite(sizes[sz]) ? sizes[sz] : '';
+    return `<label class="inv-cell">
+        <span class="inv-size">${esc(sz)}</span>
+        <input class="inv-input" type="number" min="0" step="1" inputmode="numeric"
+               data-size="${esc(sz)}" value="${v}">
+      </label>`;
+  }).join('');
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -714,23 +797,36 @@ function groupCounts(rows, keyFn, order) {
   });
   return keys.map(k => ({ key: k, ...map[k] }));
 }
-function bdRowsHtml(groups, asRouteTag) {
+// One numeric cell. When inv is a finite number the cell shows "count / stock" and
+// is tinted red (over) / yellow (exactly at) stock; otherwise it's a plain count.
+function bdCell(count, inv) {
+  if (!Number.isFinite(inv)) return `<td class="bd-num">${count}</td>`;
+  const cls = count > inv ? ' inv-over' : (count === inv ? ' inv-equal' : '');
+  return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}</td>`;
+}
+function bdRowsHtml(groups, asRouteTag, withInv) {
+  const showInv = withInv && invEnabled();
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
-      <td class="bd-num">${g.total}</td>
-      <td class="bd-num">${g.checked}</td>
-      <td class="bd-num">${g.picked}</td>
+      ${bdCell(g.total, showInv ? g.inv : undefined)}
+      ${bdCell(g.checked, showInv ? g.inv : undefined)}
+      ${bdCell(g.picked, showInv ? g.inv : undefined)}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
-    total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked
-  }), { total: 0, checked: 0, picked: 0 });
+    total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
+    inv: a.inv + (Number.isFinite(g.inv) ? g.inv : 0)
+  }), { total: 0, checked: 0, picked: 0, inv: 0 });
+  const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td><td class="bd-num">${tot.total}</td><td class="bd-num">${tot.checked}</td><td class="bd-num">${tot.picked}</td>
+      <td>Total</td>${bdCell(tot.total, totInv)}${bdCell(tot.checked, totInv)}${bdCell(tot.picked, totInv)}
     </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
 function renderBreakdown(rows) {
-  document.getElementById('bd-size').innerHTML = bdRowsHtml(groupCounts(rows, r => r.jerseySize, SIZE_ORDER), false);
+  const groups = groupCounts(rows, r => r.jerseySize, SIZE_ORDER);
+  const sizes = (_inventory && _inventory.sizes) || {};
+  groups.forEach(g => { g.inv = sizes[g.key]; });   // attach per-size stock
+  document.getElementById('bd-size').innerHTML = bdRowsHtml(groups, false, true);
 }
 // Compact, prominent per-route check-in progress (checked-in / total). Wraps on
 // mobile via auto-fit grid, so it never needs horizontal scrolling.
@@ -875,7 +971,9 @@ const AUDIT_LABEL = {
   checkin: 'checked in', checkin_undo: 'undid check-in',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
-  volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer'
+  volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
+  inventory_update: 'updated jersey inventory',
+  inventory_on: 'turned on inventory comparison', inventory_off: 'turned off inventory comparison'
 };
 function renderAudit(obj) {
   const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -908,6 +1006,7 @@ function hideAppSurfaces() {
   show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false); show('audit-card', false); show('manage-card', false);
+  show('inventory-card', false);
 }
 function showSignedIn() {
   closeAuth();
@@ -919,7 +1018,8 @@ function showSignedIn() {
   // Super-admins additionally see the activity log and the volunteer-management panel.
   show('audit-card', isSuperAdmin());
   show('manage-card', isSuperAdmin());
-  if (isSuperAdmin()) subscribeAdmin();
+  show('inventory-card', isSuperAdmin());
+  if (isSuperAdmin()) { subscribeAdmin(); renderInventoryForm(); }
   subscribeData();
   render();
 }
@@ -967,7 +1067,7 @@ if (!CONFIGURED) {
 
 Object.assign(window, {
   signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
-  addVolunteer, removeVolunteer,
+  addVolunteer, removeVolunteer, toggleInventory, saveInventory,
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick
 });

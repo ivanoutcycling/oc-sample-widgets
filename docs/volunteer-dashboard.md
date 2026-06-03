@@ -18,6 +18,7 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                 /eventRoster/{eventId}   safe roster      (sync writes, volunteers read)
                 /checkins/{eventId}      check-in state    (volunteers read + write, realtime)
                 /jerseys/{eventId}       jersey-pickup     (volunteers read + write, realtime)
+                /jerseyInventory/{eventId} jersey stock    (volunteers read; super-admins write)
                 /meta/{eventId}/lastSync sync timestamp
                 /restricted/
                   emergencyContacts/…    emergency name+phone (sync writes; volunteers + super-admins read)
@@ -48,6 +49,11 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
 - **Live breakdown stats:** the dashboard shows overall totals, a compact per-route strip of
   checked-in / signed-up counts (styled like the summary, wraps on mobile), and a per-jersey-size
   table of signed-up / checked-in / picked-up counts.
+- **Jersey inventory (super-admins):** a collapsible *Jersey Inventory* form lets super-admins
+  record how many jerseys exist per size and flip a comparison toggle. The toggle and counts live
+  in `/jerseyInventory/{eventId}`, so every signed-in volunteer sees the same figures. When the
+  toggle is on, each column in the By&nbsp;Jersey&nbsp;Size table reads **count / stock**; a cell
+  turns **red** when the count exceeds available stock and **yellow** when it exactly equals it.
 - **The master sheet is never modified** by the dashboard.
 
 ### What volunteers can see (allowlist)
@@ -139,9 +145,9 @@ opening the dashboard with `?event=<id>`.
 5. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
 6. Confirm the master sheet is unchanged after check-ins / jersey pickups.
 
-> **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`. If you
-> published the rules before this change, **re-publish them** (Realtime Database → Rules) or
-> jersey writes will be denied.
+> **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, and the
+> jersey-inventory feature added a `/jerseyInventory` node. If you published the rules before either
+> change, **re-publish them** (Realtime Database → Rules) or those writes will be denied.
 
 ## Enabling restricted emergency contacts + activity log
 1. **Seed at least one super-admin** in the console (see "Seeding the first super-admin"), then have
