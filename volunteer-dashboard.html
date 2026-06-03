@@ -187,6 +187,16 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .field-edit-cancel{background:rgba(17,17,40,0.07);color:var(--muted);border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px;line-height:1;transition:background .15s}
 .field-edit-cancel:hover{background:rgba(17,17,40,0.14);color:var(--text)}
 .override-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:0.3px;padding:1px 6px;border-radius:4px;background:rgba(234,179,8,0.15);color:#92600a;border:1px solid rgba(234,179,8,0.35);margin-left:5px;vertical-align:middle}
+.note-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--orange);margin-left:6px;vertical-align:middle;flex-shrink:0}
+.notes-section{margin-bottom:14px}
+.notes-header{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.notes-lbl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer)}
+.notes-text{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.notes-add-btn{background:none;border:1.5px dashed var(--border);color:var(--dimmer);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;border-radius:8px;width:100%;text-align:left;margin-bottom:14px;transition:all .15s}
+.notes-add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,0.04)}
+.notes-textarea{width:100%;background:var(--surface);border:1.5px solid rgba(59,130,246,0.5);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;display:block;margin-bottom:8px;box-sizing:border-box}
+.notes-textarea:focus{border-color:var(--accent)}
+.notes-edit-actions{display:flex;gap:8px;margin-bottom:14px}
 @media(max-width:680px){
   .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
   .section-label,.section-head{margin-left:0;margin-right:0}
@@ -678,6 +688,7 @@ function rosterRows() {
       name: r.name || '(no name)',
       route: (ov && ov.route != null) ? ov.route : (r.route || ''),
       jerseySize: (ov && ov.jerseySize != null) ? ov.jerseySize : (r.jerseySize || ''),
+      notes: (ov && ov.notes) ? ov.notes : '',
       lineItemName: r.lineItemName || '',
       quantity: r.quantity || 1,
       createdAt: r.createdAt || '',
@@ -755,7 +766,7 @@ function render() {
   const body = document.getElementById('roster-body');
   body.innerHTML = rows.map(r => `
     <tr class="${r.checked ? 'checked' : ''}" onclick="openDetail('${esc(r.orderNumber)}')">
-      <td class="name-cell">${esc(r.name)}</td>
+      <td class="name-cell">${esc(r.name)}${r.notes ? `<span class="note-dot" title="${esc(r.notes)}"></span>` : ''}</td>
       <td>${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</td>
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
@@ -944,6 +955,21 @@ function renderDetail() {
        </span>`
     : `${esc(r.jerseySize) || '—'}${r.jerseySizeOverridden ? ' <span class="override-badge">edited</span>' : ''}<button class="field-edit-btn" title="Edit jersey size" onclick="startEditField('jerseySize')">✎</button>`;
 
+  const notesHtml = _editingField === 'notes'
+    ? `<div class="notes-section">
+         <textarea class="notes-textarea" id="field-edit-textarea" placeholder="Add a note about this rider…">${esc(r.notes || '')}</textarea>
+         <div class="notes-edit-actions">
+           <button class="field-edit-confirm" onclick="saveFieldEdit('${esc(r.orderNumber)}','notes')">Save note</button>
+           <button class="field-edit-cancel" onclick="cancelFieldEdit()">Cancel</button>
+         </div>
+       </div>`
+    : r.notes
+      ? `<div class="notes-section">
+           <div class="notes-header"><span class="notes-lbl">Note</span><button class="field-edit-btn" onclick="startEditField('notes')">✎</button></div>
+           <div class="notes-text">${esc(r.notes)}</div>
+         </div>`
+      : `<button class="notes-add-btn" onclick="startEditField('notes')">+ Add note</button>`;
+
   document.getElementById('detail-body').innerHTML = `
     <div class="detail-grid">
       <div class="dl">Route</div><div class="dv">${routeVal}</div>
@@ -954,7 +980,8 @@ function renderDetail() {
       <div class="dl">Waiver</div><div class="dv">${r.waiver ? '<span class="waiver-yes">✓ Acknowledged</span>' : '<span class="waiver-no">✗ Not signed</span>'}</div>
       <div class="dl">Order</div><div class="dv">${esc(r.orderLabel)}</div>
     </div>
-    ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}`;
+    ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}
+    ${notesHtml}`;
 
   const cBtn = document.getElementById('detail-action-checkin');
   if (r.checked) {
@@ -1037,25 +1064,36 @@ function cancelFieldEdit() {
 }
 async function saveFieldEdit(orderNumber, field) {
   if (!fb || !_user) return;
-  const sel = document.getElementById('field-edit-select');
-  if (!sel) return;
-  const newVal = sel.value;
+  let newVal;
+  if (field === 'notes') {
+    const ta = document.getElementById('field-edit-textarea');
+    if (!ta) return;
+    newVal = ta.value.trim();
+  } else {
+    const sel = document.getElementById('field-edit-select');
+    if (!sel) return;
+    newVal = sel.value;
+  }
   const r = rosterRows().find(x => x.orderNumber === orderNumber);
-  const oldVal = r ? r[field] : '';
+  const oldVal = r ? (r[field] || '') : '';
   if (newVal === oldVal) { _editingField = null; renderDetail(); return; }
   try {
     const existing = _overrides[orderNumber] || {};
     const update = { by: _user.email, at: serverTimestamp() };
-    // Preserve the other field's override if already set
-    const otherField = field === 'route' ? 'jerseySize' : 'route';
-    if (existing[otherField] != null) update[otherField] = existing[otherField];
-    update[field] = newVal;
+    for (const f of ['route', 'jerseySize', 'notes']) {
+      if (f === field) { if (newVal !== '') update[f] = newVal; }
+      else if (existing[f] != null && existing[f] !== '') update[f] = existing[f];
+    }
     await dbSet(dbRef(fb.db, `overrides/${EVENT_ID}/${orderNumber}`), update);
-    const label = field === 'route' ? 'route' : 'jersey size';
-    logAudit(field === 'route' ? 'route_override' : 'jersey_override',
-      `${r ? r.name : orderNumber}: ${label} "${oldVal || '(none)'}" → "${newVal || '(none)'}"`)
+    if (field === 'notes') {
+      logAudit('notes_edit', `${r ? r.name : orderNumber}: note ${newVal ? 'updated' : 'cleared'}`);
+    } else {
+      const label = field === 'route' ? 'route' : 'jersey size';
+      logAudit(field === 'route' ? 'route_override' : 'jersey_override',
+        `${r ? r.name : orderNumber}: ${label} "${oldVal || '(none)'}" → "${newVal || '(none)'}"`);
+    }
     _editingField = null;
-    toast(`${field === 'route' ? 'Route' : 'Jersey size'} updated`);
+    toast(field === 'notes' ? (newVal ? 'Note saved' : 'Note cleared') : `${field === 'route' ? 'Route' : 'Jersey size'} updated`);
   } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
 }
 
@@ -1066,7 +1104,8 @@ const AUDIT_LABEL = {
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
   inventory_update: 'updated jersey inventory',
-  route_override: 'updated route', jersey_override: 'updated jersey size'
+  route_override: 'updated route', jersey_override: 'updated jersey size',
+  notes_edit: 'updated note'
 };
 function renderAudit(obj) {
   const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));

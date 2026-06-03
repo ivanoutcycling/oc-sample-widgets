@@ -72,6 +72,7 @@
           ".validate": "newData.hasChild('by') || !newData.exists()",
           "route":      { ".validate": "newData.isString()" },
           "jerseySize": { ".validate": "newData.isString()" },
+          "notes":      { ".validate": "newData.isString()" },
           "by":         { ".validate": "newData.isString() && newData.val() == auth.token.email" },
           "at":         { ".validate": "newData.isNumber() || newData.val() == now" },
           "$other":     { ".validate": false }
