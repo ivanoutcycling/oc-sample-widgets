@@ -153,8 +153,6 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .inv-input{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:7px 9px;outline:none;width:100%;-webkit-appearance:none}
 .inv-input:focus{border-color:rgba(59,130,246,0.5)}
 .inv-actions{display:flex;justify-content:flex-end;padding:2px 4px}
-/* inventory toggle pill sits inside the breakdown <summary> */
-.inv-toggle-pill{font-size:10px;padding:4px 10px;margin-left:auto;margin-right:8px}
 /* x / y comparison cells in the jersey-size breakdown */
 .bd-num.inv-over{background:rgba(220,38,38,0.14);color:#b91c1c;border-radius:6px}
 .bd-num.inv-equal{background:rgba(234,179,8,0.20);color:#92600a;border-radius:6px}
@@ -224,9 +222,13 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   </div>
   <div class="route-stats" id="route-stats" style="display:none"></div>
 
+  <div class="section-head" id="inv-breakdown-head" style="display:none">
+    <span class="section-label">By jersey size</span>
+    <span class="toggle-pill" id="inv-toggle" onclick="toggleInventory()">Hide inventory</span>
+  </div>
   <div class="breakdown" id="breakdown" style="display:none">
     <details class="bd-card">
-      <summary class="bd-title">By Jersey Size<span class="toggle-pill inv-toggle-pill" id="inv-toggle" onclick="event.stopPropagation();toggleInventory()" style="display:none">Hide inventory</span></summary>
+      <summary class="bd-title">By Jersey Size</summary>
       <table class="bd-table">
         <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
         <tbody id="bd-size"></tbody>
@@ -823,9 +825,10 @@ function renderBreakdown(rows) {
   const hasInv = Object.keys(sizes).length > 0;
   groups.forEach(g => { g.inv = sizes[g.key]; });   // attach per-size stock
   document.getElementById('bd-size').innerHTML = bdRowsHtml(groups, false, true);
+  const head = document.getElementById('inv-breakdown-head');
   const pill = document.getElementById('inv-toggle');
+  if (head) head.style.display = hasInv ? '' : 'none';
   if (pill) {
-    pill.style.display = hasInv ? '' : 'none';
     pill.textContent = (_invEnabled && hasInv) ? 'Hide inventory' : 'Show inventory';
     pill.classList.toggle('on', _invEnabled && hasInv);
   }
@@ -1007,7 +1010,7 @@ function hideAppSurfaces() {
   show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false); show('audit-card', false); show('manage-card', false);
-  show('inventory-card', false);
+  show('inventory-card', false); show('inv-breakdown-head', false);
 }
 function showSignedIn() {
   closeAuth();
