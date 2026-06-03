@@ -68,7 +68,6 @@
       "$eventId": {
         ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
         ".write": "auth != null && auth.token.email_verified == true && root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true",
-        "enabled": { ".validate": "newData.isBoolean()" },
         "sizes": {
           "$size": { ".validate": "newData.isNumber() && newData.val() >= 0" }
         },

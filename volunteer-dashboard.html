@@ -153,6 +153,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .inv-input{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:7px 9px;outline:none;width:100%;-webkit-appearance:none}
 .inv-input:focus{border-color:rgba(59,130,246,0.5)}
 .inv-actions{display:flex;justify-content:flex-end;padding:2px 4px}
+/* inventory toggle pill sits inside the breakdown <summary> */
+.inv-toggle-pill{font-size:10px;padding:4px 10px;margin-left:auto;margin-right:8px}
 /* x / y comparison cells in the jersey-size breakdown */
 .bd-num.inv-over{background:rgba(220,38,38,0.14);color:#b91c1c;border-radius:6px}
 .bd-num.inv-equal{background:rgba(234,179,8,0.20);color:#92600a;border-radius:6px}
@@ -224,7 +226,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 
   <div class="breakdown" id="breakdown" style="display:none">
     <details class="bd-card">
-      <summary class="bd-title">By Jersey Size</summary>
+      <summary class="bd-title">By Jersey Size<span class="toggle-pill inv-toggle-pill" id="inv-toggle" onclick="event.stopPropagation();toggleInventory()" style="display:none">Hide inventory</span></summary>
       <table class="bd-table">
         <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
         <tbody id="bd-size"></tbody>
@@ -284,17 +286,15 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div id="manage-list"></div>
   </details>
 
-  <!-- Jersey inventory: super-admins only. Sets how many jerseys exist per size and,
-       when enabled, shows a count / inventory comparison in the size breakdown. -->
+  <!-- Jersey inventory: super-admins only. Sets how many jerseys exist per size.
+       The comparison toggle is per-user and lives in the By Jersey Size card. -->
   <details class="bd-card inventory-card" id="inventory-card" style="display:none">
     <summary class="bd-title">Jersey Inventory</summary>
-    <label class="inv-toggle-row">
-      <input type="checkbox" id="inv-enabled" onchange="toggleInventory()">
-      <span>Show inventory comparison (count&nbsp;/&nbsp;stock) in the size breakdown</span>
-    </label>
-    <div class="inv-hint">When on, the By&nbsp;Jersey&nbsp;Size columns read <b>count&nbsp;/&nbsp;stock</b>.
-      Cells turn <b style="color:#b91c1c">red</b> when the count exceeds stock and
-      <b style="color:#92600a">yellow</b> when they’re exactly equal.</div>
+    <div class="inv-hint">Enter how many jerseys are available per size. Once saved, the
+      By&nbsp;Jersey&nbsp;Size breakdown will show <b>count&nbsp;/&nbsp;stock</b> for each column.
+      Cells turn <b style="color:#b91c1c">red</b> when count exceeds stock and
+      <b style="color:#92600a">yellow</b> when they match exactly. Each volunteer can toggle
+      the comparison on/off from the breakdown card.</div>
     <div class="inv-grid" id="inv-grid"></div>
     <div class="inv-actions"><button class="btn" onclick="saveInventory()">Save inventory</button></div>
   </details>
@@ -383,7 +383,8 @@ if (CONFIGURED) {
 let _roster = {};      // orderNumber → roster record
 let _checkins = {};    // orderNumber → { checkedIn, by, at }
 let _jerseys = {};     // orderNumber → { pickedUp, by, at }
-let _inventory = {};   // { enabled: bool, sizes: { <size>: count } } — jersey stock
+let _inventory = {};   // { sizes: { <size>: count } } — jersey stock (super-admin managed)
+let _invEnabled = true; // per-user toggle: show count / stock comparison in breakdown
 let _lastSync = null;
 let _user = null;
 let _hideChecked = false;
@@ -392,7 +393,7 @@ let _routeShowCheckins = false;   // route strip: off = totals only, on = checke
 let _role = 'none';               // 'none' | 'volunteer' | 'superadmin'
 const hasAccess = () => _role !== 'none';            // sees dashboard + emergency contacts
 const isSuperAdmin = () => _role === 'superadmin';   // also reads audit log + manages volunteers
-const invEnabled = () => !!(_inventory && _inventory.enabled);   // x / y comparison mode on?
+const invEnabled = () => _invEnabled;   // x / y comparison mode on?
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;   // order key of the rider whose detail sheet is open
 
@@ -606,17 +607,13 @@ function renderVolunteers(obj) {
 }
 
 // ── Jersey inventory (super-admins only) ────────────────────────────────────────
-// Super-admins set per-size jersey stock and flip the comparison toggle. Both are
-// stored in Firebase (jerseyInventory/{eventId}) so every signed-in volunteer sees
-// the same count / stock figures. Writes are gated by the security rules too.
-async function toggleInventory() {
-  if (!fb || !isSuperAdmin()) return;
-  const on = !!document.getElementById('inv-enabled').checked;
-  try {
-    await dbSet(dbRef(fb.db, `jerseyInventory/${EVENT_ID}/enabled`), on);
-    logAudit(on ? 'inventory_on' : 'inventory_off', 'jersey inventory');
-    toast(on ? 'Inventory comparison on' : 'Inventory comparison off');
-  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+// Super-admins set per-size jersey stock (stored in Firebase). The comparison
+// toggle is per-user local state — each volunteer can flip it for their own view.
+function toggleInventory() {
+  _invEnabled = !_invEnabled;
+  const pill = document.getElementById('inv-toggle');
+  if (pill) pill.textContent = _invEnabled ? 'Hide inventory' : 'Show inventory';
+  render();
 }
 async function saveInventory() {
   if (!fb || !isSuperAdmin()) return;
@@ -633,13 +630,11 @@ async function saveInventory() {
     toast('Inventory saved');
   } catch (e) { console.error(e); toast('Save failed: ' + (e.message || e.code)); }
 }
-// Populate the form from stored values. Only re-renders the size inputs when the
-// super-admin isn't mid-edit, so a live sync never clobbers what they're typing.
+// Populate the size-input grid from stored values. Skips re-rendering while the
+// super-admin is mid-edit, so a live sync never clobbers what they're typing.
 function renderInventoryForm() {
   const grid = document.getElementById('inv-grid');
   if (!grid) return;
-  const box = document.getElementById('inv-enabled');
-  if (box) box.checked = invEnabled();
   if (grid.contains(document.activeElement)) return;
   const sizes = (_inventory && _inventory.sizes) || {};
   grid.innerHTML = SIZE_ORDER.map(sz => {
@@ -825,8 +820,15 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
 function renderBreakdown(rows) {
   const groups = groupCounts(rows, r => r.jerseySize, SIZE_ORDER);
   const sizes = (_inventory && _inventory.sizes) || {};
+  const hasInv = Object.keys(sizes).length > 0;
   groups.forEach(g => { g.inv = sizes[g.key]; });   // attach per-size stock
   document.getElementById('bd-size').innerHTML = bdRowsHtml(groups, false, true);
+  const pill = document.getElementById('inv-toggle');
+  if (pill) {
+    pill.style.display = hasInv ? '' : 'none';
+    pill.textContent = (_invEnabled && hasInv) ? 'Hide inventory' : 'Show inventory';
+    pill.classList.toggle('on', _invEnabled && hasInv);
+  }
 }
 // Compact, prominent per-route check-in progress (checked-in / total). Wraps on
 // mobile via auto-fit grid, so it never needs horizontal scrolling.
@@ -972,8 +974,7 @@ const AUDIT_LABEL = {
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
-  inventory_update: 'updated jersey inventory',
-  inventory_on: 'turned on inventory comparison', inventory_off: 'turned off inventory comparison'
+  inventory_update: 'updated jersey inventory'
 };
 function renderAudit(obj) {
   const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));

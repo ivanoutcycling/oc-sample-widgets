@@ -50,10 +50,11 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   checked-in / signed-up counts (styled like the summary, wraps on mobile), and a per-jersey-size
   table of signed-up / checked-in / picked-up counts.
 - **Jersey inventory (super-admins):** a collapsible *Jersey Inventory* form lets super-admins
-  record how many jerseys exist per size and flip a comparison toggle. The toggle and counts live
-  in `/jerseyInventory/{eventId}`, so every signed-in volunteer sees the same figures. When the
-  toggle is on, each column in the By&nbsp;Jersey&nbsp;Size table reads **count / stock**; a cell
-  turns **red** when the count exceeds available stock and **yellow** when it exactly equals it.
+  record how many jerseys exist per size. Stock counts live in `/jerseyInventory/{eventId}/sizes`
+  and are readable by all volunteers. When inventory data is present, a toggle pill appears in the
+  *By&nbsp;Jersey&nbsp;Size* card (visible to every volunteer, defaults **on**) that switches each
+  column between a plain count and **count / stock**. The toggle is per-user local state — it resets
+  to on each session. A cell turns **red** when count exceeds stock and **yellow** when they match.
 - **The master sheet is never modified** by the dashboard.
 
 ### What volunteers can see (allowlist)
