@@ -701,8 +701,12 @@ function toggleHidePicked() {
   render();
 }
 function syncFilterPills() {
-  document.getElementById('hide-checked').classList.toggle('on', _hideChecked);
-  document.getElementById('hide-picked').classList.toggle('on', _hidePicked);
+  const hc = document.getElementById('hide-checked');
+  const hp = document.getElementById('hide-picked');
+  hc.classList.toggle('on', _hideChecked);
+  hp.classList.toggle('on', _hidePicked);
+  hc.textContent = _hideChecked ? 'Show checked-in' : 'Hide checked-in';
+  hp.textContent = _hidePicked ? 'Show picked up' : 'Hide picked up';
 }
 
 function render() {
@@ -855,7 +859,9 @@ function renderRouteStats(rows) {
 }
 function toggleRouteCheckins() {
   _routeShowCheckins = !_routeShowCheckins;
-  document.getElementById('route-toggle').classList.toggle('on', _routeShowCheckins);
+  const rt = document.getElementById('route-toggle');
+  rt.classList.toggle('on', _routeShowCheckins);
+  rt.textContent = _routeShowCheckins ? 'Hide check-ins' : 'Show check-ins';
   document.getElementById('route-stats-label').textContent =
     _routeShowCheckins ? 'Checked in by route' : 'Registrants by route';
   renderRouteStats(rosterRows());
