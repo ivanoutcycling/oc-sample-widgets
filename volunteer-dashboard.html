@@ -294,7 +294,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   <div class="stats-row" id="stats" style="display:none">
     <div class="stat-item"><div class="stat-label">Registered</div><div class="stat-value" id="stat-total">0</div></div>
     <div class="stat-item"><div class="stat-label">Checked In</div><div class="stat-value green" id="stat-checked">0</div></div>
-    <div class="stat-item"><div class="stat-label">Checked Out</div><div class="stat-value orange" id="stat-checkedout">0</div></div>
+    <div class="stat-item"><div class="stat-label">Finished</div><div class="stat-value orange" id="stat-finished">0</div></div>
     <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
   </div>
 
@@ -368,13 +368,13 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
           <th class="col-item">Registration</th>
           <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
           <th class="sortable" onclick="setSort('checked')">Check-In</th>
-          <th class="sortable" onclick="setSort('checkedout')">Check-Out</th>
           <th class="sortable" onclick="setSort('picked')">Pickup</th>
           <th class="col-rest" title="Rest Stop 1 — Hoelscher Field, Harrington Park NJ">Rest Stop 1</th>
           <th class="col-rest" title="Rest Stop 2 — Tallman State Park">Rest Stop 2</th>
           <th class="col-rest" title="Rest Stop 3 — Rockland Lake State Park">Rest Stop 3</th>
           <th class="col-rest" title="Rest Stop 4 — Eugene Levy Memorial Park, New City NY">Rest Stop 4</th>
           <th class="col-rest" title="Rest Stop 5 — Hoelscher Field, Harrington Park NJ">Rest Stop 5</th>
+          <th class="col-rest" title="Finish line">Finish line</th>
         </tr>
       </thead>
       <tbody id="roster-body"></tbody>
@@ -425,7 +425,6 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
       <b>everyone</b>. This can't be undone. Choose what to reset, then type <code>RESET</code> below to confirm.</div>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="numbers" onchange="updateResetButton()"> Check-in numbers <span class="reset-cnt" id="reset-cnt-numbers"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkins" onchange="updateResetButton()"> Check-in status <span class="reset-cnt" id="reset-cnt-checkins"></span></label>
-    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkouts" onchange="updateResetButton()"> Check-out status <span class="reset-cnt" id="reset-cnt-checkouts"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="jerseys" onchange="updateResetButton()"> Jersey pickup status <span class="reset-cnt" id="reset-cnt-jerseys"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="reststops" onchange="updateResetButton()"> Rest-stop check-ins <span class="reset-cnt" id="reset-cnt-reststops"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="overrides" onchange="updateResetButton()"> Override edits (route / size / notes) <span class="reset-cnt" id="reset-cnt-overrides"></span></label>
@@ -465,7 +464,6 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div id="detail-reststops"></div>
     <div id="detail-emergency"></div>
     <div class="detail-actions">
-      <button class="detail-action-btn" id="detail-action-checkout"></button>
       <button class="detail-action-btn" id="detail-action-checkin"></button>
       <button class="detail-action-btn" id="detail-action-jersey"></button>
     </div>
@@ -516,13 +514,17 @@ const EVENT_ID = new URLSearchParams(location.search).get('event') || 'default';
 
 // Rest stops along the route. Each is a separate, independent check-in keyed by its
 // `id` (stored under /reststops/{eventId}/{orderNumber}/{id}). Stop 5 is the same
-// physical location as stop 1 but is intentionally a distinct check-in.
+// physical location as stop 1 but is intentionally a distinct check-in. The final
+// stop ('finish') is the finish line — it replaces the old standalone "check out" and
+// every route passes through it regardless of mileage (see stopsForRoute).
+const FINISH_STOP_ID = 'finish';
 const REST_STOPS = [
   { id: '1', name: 'Rest Stop 1', location: 'Hoelscher Field, Harrington Park NJ' },
   { id: '2', name: 'Rest Stop 2', location: 'Tallman State Park' },
   { id: '3', name: 'Rest Stop 3', location: 'Rockland Lake State Park' },
   { id: '4', name: 'Rest Stop 4', location: 'Eugene Levy Memorial Park, New City NY' },
-  { id: '5', name: 'Rest Stop 5', location: 'Hoelscher Field, Harrington Park NJ' }
+  { id: '5', name: 'Rest Stop 5', location: 'Hoelscher Field, Harrington Park NJ' },
+  { id: FINISH_STOP_ID, name: 'Finish line', location: '' }
 ];
 // Remember which rest stop this volunteer is stationed at (per-event, per-device).
 const REST_STOP_LS = 'oc-reststop-' + EVENT_ID;
@@ -536,7 +538,9 @@ function stopsForRoute(route) {
   const m = String(route || '').match(/\d+/);
   const miles = m ? parseInt(m[0], 10) : null;
   const ids = (miles != null && ROUTE_REST_STOPS[miles]) || REST_STOPS.map(s => s.id);
-  return REST_STOPS.filter(s => ids.includes(s.id));
+  // Every route ends at the finish line, regardless of mileage.
+  const withFinish = ids.includes(FINISH_STOP_ID) ? ids : [...ids, FINISH_STOP_ID];
+  return REST_STOPS.filter(s => withFinish.includes(s.id));
 }
 
 // Access is allowlist-driven (not by email domain). A user's role is read from
@@ -561,7 +565,6 @@ if (CONFIGURED) {
 // ── Runtime state ─────────────────────────────────────────────────────────────
 let _roster = {};      // orderNumber → roster record
 let _checkins = {};    // orderNumber → { checkedIn, by, at, number }
-let _checkouts = {};   // orderNumber → { checkedOut, by, at }
 let _jerseys = {};     // orderNumber → { pickedUp, by, at }
 let _reststops = {};   // orderNumber → { <stopId>: { checkedIn, by, at } } — per-rest-stop check-ins
 let _overrides = {};   // orderNumber → { route?, jerseySize?, by, at } — day-of corrections
@@ -672,11 +675,6 @@ function subscribeData() {
     _checkins = snap.val() || {};
     render();
   }, err => { console.error('checkins read denied', err); });
-
-  onValue(dbRef(fb.db, `checkouts/${EVENT_ID}`), snap => {
-    _checkouts = snap.val() || {};
-    render();
-  }, err => { console.error('checkouts read denied', err); });
 
   onValue(dbRef(fb.db, `jerseys/${EVENT_ID}`), snap => {
     _jerseys = snap.val() || {};
@@ -836,24 +834,6 @@ async function undoCheckIn(orderNumber) {
     toast('Check-in undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
-async function checkOut(orderNumber) {
-  if (!fb || !_user) return;
-  try {
-    await dbSet(dbRef(fb.db, `checkouts/${EVENT_ID}/${orderNumber}`), {
-      checkedOut: true, by: _user.email, at: serverTimestamp()
-    });
-    logAudit('checkout', riderName(orderNumber));
-    toast('Checked out');
-  } catch (e) { console.error(e); toast('Check-out failed: ' + (e.message || e.code)); }
-}
-async function undoCheckOut(orderNumber) {
-  if (!fb || !_user) return;
-  try {
-    await dbRemove(dbRef(fb.db, `checkouts/${EVENT_ID}/${orderNumber}`));
-    logAudit('checkout_undo', riderName(orderNumber));
-    toast('Check-out undone');
-  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
-}
 async function pickUpJersey(orderNumber) {
   if (!fb || !_user) return;
   try {
@@ -878,7 +858,7 @@ async function undoPickUp(orderNumber) {
 // there are five of them per rider, stored under /reststops/{eventId}/{order}/{stopId}.
 function restStop(stopId) { return REST_STOPS.find(s => s.id === String(stopId)) || null; }
 function restStopName(stopId) { const s = restStop(stopId); return s ? s.name : `Rest Stop ${stopId}`; }
-function restStopLabel(stopId) { const s = restStop(stopId); return s ? `${s.name} — ${s.location}` : restStopName(stopId); }
+function restStopLabel(stopId) { const s = restStop(stopId); return s ? (s.location ? `${s.name} — ${s.location}` : s.name) : restStopName(stopId); }
 function restChecked(orderNumber, stopId) {
   const r = _reststops[orderNumber];
   return !!(r && r[stopId] && r[stopId].checkedIn);
@@ -921,7 +901,7 @@ function initRestByNumber() {
   const sel = document.getElementById('rest-stop-select');
   if (!sel) return;
   sel.innerHTML = REST_STOPS.map(s =>
-    `<option value="${esc(s.id)}">${esc(s.name)} — ${esc(s.location)}</option>`).join('');
+    `<option value="${esc(s.id)}">${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}</option>`).join('');
   let saved = null;
   try { saved = localStorage.getItem(REST_STOP_LS); } catch (e) {}
   if (saved && REST_STOPS.some(s => s.id === saved)) sel.value = saved;
@@ -1060,7 +1040,7 @@ function renderInventoryForm() {
 // whole thing is gated behind typing RESET. Writes are per-record (the same paths each
 // volunteer already writes during check-in), so no extra rules are needed.
 const RESET_LABELS = {
-  numbers: 'check-in numbers', checkins: 'check-in status', checkouts: 'check-out status',
+  numbers: 'check-in numbers', checkins: 'check-in status',
   jerseys: 'jersey pickup status', reststops: 'rest-stop check-ins', overrides: 'override edits'
 };
 function selectedResetKinds() {
@@ -1080,7 +1060,6 @@ function renderResetCounts() {
   const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = `(${n})`; };
   set('reset-cnt-numbers', Object.values(_checkins).filter(c => c && Number.isFinite(c.number)).length);
   set('reset-cnt-checkins', Object.keys(_checkins).length);
-  set('reset-cnt-checkouts', Object.keys(_checkouts).length);
   set('reset-cnt-jerseys', Object.keys(_jerseys).length);
   set('reset-cnt-reststops', Object.values(_reststops).reduce((n, m) => n + Object.keys(m || {}).length, 0));
   set('reset-cnt-overrides', Object.keys(_overrides).length);
@@ -1102,7 +1081,6 @@ async function performReset() {
   const tasks = [];
   if (kinds.includes('checkins')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins));   // also drops numbers
   else if (kinds.includes('numbers')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins, 'number'));
-  if (kinds.includes('checkouts')) tasks.push(wipe(`checkouts/${EVENT_ID}`, _checkouts));
   if (kinds.includes('jerseys'))   tasks.push(wipe(`jerseys/${EVENT_ID}`, _jerseys));
   if (kinds.includes('reststops')) tasks.push(wipe(`reststops/${EVENT_ID}`, _reststops));
   if (kinds.includes('overrides')) tasks.push(wipe(`overrides/${EVENT_ID}`, _overrides));
@@ -1120,7 +1098,6 @@ async function performReset() {
 function rosterRows() {
   return Object.entries(_roster).map(([orderNumber, r]) => {
     const c = _checkins[orderNumber];
-    const o = _checkouts[orderNumber];
     const j = _jerseys[orderNumber];
     const ov = _overrides[orderNumber];
     const route = (ov && ov.route != null) ? ov.route : (r.route || '');
@@ -1141,9 +1118,7 @@ function rosterRows() {
       checked: !!(c && c.checkedIn),
       checkedBy: c?.by || '',
       checkedAt: c?.at || 0,
-      checkedout: !!(o && o.checkedOut),
-      checkedOutBy: o?.by || '',
-      checkedOutAt: o?.at || 0,
+      finished: restChecked(orderNumber, FINISH_STOP_ID),
       picked: !!(j && j.pickedUp),
       pickedBy: j?.by || '',
       pickedAt: j?.at || 0,
@@ -1211,7 +1186,6 @@ function render() {
   rows.sort((a, b) => {
     let av = a[key], bv = b[key];
     if (key === 'checked') { av = a.checked ? 1 : 0; bv = b.checked ? 1 : 0; }
-    if (key === 'checkedout') { av = a.checkedout ? 1 : 0; bv = b.checkedout ? 1 : 0; }
     if (key === 'picked') { av = a.picked ? 1 : 0; bv = b.picked ? 1 : 0; }
     if (key === 'number') { av = a.number == null ? Infinity : a.number; bv = b.number == null ? Infinity : b.number; }
     if (typeof av === 'string') av = av.toLowerCase();
@@ -1233,9 +1207,6 @@ function render() {
       <td>${r.checked
         ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
         : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
-      <td>${r.checkedout
-        ? `<button class="icon-toggle on-orange" title="Checked out by ${esc(r.checkedOutBy)} — tap to undo" onclick="event.stopPropagation();undoCheckOut('${esc(r.orderNumber)}')">🏁</button>`
-        : `<button class="icon-toggle" title="Tap to check out" onclick="event.stopPropagation();checkOut('${esc(r.orderNumber)}')">🏁</button>`}</td>
       <td>${r.picked
         ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
         : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
@@ -1243,20 +1214,21 @@ function render() {
         const avail = r.availableStops.some(a => a.id === s.id);
         if (!avail) return `<td class="col-rest"><span class="rest-na" title="Not on the ${esc(r.route) || 'selected'} route">–</span></td>`;
         const on = restChecked(r.orderNumber, s.id);
+        const icon = s.id === FINISH_STOP_ID ? '🏁' : '🛑';
         return `<td class="col-rest">${on
-          ? `<button class="icon-toggle on-rest" title="${esc(s.name)} — checked in by ${esc((restRecord(r.orderNumber, s.id)||{}).by || '')} — tap to undo" onclick="event.stopPropagation();undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">🛑</button>`
-          : `<button class="icon-toggle" title="Tap to check in at ${esc(s.name)}" onclick="event.stopPropagation();checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">🛑</button>`}</td>`;
+          ? `<button class="icon-toggle on-rest" title="${esc(s.name)} — checked in by ${esc((restRecord(r.orderNumber, s.id)||{}).by || '')} — tap to undo" onclick="event.stopPropagation();undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">${icon}</button>`
+          : `<button class="icon-toggle" title="Tap to check in at ${esc(s.name)}" onclick="event.stopPropagation();checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">${icon}</button>`}</td>`;
       }).join('')}
     </tr>`).join('');
 
   const allRows = rosterRows();
   const total = allRows.length;
   const checked = allRows.filter(r => r.checked).length;
-  const checkedout = allRows.filter(r => r.checkedout).length;
+  const finished = allRows.filter(r => r.finished).length;
   const picked = allRows.filter(r => r.picked).length;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-checked').textContent = checked;
-  document.getElementById('stat-checkedout').textContent = checkedout;
+  document.getElementById('stat-finished').textContent = finished;
   document.getElementById('stat-jerseys').textContent = picked;
   renderRouteStats(allRows);
   renderRestStats(allRows);
@@ -1374,7 +1346,7 @@ function renderRestStats(rows) {
 
   head.innerHTML = `<tr>
       <th>Route</th>
-      ${REST_STOPS.map(s => `<th title="${esc(s.name)} — ${esc(s.location)}">${esc(s.name)}</th>`).join('')}
+      ${REST_STOPS.map(s => `<th title="${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}">${esc(s.name)}</th>`).join('')}
       <th>Total</th>
     </tr>`;
 
@@ -1401,11 +1373,13 @@ function renderRestStats(rows) {
   const rowsHtml = routeKeys.map(k => {
     const group = groups[k];
     const availIds = new Set(stopsForRoute(k).map(s => s.id));
+    // Totals are out of riders who checked in at the start of the ride, not all registered.
+    const started = group.filter(r => r.checked).length;
     let rowChecked = 0, rowPossible = 0;
     const cells = REST_STOPS.map(s => {
       if (!availIds.has(s.id)) return `<td class="bd-num"><span class="rest-na">–</span></td>`;
       const checked = group.filter(r => restChecked(r.orderNumber, s.id)).length;
-      const possible = group.length;
+      const possible = started;
       colChecked[s.id] += checked; colPossible[s.id] += possible;
       rowChecked += checked; rowPossible += possible;
       return cell(checked, possible);
@@ -1456,13 +1430,12 @@ function renderDetail() {
   document.getElementById('detail-name').textContent = r.name;
   document.getElementById('detail-statuses').innerHTML =
     `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? `✅ Checked In${r.number != null ? ' · #' + r.number : ''}` : '◦ Not Checked In'}</span>` +
-    `<span class="detail-status ${r.checkedout ? 'checkedout' : 'out'}">${r.checkedout ? '🏁 Checked Out' : '◦ Not Checked Out'}</span>` +
+    `<span class="detail-status ${r.finished ? 'checkedout' : 'out'}">${r.finished ? '🏁 Finished' : '◦ Not Finished'}</span>` +
     `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>` +
     `<span class="detail-status ${r.restCount ? 'rest' : 'out'}">${r.restCount ? `🛑 Rest Stops ${r.restCount}/${r.restTotal}` : '◦ No Rest Stops'}</span>`;
 
   const notes = [];
   if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
-  if (r.checkedout) notes.push(`Checked out by ${esc((r.checkedOutBy || '').split('@')[0])}${r.checkedOutAt ? ' at ' + fmtTime(r.checkedOutAt) : ''}`);
   if (r.picked) notes.push(`Jersey by ${esc((r.pickedBy || '').split('@')[0])}${r.pickedAt ? ' at ' + fmtTime(r.pickedAt) : ''}`);
 
   const allRoutes = [...new Set([
@@ -1521,17 +1494,6 @@ function renderDetail() {
     </div>
     ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}
     ${notesHtml}`;
-
-  const oBtn = document.getElementById('detail-action-checkout');
-  if (r.checkedout) {
-    oBtn.className = 'detail-action-btn btn-undo';
-    oBtn.textContent = 'Undo Check-Out';
-    oBtn.onclick = () => undoCheckOut(r.orderNumber);
-  } else {
-    oBtn.className = 'detail-action-btn btn-orange';
-    oBtn.textContent = '🏁 Check Out';
-    oBtn.onclick = () => checkOut(r.orderNumber);
-  }
 
   const cBtn = document.getElementById('detail-action-checkin');
   if (r.checked) {
@@ -1680,7 +1642,6 @@ async function saveFieldEdit(orderNumber, field) {
 const AUDIT_LABEL = {
   checkin: 'checked in', checkin_undo: 'undid check-in',
   number_assigned: 'assigned number',
-  checkout: 'checked out', checkout_undo: 'undid check-out',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   reststop: 'rest-stop check-in', reststop_undo: 'undid rest-stop check-in',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
@@ -1790,7 +1751,6 @@ if (!CONFIGURED) {
 
 Object.assign(window, {
   signInWithGoogle, signOutVolunteer, undoCheckIn, pickUpJersey, undoPickUp,
-  checkOut, undoCheckOut,
   openAssign, closeAssign, assignBgClick, updateAssignWarning, confirmAssign,
   addVolunteer, removeVolunteer, toggleInventory, saveInventory,
   updateResetButton, performReset,

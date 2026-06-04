@@ -17,9 +17,8 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                 /acl/volunteers/{email}   volunteer allowlist  (super-admins manage in-app)
                 /eventRoster/{eventId}   safe roster      (sync writes, volunteers read)
                 /checkins/{eventId}      check-in state + assigned number (volunteers read + write, realtime)
-                /checkouts/{eventId}     check-out state   (volunteers read + write, realtime)
                 /jerseys/{eventId}       jersey-pickup     (volunteers read + write, realtime)
-                /reststops/{eventId}     per-rest-stop check-ins (volunteers read + write, realtime)
+                /reststops/{eventId}     per-rest-stop check-ins, incl. the finish line (volunteers read + write, realtime)
                 /jerseyInventory/{eventId} jersey stock    (volunteers read; super-admins write)
                 /meta/{eventId}/lastSync sync timestamp
                 /restricted/
@@ -36,20 +35,22 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   **allowlist-driven**, not by email domain. A user's role is read from two global lists:
   - **Super-admin** (`/acl/superAdmins`): everything a volunteer can do **plus** read the
     Activity Log **plus** add/remove volunteers from the app.
-  - **Volunteer** (`/acl/volunteers`): the dashboard, check-in/out, jersey pickup, and viewing
-    emergency contacts — but **not** the Activity Log.
+  - **Volunteer** (`/acl/volunteers`): the dashboard, check-in, rest-stop check-ins (incl. the
+    finish line), jersey pickup, and viewing emergency contacts — but **not** the Activity Log.
   - **Anyone in neither list:** no access — they see a "not authorized yet" screen.
 
   Enforcement is in the database rules; the page UI only mirrors it. Emails are keyed lowercased
   with `.` replaced by `,` (RTDB keys can't contain `.`) — e.g. `Jo.Lee@gmail.com` →
   `jo,lee@gmail,com`. Gmail dot/alias normalization is **not** applied, so add the exact address.
-- **Concurrency:** check-ins, check-outs, and jersey pickups are written to `/checkins`,
-  `/checkouts`, and `/jerseys` and streamed back via realtime listeners, so multiple volunteers on
-  different devices see each other's updates instantly. Each record stores who did it and when.
-- **Three independent annotations:** *Check-In* (rider has arrived), *Check-Out* (rider has left),
-  and *Jersey Picked Up* are tracked separately, so each can run as a different station. Each row in
-  the roster table and the rider detail sheet has a toggle for all three; in the detail sheet the
-  **🏁 Check Out** button sits on top of the others.
+- **Concurrency:** check-ins, rest-stop check-ins (including the finish line), and jersey pickups
+  are written to `/checkins`, `/reststops`, and `/jerseys` and streamed back via realtime listeners,
+  so multiple volunteers on different devices see each other's updates instantly. Each record stores
+  who did it and when.
+- **Independent annotations:** *Check-In* (rider has arrived) and *Jersey Picked Up* are tracked
+  separately from the per-rest-stop check-ins, so each can run as a different station. The **Finish
+  line** is the last rest stop — it replaces the old standalone "check out" and is checked in the
+  same way as every other rest stop. Each row in the roster table and the rider detail sheet has a
+  toggle for check-in, jersey pickup, and each rest stop (finish line included).
 - **Check-in numbers:** checking a rider in opens a small dialog that assigns them a number
   (defaulting to the lowest unused one). The dialog warns and blocks if the number is **already
   given out** to someone else, so numbers can't be duplicated. The number is stored on the
@@ -60,31 +61,34 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   later from the detail sheet. (The Squarespace order number is no longer shown on the dashboard.)
   **Un-checking-in** a rider releases their number (it becomes available again), so it first asks
   for confirmation, warning that the number will be freed.
-- **Rest-stop check-ins:** five rest stops along the route are tracked as independent check-ins
-  per rider, stored under `/reststops/{eventId}/{orderNumber}/{stopId}` (stop ids `1`–`5`). The
-  stops are **Rest Stop 1** — Hoelscher Field, Harrington Park NJ; **2** — Tallman State Park;
-  **3** — Rockland Lake State Park; **4** — Eugene Levy Memorial Park, New City NY; and **5** —
-  Hoelscher Field, Harrington Park NJ (same location as stop 1 but a deliberately separate
-  check-in). There are two ways to check a rider in at a rest stop:
+- **Rest-stop check-ins:** the rest stops along the route are tracked as independent check-ins
+  per rider, stored under `/reststops/{eventId}/{orderNumber}/{stopId}` (stop ids `1`–`5` plus
+  `finish`). The stops are **Rest Stop 1** — Hoelscher Field, Harrington Park NJ; **2** — Tallman
+  State Park; **3** — Rockland Lake State Park; **4** — Eugene Levy Memorial Park, New City NY;
+  **5** — Hoelscher Field, Harrington Park NJ (same location as stop 1 but a deliberately separate
+  check-in); and the **Finish line** (the former "check out", which every route passes through
+  regardless of mileage). There are two ways to check a rider in at a rest stop:
   1. **Open the rider** and tap a rest stop in the detail sheet's *Rest Stops* list (each toggles
-     on/off independently, exactly like check-in / check-out / jersey pickup). The roster table also
-     has a per-stop column for each rest stop (named in the header).
+     on/off independently, exactly like check-in / jersey pickup). The roster table also
+     has a per-stop column for each rest stop (named in the header; the finish line is the last one).
   2. **Check in by number** — a card at the top of the page where the rest-stop volunteer picks
      their stop once (remembered per device) and just types the rider's **check-in number**; on
      submit it validates the number and shows a confirmation of **who** was checked in (or an error
      if the number isn't assigned). A *Rest stop check-ins by route* table shows, per route, how
-     many riders have checked in at each of that route's stops out of how many are possible (the
-     riders on that route); stops a route doesn't use show `–`. It derives from live data, so it
+     many riders have checked in at each of that route's stops (the finish line included) out of how
+     many are possible (the riders on that route who checked in at the start of the ride); stops a
+     route doesn't use show `–`. It derives from live data, so it
      follows route edits — a re-routed rider is counted under their new route, and a check-in left
      at a stop the new route doesn't use simply stops being counted.
 
-  **Adaptive by route:** the rest stops available to a rider depend on their route's mileage —
-  the **40** route stops only at 1 & 2, the **65** route only at 1–3, and any other route uses all
-  five (configurable via `ROUTE_REST_STOPS`). Unavailable stops show a muted `–` in the table, are
-  omitted from the detail sheet, and are rejected (with an explanatory message) in the by-number card.
+  **Adaptive by route:** the intermediate rest stops available to a rider depend on their route's
+  mileage — the **40** route stops only at 1 & 2, the **65** route only at 1–3, and any other route
+  uses all five (configurable via `ROUTE_REST_STOPS`). The **Finish line** is always available on
+  every route regardless of mileage. Unavailable stops show a muted `–` in the table, are omitted
+  from the detail sheet, and are rejected (with an explanatory message) in the by-number card.
 - **Reset data (super-admins):** a collapsible *Reset Data* card at the bottom of the page lets
-  super-admins bulk-clear day-of state for the event — check-in numbers, check-in status, check-out
-  status, jersey pickup status, rest-stop check-ins, and override edits — each opt-in via its own checkbox (with a live
+  super-admins bulk-clear day-of state for the event — check-in numbers, check-in status,
+  jersey pickup status, rest-stop check-ins (including the finish line), and override edits — each opt-in via its own checkbox (with a live
   count of affected records). It requires typing `RESET` to confirm, plus a final confirmation
   dialog, and is **super-admin only** (and audited). Each reset writes per-record nulls to the same
   nodes volunteers already write, so no extra rules are required.
@@ -116,9 +120,10 @@ neither allowlist can't retrieve it even by forcing the call.
 
 - In the rider detail sheet, anyone with access gets a **🚑 Show emergency contact** disclosure.
   Each reveal writes an `emergency_view` audit entry.
-- The **Activity Log** (rider additions, check-ins with assigned number, check-outs, jersey
-  pickups, the undo of each, number re-assignments, every emergency-contact reveal, and volunteer
-  add/remove — who · what · when) is readable by **super-admins only**.
+- The **Activity Log** (rider additions, check-ins with assigned number, rest-stop check-ins
+  including the finish line, jersey pickups, the undo of each, number re-assignments, every
+  emergency-contact reveal, and volunteer add/remove — who · what · when) is readable by
+  **super-admins only**.
 - Audit entries are **append-only**: anyone with access can write their own action (so their
   check-ins and emergency-views get logged) but **cannot read the log back** — only super-admins can.
 
@@ -186,19 +191,21 @@ opening the dashboard with `?event=<id>`.
 4. Open the dashboard on two devices, check the same rider in on one → the assign-number dialog
    appears; confirm a number and the other device updates live; `/checkins` shows `by`, `at`, and
    `number`. Try assigning the same number to another rider → the dialog warns and blocks it. Undo
-   works. Repeat for the 🏁 check-out toggle (`/checkouts`) and the 👕 jersey toggle (`/jerseys`).
+   works. Repeat for the 👕 jersey toggle (`/jerseys`).
    Search by a rider's number → only that rider shows.
-5. Open a checked-in rider's detail sheet → tap a rest stop in the *Rest Stops* list; `/reststops`
-   shows `{checkedIn, by, at}` under that stop id and the status chip updates. At the top, pick a
-   rest stop, type that rider's number, and submit → it confirms who was checked in; an unknown
-   number shows an error. The *Rest stop check-ins* strip tallies live.
+5. Open a checked-in rider's detail sheet → tap a rest stop in the *Rest Stops* list (including the
+   🏁 **Finish line**); `/reststops` shows `{checkedIn, by, at}` under that stop id (`finish` for the
+   finish line) and the status chip updates. At the top, pick a rest stop — or the finish line —
+   type that rider's number, and submit → it confirms who was checked in; an unknown number shows an
+   error. The *Rest stop check-ins* strip tallies live.
 6. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
 7. Confirm the master sheet is unchanged after check-ins / jersey pickups.
 
 > **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, the
-> jersey-inventory feature added a `/jerseyInventory` node, the check-out feature added a
-> `/checkouts` node (plus an optional `number` field on `/checkins`), and the rest-stop feature
-> added a `/reststops` node. If you published the rules before any of these changes,
+> jersey-inventory feature added a `/jerseyInventory` node, the check-in number feature added an
+> optional `number` field on `/checkins`, and the rest-stop feature added a `/reststops` node
+> (whose stop ids now include `finish` for the finish line, which replaced the old `/checkouts`
+> node). If you published the rules before any of these changes,
 > **re-publish them** (Realtime Database → Rules) or those writes will be denied.
 
 ## Enabling restricted emergency contacts + activity log
