@@ -205,6 +205,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 /* x / y comparison cells in the jersey-size breakdown */
 .bd-num.inv-over{background:rgba(220,38,38,0.14);color:#b91c1c;border-radius:6px}
 .bd-num.inv-equal{background:rgba(234,179,8,0.20);color:#92600a;border-radius:6px}
+.bd-num.bd-done{background:rgba(0,168,74,0.14);color:#08923f;border-radius:6px}
 @media(max-width:680px){
   .audit-row{grid-template-columns:1fr auto}
   .audit-when{grid-column:1 / -1}
@@ -317,9 +318,16 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   <div class="route-stats" id="route-stats" style="display:none"></div>
 
   <div class="section-head" id="rest-stats-head" style="display:none">
-    <span class="section-label">Rest stop check-ins</span>
+    <span class="section-label">Rest stop check-ins by route</span>
   </div>
-  <div class="route-stats" id="rest-stats" style="display:none"></div>
+  <div class="breakdown" id="rest-stats" style="display:none">
+    <div class="bd-card">
+      <table class="bd-table">
+        <thead id="rest-bd-head"></thead>
+        <tbody id="rest-bd-body"></tbody>
+      </table>
+    </div>
+  </div>
 
   <div class="section-head" id="inv-breakdown-head" style="display:none">
     <span class="section-label">By jersey size</span>
@@ -1346,18 +1354,66 @@ function renderRouteStats(rows) {
     </div>`;
   }).join('');
 }
-// Per-rest-stop check-in totals, shown in the same compact strip style as the routes.
+// Rest-stop check-ins broken down by route: per route, how many riders have checked in
+// at each of that route's stops out of how many are possible (the riders on that route).
+// Stops that aren't on a route show "–". Everything derives from the live rows, so it
+// follows route edits — a rider re-routed live is counted under their NEW route, and only
+// that route's stops contribute to the possible totals (a check-in left over at a stop the
+// new route doesn't use simply stops being counted).
 function renderRestStats(rows) {
-  const el = document.getElementById('rest-stats');
-  if (!el) return;
-  el.innerHTML = REST_STOPS.map(s => {
-    const count = rows.filter(r => restChecked(r.orderNumber, s.id)).length;
-    return `
-    <div class="route-cell">
-      <div class="rc-label" title="${esc(s.name)} — ${esc(s.location)}">${esc(s.name)}</div>
-      <div class="rc-value"><span class="done">${count}</span></div>
-    </div>`;
+  const head = document.getElementById('rest-bd-head');
+  const body = document.getElementById('rest-bd-body');
+  if (!head || !body) return;
+
+  head.innerHTML = `<tr>
+      <th>Route</th>
+      ${REST_STOPS.map(s => `<th title="${esc(s.name)} — ${esc(s.location)}">${esc(s.name)}</th>`).join('')}
+      <th>Total</th>
+    </tr>`;
+
+  // Group riders by their current (possibly-overridden) route.
+  const groups = {};
+  rows.forEach(r => { const k = r.route || '(none)'; (groups[k] || (groups[k] = [])).push(r); });
+  const routeKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  if (!routeKeys.length) {
+    body.innerHTML = `<tr><td colspan="${REST_STOPS.length + 2}" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>`;
+    return;
+  }
+
+  const cell = (checked, possible) => {
+    const done = possible > 0 && checked >= possible ? ' bd-done' : '';
+    return `<td class="bd-num${done}">${checked}&nbsp;/&nbsp;${possible}</td>`;
+  };
+
+  // Column + grand totals accumulate as we render each route row.
+  const colChecked = {}, colPossible = {};
+  REST_STOPS.forEach(s => { colChecked[s.id] = 0; colPossible[s.id] = 0; });
+  let grandChecked = 0, grandPossible = 0;
+
+  const rowsHtml = routeKeys.map(k => {
+    const group = groups[k];
+    const availIds = new Set(stopsForRoute(k).map(s => s.id));
+    let rowChecked = 0, rowPossible = 0;
+    const cells = REST_STOPS.map(s => {
+      if (!availIds.has(s.id)) return `<td class="bd-num"><span class="rest-na">–</span></td>`;
+      const checked = group.filter(r => restChecked(r.orderNumber, s.id)).length;
+      const possible = group.length;
+      colChecked[s.id] += checked; colPossible[s.id] += possible;
+      rowChecked += checked; rowPossible += possible;
+      return cell(checked, possible);
+    }).join('');
+    grandChecked += rowChecked; grandPossible += rowPossible;
+    return `<tr>
+        <td>${k !== '(none)' ? `<span class="route-tag">${esc(k)}</span>` : esc(k)}</td>
+        ${cells}${cell(rowChecked, rowPossible)}
+      </tr>`;
   }).join('');
+
+  const totalCells = REST_STOPS.map(s => cell(colChecked[s.id], colPossible[s.id])).join('');
+  body.innerHTML = rowsHtml + `<tr class="bd-total">
+      <td>Total</td>${totalCells}${cell(grandChecked, grandPossible)}
+    </tr>`;
 }
 function toggleRouteCheckins() {
   _routeShowCheckins = !_routeShowCheckins;

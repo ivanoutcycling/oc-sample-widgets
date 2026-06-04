@@ -70,7 +70,11 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   2. **Check in by number** — a card at the top of the page where the rest-stop volunteer picks
      their stop once (remembered per device) and just types the rider's **check-in number**; on
      submit it validates the number and shows a confirmation of **who** was checked in (or an error
-     if the number isn't assigned). A compact *Rest stop check-ins* strip shows live per-stop totals.
+     if the number isn't assigned). A *Rest stop check-ins by route* table shows, per route, how
+     many riders have checked in at each of that route's stops out of how many are possible (the
+     riders on that route); stops a route doesn't use show `–`. It derives from live data, so it
+     follows route edits — a re-routed rider is counted under their new route, and a check-in left
+     at a stop the new route doesn't use simply stops being counted.
 
   **Adaptive by route:** the rest stops available to a rider depend on their route's mileage —
   the **40** route stops only at 1 & 2, the **65** route only at 1–3, and any other route uses all
