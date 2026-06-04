@@ -1344,13 +1344,9 @@ function renderRestStats(rows) {
   const body = document.getElementById('rest-bd-body');
   if (!head || !body) return;
 
-  // The finish line is tracked like a rest stop but is intentionally left out of this
-  // per-route breakdown — it only covers the intermediate rest stops.
-  const statStops = REST_STOPS.filter(s => s.id !== FINISH_STOP_ID);
-
   head.innerHTML = `<tr>
       <th>Route</th>
-      ${statStops.map(s => `<th title="${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}">${esc(s.name)}</th>`).join('')}
+      ${REST_STOPS.map(s => `<th title="${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}">${esc(s.name)}</th>`).join('')}
       <th>Total</th>
     </tr>`;
 
@@ -1360,7 +1356,7 @@ function renderRestStats(rows) {
   const routeKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   if (!routeKeys.length) {
-    body.innerHTML = `<tr><td colspan="${statStops.length + 2}" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>`;
+    body.innerHTML = `<tr><td colspan="${REST_STOPS.length + 2}" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>`;
     return;
   }
 
@@ -1371,7 +1367,7 @@ function renderRestStats(rows) {
 
   // Column + grand totals accumulate as we render each route row.
   const colChecked = {}, colPossible = {};
-  statStops.forEach(s => { colChecked[s.id] = 0; colPossible[s.id] = 0; });
+  REST_STOPS.forEach(s => { colChecked[s.id] = 0; colPossible[s.id] = 0; });
   let grandChecked = 0, grandPossible = 0;
 
   const rowsHtml = routeKeys.map(k => {
@@ -1380,7 +1376,7 @@ function renderRestStats(rows) {
     // Totals are out of riders who checked in at the start of the ride, not all registered.
     const started = group.filter(r => r.checked).length;
     let rowChecked = 0, rowPossible = 0;
-    const cells = statStops.map(s => {
+    const cells = REST_STOPS.map(s => {
       if (!availIds.has(s.id)) return `<td class="bd-num"><span class="rest-na">–</span></td>`;
       const checked = group.filter(r => restChecked(r.orderNumber, s.id)).length;
       const possible = started;
@@ -1395,7 +1391,7 @@ function renderRestStats(rows) {
       </tr>`;
   }).join('');
 
-  const totalCells = statStops.map(s => cell(colChecked[s.id], colPossible[s.id])).join('');
+  const totalCells = REST_STOPS.map(s => cell(colChecked[s.id], colPossible[s.id])).join('');
   body.innerHTML = rowsHtml + `<tr class="bd-total">
       <td>Total</td>${totalCells}${cell(grandChecked, grandPossible)}
     </tr>`;
