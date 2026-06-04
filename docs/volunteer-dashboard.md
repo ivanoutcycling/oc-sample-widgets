@@ -55,6 +55,14 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   `/checkins` record (`number`), shown in the roster's **#** column and the detail sheet, and is
   **searchable** — typing a number in the search box jumps to that rider. The number can be changed
   later from the detail sheet. (The Squarespace order number is no longer shown on the dashboard.)
+  **Un-checking-in** a rider releases their number (it becomes available again), so it first asks
+  for confirmation, warning that the number will be freed.
+- **Reset data (super-admins):** a collapsible *Reset Data* card at the bottom of the page lets
+  super-admins bulk-clear day-of state for the event — check-in numbers, check-in status, check-out
+  status, jersey pickup status, and override edits — each opt-in via its own checkbox (with a live
+  count of affected records). It requires typing `RESET` to confirm, plus a final confirmation
+  dialog, and is **super-admin only** (and audited). Each reset writes per-record nulls to the same
+  nodes volunteers already write, so no extra rules are required.
 - **Live breakdown stats:** the dashboard shows overall totals, a compact per-route strip of
   checked-in / signed-up counts (styled like the summary, wraps on mobile), and a per-jersey-size
   table of signed-up / checked-in / picked-up counts.

@@ -158,6 +158,17 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .inv-input{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:7px 9px;outline:none;width:100%;-webkit-appearance:none}
 .inv-input:focus{border-color:rgba(59,130,246,0.5)}
 .inv-actions{display:flex;justify-content:flex-end;padding:2px 4px}
+/* Reset data (super-admin) */
+.reset-card{margin:0 32px 16px}
+.reset-warn{font-size:12px;color:#b91c1c;line-height:1.5;background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.25);border-radius:8px;padding:10px 12px;margin:4px 0 12px}
+.reset-warn code{font-family:'DM Mono',monospace;background:rgba(0,0,0,0.07);padding:1px 5px;border-radius:4px}
+.reset-row{display:flex;align-items:center;gap:9px;padding:6px 4px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none}
+.reset-row input{width:16px;height:16px;accent-color:#dc2626;cursor:pointer;flex:none}
+.reset-cnt{color:var(--dimmer);font-family:'DM Mono',monospace;font-size:11px}
+.reset-confirm-row{display:flex;gap:8px;padding:12px 4px 4px;flex-wrap:wrap}
+.reset-confirm-input{flex:1;min-width:160px;max-width:none}
+.btn-danger{background:#dc2626;border-color:#dc2626;color:#fff}
+.btn-danger:hover:not(:disabled){background:#b91c1c;border-color:#b91c1c;color:#fff}
 /* x / y comparison cells in the jersey-size breakdown */
 .bd-num.inv-over{background:rgba(220,38,38,0.14);color:#b91c1c;border-radius:6px}
 .bd-num.inv-equal{background:rgba(234,179,8,0.20);color:#92600a;border-radius:6px}
@@ -339,6 +350,24 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="inv-actions"><button class="btn" onclick="saveInventory()">Save inventory</button></div>
   </details>
 
+  <!-- Reset data: super-admins only. Bulk-clears the selected day-of state for this event.
+       Each target is opt-in via checkbox and requires typing RESET to confirm. -->
+  <details class="bd-card reset-card" id="reset-card" style="display:none">
+    <summary class="bd-title">Reset Data</summary>
+    <div class="reset-warn">⚠ Permanently clears the selected data for <b id="reset-event"></b> for
+      <b>everyone</b>. This can't be undone. Choose what to reset, then type <code>RESET</code> below to confirm.</div>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="numbers" onchange="updateResetButton()"> Check-in numbers <span class="reset-cnt" id="reset-cnt-numbers"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkins" onchange="updateResetButton()"> Check-in status <span class="reset-cnt" id="reset-cnt-checkins"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkouts" onchange="updateResetButton()"> Check-out status <span class="reset-cnt" id="reset-cnt-checkouts"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="jerseys" onchange="updateResetButton()"> Jersey pickup status <span class="reset-cnt" id="reset-cnt-jerseys"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="overrides" onchange="updateResetButton()"> Override edits (route / size / notes) <span class="reset-cnt" id="reset-cnt-overrides"></span></label>
+    <div class="reset-confirm-row">
+      <input class="search-input reset-confirm-input" id="reset-confirm-input" type="text"
+             placeholder="Type RESET to confirm" autocomplete="off" oninput="updateResetButton()">
+      <button class="btn btn-danger" id="reset-btn" onclick="performReset()" disabled>Reset selected</button>
+    </div>
+  </details>
+
   <div class="sync-note" id="sync-note" style="display:none"></div>
 </div>
 
@@ -394,7 +423,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref as dbRef, onValue, set as dbSet, remove as dbRemove, serverTimestamp,
-         push as dbPush, query as dbQuery, limitToLast, get as dbGet }
+         push as dbPush, query as dbQuery, limitToLast, get as dbGet, update as dbUpdate }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -693,9 +722,17 @@ async function confirmAssign() {
 }
 async function undoCheckIn(orderNumber) {
   if (!fb || !_user) return;
+  // Un-checking-in deletes the whole record, which releases the assigned number for
+  // reuse — warn the volunteer about that before it happens (it's not symmetric with
+  // checking in, which assigns a number).
+  const num = assignedNumber(orderNumber);
+  const msg = num != null
+    ? `Undo check-in for ${riderName(orderNumber)}?\n\nTheir assigned number #${num} will be released and can be reassigned to someone else.`
+    : `Undo check-in for ${riderName(orderNumber)}?`;
+  if (!confirm(msg)) return;
   try {
     await dbRemove(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`));
-    logAudit('checkin_undo', riderName(orderNumber));
+    logAudit('checkin_undo', num != null ? `${riderName(orderNumber)} (#${num} released)` : riderName(orderNumber));
     toast('Check-in undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
@@ -812,6 +849,65 @@ function renderInventoryForm() {
                data-size="${esc(sz)}" value="${v}">
       </label>`;
   }).join('');
+}
+
+// ── Reset data (super-admins only) ──────────────────────────────────────────────
+// Bulk-clears the selected day-of state for this event. Each target is opt-in and the
+// whole thing is gated behind typing RESET. Writes are per-record (the same paths each
+// volunteer already writes during check-in), so no extra rules are needed.
+const RESET_LABELS = {
+  numbers: 'check-in numbers', checkins: 'check-in status', checkouts: 'check-out status',
+  jerseys: 'jersey pickup status', overrides: 'override edits'
+};
+function selectedResetKinds() {
+  return [...document.querySelectorAll('.reset-opt')].filter(c => c.checked).map(c => c.dataset.kind);
+}
+function resetConfirmed() {
+  const el = document.getElementById('reset-confirm-input');
+  return !!el && el.value.trim() === 'RESET';
+}
+// Enable the button only when something is selected AND the volunteer typed RESET.
+function updateResetButton() {
+  const btn = document.getElementById('reset-btn');
+  if (btn) btn.disabled = !(selectedResetKinds().length && resetConfirmed());
+}
+// Show how many records each reset would clear, so the super-admin sees the blast radius.
+function renderResetCounts() {
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = `(${n})`; };
+  set('reset-cnt-numbers', Object.values(_checkins).filter(c => c && Number.isFinite(c.number)).length);
+  set('reset-cnt-checkins', Object.keys(_checkins).length);
+  set('reset-cnt-checkouts', Object.keys(_checkouts).length);
+  set('reset-cnt-jerseys', Object.keys(_jerseys).length);
+  set('reset-cnt-overrides', Object.keys(_overrides).length);
+}
+async function performReset() {
+  if (!fb || !isSuperAdmin()) return;
+  const kinds = selectedResetKinds();
+  if (!kinds.length || !resetConfirmed()) { updateResetButton(); return; }
+  const summary = kinds.map(k => '• ' + RESET_LABELS[k]).join('\n');
+  if (!confirm(`Permanently clear the following for event "${EVENT_ID}"?\n\n${summary}\n\nThis affects everyone and cannot be undone.`)) return;
+  // Clear each selected node by writing null to every existing record (one multi-path
+  // update per node). `suffix` lets us drop just the number child while leaving the
+  // check-in itself intact.
+  const wipe = (basePath, obj, suffix) => {
+    const updates = {};
+    Object.keys(obj || {}).forEach(order => { updates[suffix ? `${order}/${suffix}` : order] = null; });
+    return Object.keys(updates).length ? dbUpdate(dbRef(fb.db, basePath), updates) : null;
+  };
+  const tasks = [];
+  if (kinds.includes('checkins')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins));   // also drops numbers
+  else if (kinds.includes('numbers')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins, 'number'));
+  if (kinds.includes('checkouts')) tasks.push(wipe(`checkouts/${EVENT_ID}`, _checkouts));
+  if (kinds.includes('jerseys'))   tasks.push(wipe(`jerseys/${EVENT_ID}`, _jerseys));
+  if (kinds.includes('overrides')) tasks.push(wipe(`overrides/${EVENT_ID}`, _overrides));
+  try {
+    await Promise.all(tasks.filter(Boolean));
+    logAudit('reset', kinds.map(k => RESET_LABELS[k]).join(', '));
+    document.querySelectorAll('.reset-opt').forEach(c => { c.checked = false; });
+    const ci = document.getElementById('reset-confirm-input'); if (ci) ci.value = '';
+    updateResetButton();
+    toast('Reset complete');
+  } catch (e) { console.error(e); toast('Reset failed: ' + (e.message || e.code)); }
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -941,6 +1037,7 @@ function render() {
   document.getElementById('stat-jerseys').textContent = picked;
   renderRouteStats(allRows);
   renderBreakdown(allRows);
+  renderResetCounts();
 
   const empty = document.getElementById('empty-state');
   const emptyMsg = document.getElementById('empty-msg');
@@ -1272,7 +1369,7 @@ const AUDIT_LABEL = {
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
-  inventory_update: 'updated jersey inventory',
+  inventory_update: 'updated jersey inventory', reset: 'reset data',
   route_override: 'updated route', jersey_override: 'updated jersey size',
   notes_edit: 'updated note'
 };
@@ -1311,7 +1408,7 @@ function hideAppSurfaces() {
   show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false); show('audit-card', false); show('manage-card', false);
-  show('inventory-card', false); show('inv-breakdown-head', false);
+  show('inventory-card', false); show('inv-breakdown-head', false); show('reset-card', false);
 }
 function showSignedIn() {
   closeAuth();
@@ -1324,6 +1421,8 @@ function showSignedIn() {
   show('audit-card', isSuperAdmin());
   show('manage-card', isSuperAdmin());
   show('inventory-card', isSuperAdmin());
+  show('reset-card', isSuperAdmin());
+  document.getElementById('reset-event').textContent = EVENT_ID;
   if (isSuperAdmin()) { subscribeAdmin(); renderInventoryForm(); }
   subscribeData();
   render();
@@ -1375,6 +1474,7 @@ Object.assign(window, {
   checkOut, undoCheckOut,
   openAssign, closeAssign, assignBgClick, updateAssignWarning, confirmAssign,
   addVolunteer, removeVolunteer, toggleInventory, saveInventory,
+  updateResetButton, performReset,
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick,
   startEditField, cancelFieldEdit, saveFieldEdit
