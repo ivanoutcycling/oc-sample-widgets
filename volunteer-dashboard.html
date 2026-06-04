@@ -78,6 +78,9 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .icon-toggle.on-green{background:var(--green);border-color:var(--green);color:#fff}
 .icon-toggle.on-blue{background:var(--accent);border-color:var(--accent);color:#fff}
 .icon-toggle.on-orange{background:var(--orange);border-color:var(--orange);color:#fff}
+.icon-toggle.on-rest{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.dash-table th.col-rest,.dash-table td.col-rest{text-align:center}
+.rest-na{color:var(--dimmer);font-weight:600}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 0;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
 .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
 .dash-table{width:100%;border-collapse:collapse;min-width:640px}
@@ -108,10 +111,10 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .google-btn svg{width:18px;height:18px;flex-shrink:0}
 .ov-status{font-size:11px;color:var(--muted);min-height:16px;margin-top:14px}
 .ov-status.error{color:#dc2626}
-.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:440px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left;position:relative}
-.detail-close{position:absolute;top:12px;right:12px;border:none;background:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px}
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:440px;max-height:calc(100vh - 80px);overflow-y:auto;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left;position:relative}
+.detail-close{position:sticky;top:0;display:block;width:fit-content;margin:-6px -6px 2px auto;border:1px solid var(--border);background:var(--surface);font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:5px 11px;border-radius:10px;z-index:5}
 .detail-close:hover{color:var(--text);background:var(--card)}
-.detail-name{font-family:'Unbounded',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.4px;color:var(--text);margin:0 32px 8px 0;line-height:1.1}
+.detail-name{font-family:'Unbounded',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.4px;color:var(--text);margin:0 0 8px 0;line-height:1.1}
 .detail-statuses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
 .detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;padding:4px 10px;border-radius:6px}
 .detail-status.in{background:rgba(0,168,74,0.12);color:#08923f;border:1px solid rgba(0,168,74,0.3)}
@@ -135,6 +138,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .rest-section{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
 .rest-section-head{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .rest-section-count{font-family:'DM Mono',monospace;font-size:11px;color:#6d28d9;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:5px;padding:1px 7px;letter-spacing:0}
+.rest-section-note{font-family:'Inter',sans-serif;font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted)}
 .rest-rows{display:flex;flex-direction:column;gap:6px}
 .rest-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
 .rest-row:hover{border-color:rgba(124,58,237,0.4);box-shadow:0 1px 4px rgba(0,0,0,0.07)}
@@ -213,8 +217,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .detail-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;padding:14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all 0.15s}
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @media(max-width:560px){
-  #detail-overlay{align-items:flex-end;padding:0}
-  #detail-overlay .detail-panel{max-width:none;border-radius:18px 18px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom))}
+  #detail-overlay{align-items:flex-end;padding:0;overflow:hidden}
+  #detail-overlay .detail-panel{max-width:none;max-height:90dvh;border-radius:18px 18px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom))}
   #detail-overlay.open .detail-panel{animation:sheetUp .22s ease}
 }
 .setup-banner{display:none;margin:0 32px 16px;padding:14px 18px;background:rgba(224,104,0,0.07);border:1px solid rgba(224,104,0,0.3);border-radius:10px;font-size:12px;color:var(--text);line-height:1.6}
@@ -352,10 +356,14 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
           <th>Size</th>
           <th class="col-item">Registration</th>
           <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
-          <th>Waiver</th>
           <th class="sortable" onclick="setSort('checked')">Check-In</th>
           <th class="sortable" onclick="setSort('checkedout')">Check-Out</th>
           <th class="sortable" onclick="setSort('picked')">Pickup</th>
+          <th class="col-rest" title="Rest Stop 1 — Hoelscher Field, Harrington Park NJ">Rest Stop 1</th>
+          <th class="col-rest" title="Rest Stop 2 — Tallman State Park">Rest Stop 2</th>
+          <th class="col-rest" title="Rest Stop 3 — Rockland Lake State Park">Rest Stop 3</th>
+          <th class="col-rest" title="Rest Stop 4 — Eugene Levy Memorial Park, New City NY">Rest Stop 4</th>
+          <th class="col-rest" title="Rest Stop 5 — Hoelscher Field, Harrington Park NJ">Rest Stop 5</th>
         </tr>
       </thead>
       <tbody id="roster-body"></tbody>
@@ -507,6 +515,18 @@ const REST_STOPS = [
 ];
 // Remember which rest stop this volunteer is stationed at (per-event, per-device).
 const REST_STOP_LS = 'oc-reststop-' + EVENT_ID;
+
+// Which rest stops each route uses, keyed by the route's mileage. Shorter routes skip
+// the later stops. Any route not listed here gets all rest stops. (The chosen stops are
+// always taken from REST_STOPS in order.)
+const ROUTE_REST_STOPS = { 40: ['1', '2'], 65: ['1', '2', '3'] };
+// The rest stops available to a rider on a given route (subset of REST_STOPS, in order).
+function stopsForRoute(route) {
+  const m = String(route || '').match(/\d+/);
+  const miles = m ? parseInt(m[0], 10) : null;
+  const ids = (miles != null && ROUTE_REST_STOPS[miles]) || REST_STOPS.map(s => s.id);
+  return REST_STOPS.filter(s => ids.includes(s.id));
+}
 
 // Access is allowlist-driven (not by email domain). A user's role is read from
 // the global /acl lists, keyed by their email lowercased with '.' replaced by ','
@@ -925,6 +945,13 @@ async function checkInByNumber() {
     input.focus(); input.select();
     return;
   }
+  // Adaptive: a rider only stops at the rest stops on their route.
+  const row = rosterRows().find(x => x.orderNumber === order);
+  if (row && !row.availableStops.some(s => s.id === stopId)) {
+    restByNumResult('err', `⚠ <b>${esc(riderName(order))}</b> (#${n}) is on the ${row.route ? esc(row.route) + ' ' : ''}route, which doesn't include <b>${esc(restStopName(stopId))}</b>.`);
+    input.focus(); input.select();
+    return;
+  }
   if (restChecked(order, stopId)) {
     restByNumResult('ok', `✓ <b>${esc(riderName(order))}</b> (#${n}) is already checked in at <b>${esc(restStopName(stopId))}</b>.`);
     input.value = ''; input.focus();
@@ -1085,11 +1112,13 @@ function rosterRows() {
     const o = _checkouts[orderNumber];
     const j = _jerseys[orderNumber];
     const ov = _overrides[orderNumber];
+    const route = (ov && ov.route != null) ? ov.route : (r.route || '');
+    const availableStops = stopsForRoute(route);
     return {
       orderNumber,
       number: (c && Number.isFinite(c.number)) ? c.number : null,
       name: r.name || '(no name)',
-      route: (ov && ov.route != null) ? ov.route : (r.route || ''),
+      route,
       jerseySize: (ov && ov.jerseySize != null) ? ov.jerseySize : (r.jerseySize || ''),
       notes: (ov && ov.notes) ? ov.notes : '',
       lineItemName: r.lineItemName || '',
@@ -1108,7 +1137,9 @@ function rosterRows() {
       pickedBy: j?.by || '',
       pickedAt: j?.at || 0,
       reststops: _reststops[orderNumber] || {},
-      restCount: REST_STOPS.filter(s => restChecked(orderNumber, s.id)).length
+      availableStops,
+      restCount: availableStops.filter(s => restChecked(orderNumber, s.id)).length,
+      restTotal: availableStops.length
     };
   });
 }
@@ -1184,7 +1215,6 @@ function render() {
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
       <td class="col-created">${fmtDate(r.createdAt)}</td>
-      <td>${r.waiver ? '<span class="waiver-yes">✓</span>' : '<span class="waiver-no">✗</span>'}</td>
       <td>${r.checked
         ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
         : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
@@ -1194,6 +1224,14 @@ function render() {
       <td>${r.picked
         ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
         : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
+      ${REST_STOPS.map(s => {
+        const avail = r.availableStops.some(a => a.id === s.id);
+        if (!avail) return `<td class="col-rest"><span class="rest-na" title="Not on the ${esc(r.route) || 'selected'} route">–</span></td>`;
+        const on = restChecked(r.orderNumber, s.id);
+        return `<td class="col-rest">${on
+          ? `<button class="icon-toggle on-rest" title="${esc(s.name)} — checked in by ${esc((restRecord(r.orderNumber, s.id)||{}).by || '')} — tap to undo" onclick="event.stopPropagation();undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">🛑</button>`
+          : `<button class="icon-toggle" title="Tap to check in at ${esc(s.name)}" onclick="event.stopPropagation();checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">🛑</button>`}</td>`;
+      }).join('')}
     </tr>`).join('');
 
   const allRows = rosterRows();
@@ -1357,7 +1395,7 @@ function renderDetail() {
     `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? `✅ Checked In${r.number != null ? ' · #' + r.number : ''}` : '◦ Not Checked In'}</span>` +
     `<span class="detail-status ${r.checkedout ? 'checkedout' : 'out'}">${r.checkedout ? '🏁 Checked Out' : '◦ Not Checked Out'}</span>` +
     `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>` +
-    `<span class="detail-status ${r.restCount ? 'rest' : 'out'}">${r.restCount ? `🛑 Rest Stops ${r.restCount}/${REST_STOPS.length}` : '◦ No Rest Stops'}</span>`;
+    `<span class="detail-status ${r.restCount ? 'rest' : 'out'}">${r.restCount ? `🛑 Rest Stops ${r.restCount}/${r.restTotal}` : '◦ No Rest Stops'}</span>`;
 
   const notes = [];
   if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
@@ -1481,12 +1519,13 @@ function renderDetail() {
   }
 }
 
-// Render the five rest-stop check-in toggles in the rider detail sheet. Each is an
-// independent check-in (with its own undo), mirroring how check-in/out and jersey work.
+// Render the rider's rest-stop check-in toggles in the detail sheet. Only the stops on
+// the rider's route are shown (see stopsForRoute). Each is an independent check-in (with
+// its own undo), mirroring how check-in/out and jersey work.
 function renderDetailRestStops(r) {
   const el = document.getElementById('detail-reststops');
   if (!el) return;
-  const rows = REST_STOPS.map(s => {
+  const rows = r.availableStops.map(s => {
     const on = restChecked(r.orderNumber, s.id);
     const rec = restRecord(r.orderNumber, s.id);
     const meta = on && rec
@@ -1499,8 +1538,10 @@ function renderDetailRestStops(r) {
         <span class="rest-row-action">${on ? 'Undo' : 'Check in'}</span>
       </button>`;
   }).join('');
+  const note = r.restTotal < REST_STOPS.length
+    ? `<span class="rest-section-note">${r.route ? esc(r.route) + ' route' : 'this route'} · ${r.restTotal} stop${r.restTotal === 1 ? '' : 's'}</span>` : '';
   el.innerHTML = `<div class="rest-section">
-      <div class="rest-section-head">Rest Stops <span class="rest-section-count">${r.restCount}/${REST_STOPS.length}</span></div>
+      <div class="rest-section-head">Rest Stops <span class="rest-section-count">${r.restCount}/${r.restTotal}</span>${note}</div>
       <div class="rest-rows">${rows}</div>
     </div>`;
 }

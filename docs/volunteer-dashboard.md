@@ -65,11 +65,17 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   Hoelscher Field, Harrington Park NJ (same location as stop 1 but a deliberately separate
   check-in). There are two ways to check a rider in at a rest stop:
   1. **Open the rider** and tap a rest stop in the detail sheet's *Rest Stops* list (each toggles
-     on/off independently, exactly like check-in / check-out / jersey pickup).
+     on/off independently, exactly like check-in / check-out / jersey pickup). The roster table also
+     has a per-stop column for each rest stop (named in the header).
   2. **Check in by number** — a card at the top of the page where the rest-stop volunteer picks
      their stop once (remembered per device) and just types the rider's **check-in number**; on
      submit it validates the number and shows a confirmation of **who** was checked in (or an error
      if the number isn't assigned). A compact *Rest stop check-ins* strip shows live per-stop totals.
+
+  **Adaptive by route:** the rest stops available to a rider depend on their route's mileage —
+  the **40** route stops only at 1 & 2, the **65** route only at 1–3, and any other route uses all
+  five (configurable via `ROUTE_REST_STOPS`). Unavailable stops show a muted `–` in the table, are
+  omitted from the detail sheet, and are rejected (with an explanatory message) in the by-number card.
 - **Reset data (super-admins):** a collapsible *Reset Data* card at the bottom of the page lets
   super-admins bulk-clear day-of state for the event — check-in numbers, check-in status, check-out
   status, jersey pickup status, rest-stop check-ins, and override edits — each opt-in via its own checkbox (with a live
