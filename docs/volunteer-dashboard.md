@@ -19,6 +19,7 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                 /checkins/{eventId}      check-in state + assigned number (volunteers read + write, realtime)
                 /checkouts/{eventId}     check-out state   (volunteers read + write, realtime)
                 /jerseys/{eventId}       jersey-pickup     (volunteers read + write, realtime)
+                /reststops/{eventId}     per-rest-stop check-ins (volunteers read + write, realtime)
                 /jerseyInventory/{eventId} jersey stock    (volunteers read; super-admins write)
                 /meta/{eventId}/lastSync sync timestamp
                 /restricted/
@@ -53,13 +54,37 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   (defaulting to the lowest unused one). The dialog warns and blocks if the number is **already
   given out** to someone else, so numbers can't be duplicated. The number is stored on the
   `/checkins` record (`number`), shown in the roster's **#** column and the detail sheet, and is
-  **searchable** — typing a number in the search box jumps to that rider. The number can be changed
+  **searchable** — the filter bar has a dedicated **Check-in #** box that filters the table to
+  riders whose number contains the typed digits (the name box also still jumps to an exact-number
+  match). The number can be changed
   later from the detail sheet. (The Squarespace order number is no longer shown on the dashboard.)
   **Un-checking-in** a rider releases their number (it becomes available again), so it first asks
   for confirmation, warning that the number will be freed.
+- **Rest-stop check-ins:** five rest stops along the route are tracked as independent check-ins
+  per rider, stored under `/reststops/{eventId}/{orderNumber}/{stopId}` (stop ids `1`–`5`). The
+  stops are **Rest Stop 1** — Hoelscher Field, Harrington Park NJ; **2** — Tallman State Park;
+  **3** — Rockland Lake State Park; **4** — Eugene Levy Memorial Park, New City NY; and **5** —
+  Hoelscher Field, Harrington Park NJ (same location as stop 1 but a deliberately separate
+  check-in). There are two ways to check a rider in at a rest stop:
+  1. **Open the rider** and tap a rest stop in the detail sheet's *Rest Stops* list (each toggles
+     on/off independently, exactly like check-in / check-out / jersey pickup). The roster table also
+     has a per-stop column for each rest stop (named in the header).
+  2. **Check in by number** — a card at the top of the page where the rest-stop volunteer picks
+     their stop once (remembered per device) and just types the rider's **check-in number**; on
+     submit it validates the number and shows a confirmation of **who** was checked in (or an error
+     if the number isn't assigned). A *Rest stop check-ins by route* table shows, per route, how
+     many riders have checked in at each of that route's stops out of how many are possible (the
+     riders on that route); stops a route doesn't use show `–`. It derives from live data, so it
+     follows route edits — a re-routed rider is counted under their new route, and a check-in left
+     at a stop the new route doesn't use simply stops being counted.
+
+  **Adaptive by route:** the rest stops available to a rider depend on their route's mileage —
+  the **40** route stops only at 1 & 2, the **65** route only at 1–3, and any other route uses all
+  five (configurable via `ROUTE_REST_STOPS`). Unavailable stops show a muted `–` in the table, are
+  omitted from the detail sheet, and are rejected (with an explanatory message) in the by-number card.
 - **Reset data (super-admins):** a collapsible *Reset Data* card at the bottom of the page lets
   super-admins bulk-clear day-of state for the event — check-in numbers, check-in status, check-out
-  status, jersey pickup status, and override edits — each opt-in via its own checkbox (with a live
+  status, jersey pickup status, rest-stop check-ins, and override edits — each opt-in via its own checkbox (with a live
   count of affected records). It requires typing `RESET` to confirm, plus a final confirmation
   dialog, and is **super-admin only** (and audited). Each reset writes per-record nulls to the same
   nodes volunteers already write, so no extra rules are required.
@@ -163,14 +188,18 @@ opening the dashboard with `?event=<id>`.
    `number`. Try assigning the same number to another rider → the dialog warns and blocks it. Undo
    works. Repeat for the 🏁 check-out toggle (`/checkouts`) and the 👕 jersey toggle (`/jerseys`).
    Search by a rider's number → only that rider shows.
-5. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
-6. Confirm the master sheet is unchanged after check-ins / jersey pickups.
+5. Open a checked-in rider's detail sheet → tap a rest stop in the *Rest Stops* list; `/reststops`
+   shows `{checkedIn, by, at}` under that stop id and the status chip updates. At the top, pick a
+   rest stop, type that rider's number, and submit → it confirms who was checked in; an unknown
+   number shows an error. The *Rest stop check-ins* strip tallies live.
+6. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
+7. Confirm the master sheet is unchanged after check-ins / jersey pickups.
 
 > **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, the
-> jersey-inventory feature added a `/jerseyInventory` node, and the check-out feature added a
-> `/checkouts` node (plus an optional `number` field on `/checkins`). If you published the rules
-> before any of these changes, **re-publish them** (Realtime Database → Rules) or those writes will
-> be denied.
+> jersey-inventory feature added a `/jerseyInventory` node, the check-out feature added a
+> `/checkouts` node (plus an optional `number` field on `/checkins`), and the rest-stop feature
+> added a `/reststops` node. If you published the rules before any of these changes,
+> **re-publish them** (Realtime Database → Rules) or those writes will be denied.
 
 ## Enabling restricted emergency contacts + activity log
 1. **Seed at least one super-admin** in the console (see "Seeding the first super-admin"), then have

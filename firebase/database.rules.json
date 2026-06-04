@@ -79,6 +79,22 @@
       }
     },
 
+    "reststops": {
+      "$eventId": {
+        ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
+        "$orderNumber": {
+          ".write": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
+          "$stop": {
+            ".validate": "$stop.matches(/^[1-5]$/) && (!newData.exists() || newData.hasChildren(['checkedIn', 'by']))",
+            "checkedIn": { ".validate": "newData.isBoolean()" },
+            "by": { ".validate": "newData.isString() && newData.val() == auth.token.email" },
+            "at": { ".validate": "newData.isNumber() || newData.val() == now" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
+
     "overrides": {
       "$eventId": {
         ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
