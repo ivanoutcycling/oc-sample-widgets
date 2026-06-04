@@ -16,7 +16,8 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                 /acl/superAdmins/{email}  super-admin allowlist (console-managed)
                 /acl/volunteers/{email}   volunteer allowlist  (super-admins manage in-app)
                 /eventRoster/{eventId}   safe roster      (sync writes, volunteers read)
-                /checkins/{eventId}      check-in state    (volunteers read + write, realtime)
+                /checkins/{eventId}      check-in state + assigned number (volunteers read + write, realtime)
+                /checkouts/{eventId}     check-out state   (volunteers read + write, realtime)
                 /jerseys/{eventId}       jersey-pickup     (volunteers read + write, realtime)
                 /jerseyInventory/{eventId} jersey stock    (volunteers read; super-admins write)
                 /meta/{eventId}/lastSync sync timestamp
@@ -41,11 +42,27 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   Enforcement is in the database rules; the page UI only mirrors it. Emails are keyed lowercased
   with `.` replaced by `,` (RTDB keys can't contain `.`) — e.g. `Jo.Lee@gmail.com` →
   `jo,lee@gmail,com`. Gmail dot/alias normalization is **not** applied, so add the exact address.
-- **Concurrency:** check-ins and jersey pickups are written to `/checkins` and `/jerseys` and
-  streamed back via realtime listeners, so multiple volunteers on different devices see each
-  other's updates instantly. Each record stores who did it and when.
-- **Two independent annotations:** *Check-In* (rider has arrived) and *Jersey Picked Up* are
-  tracked separately, so a jersey table and a check-in table can run as different stations.
+- **Concurrency:** check-ins, check-outs, and jersey pickups are written to `/checkins`,
+  `/checkouts`, and `/jerseys` and streamed back via realtime listeners, so multiple volunteers on
+  different devices see each other's updates instantly. Each record stores who did it and when.
+- **Three independent annotations:** *Check-In* (rider has arrived), *Check-Out* (rider has left),
+  and *Jersey Picked Up* are tracked separately, so each can run as a different station. Each row in
+  the roster table and the rider detail sheet has a toggle for all three; in the detail sheet the
+  **🏁 Check Out** button sits on top of the others.
+- **Check-in numbers:** checking a rider in opens a small dialog that assigns them a number
+  (defaulting to the lowest unused one). The dialog warns and blocks if the number is **already
+  given out** to someone else, so numbers can't be duplicated. The number is stored on the
+  `/checkins` record (`number`), shown in the roster's **#** column and the detail sheet, and is
+  **searchable** — typing a number in the search box jumps to that rider. The number can be changed
+  later from the detail sheet. (The Squarespace order number is no longer shown on the dashboard.)
+  **Un-checking-in** a rider releases their number (it becomes available again), so it first asks
+  for confirmation, warning that the number will be freed.
+- **Reset data (super-admins):** a collapsible *Reset Data* card at the bottom of the page lets
+  super-admins bulk-clear day-of state for the event — check-in numbers, check-in status, check-out
+  status, jersey pickup status, and override edits — each opt-in via its own checkbox (with a live
+  count of affected records). It requires typing `RESET` to confirm, plus a final confirmation
+  dialog, and is **super-admin only** (and audited). Each reset writes per-record nulls to the same
+  nodes volunteers already write, so no extra rules are required.
 - **Live breakdown stats:** the dashboard shows overall totals, a compact per-route strip of
   checked-in / signed-up counts (styled like the summary, wraps on mobile), and a per-jersey-size
   table of signed-up / checked-in / picked-up counts.
@@ -74,9 +91,9 @@ neither allowlist can't retrieve it even by forcing the call.
 
 - In the rider detail sheet, anyone with access gets a **🚑 Show emergency contact** disclosure.
   Each reveal writes an `emergency_view` audit entry.
-- The **Activity Log** (rider additions, check-ins, jersey pickups, the undo of each, every
-  emergency-contact reveal, and volunteer add/remove — who · what · when) is readable by
-  **super-admins only**.
+- The **Activity Log** (rider additions, check-ins with assigned number, check-outs, jersey
+  pickups, the undo of each, number re-assignments, every emergency-contact reveal, and volunteer
+  add/remove — who · what · when) is readable by **super-admins only**.
 - Audit entries are **append-only**: anyone with access can write their own action (so their
   check-ins and emergency-views get logged) but **cannot read the log back** — only super-admins can.
 
@@ -141,14 +158,19 @@ opening the dashboard with `?event=<id>`.
 2. In the Firebase console, inspect `/eventRoster` and the page's network traffic — confirm no
    email/phone/address/payment fields are present.
 3. Edit a jersey size in the sheet → within ~5 min (or immediately on save) the dashboard updates.
-4. Open the dashboard on two devices, check the same rider in on one → the other updates live;
-   `/checkins` shows `by` + `at`. Undo works. Repeat for the 👕 jersey toggle (`/jerseys`).
+4. Open the dashboard on two devices, check the same rider in on one → the assign-number dialog
+   appears; confirm a number and the other device updates live; `/checkins` shows `by`, `at`, and
+   `number`. Try assigning the same number to another rider → the dialog warns and blocks it. Undo
+   works. Repeat for the 🏁 check-out toggle (`/checkouts`) and the 👕 jersey toggle (`/jerseys`).
+   Search by a rider's number → only that rider shows.
 5. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
 6. Confirm the master sheet is unchanged after check-ins / jersey pickups.
 
-> **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, and the
-> jersey-inventory feature added a `/jerseyInventory` node. If you published the rules before either
-> change, **re-publish them** (Realtime Database → Rules) or those writes will be denied.
+> **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, the
+> jersey-inventory feature added a `/jerseyInventory` node, and the check-out feature added a
+> `/checkouts` node (plus an optional `number` field on `/checkins`). If you published the rules
+> before any of these changes, **re-publish them** (Realtime Database → Rules) or those writes will
+> be denied.
 
 ## Enabling restricted emergency contacts + activity log
 1. **Seed at least one super-admin** in the console (see "Seeding the first super-admin"), then have
