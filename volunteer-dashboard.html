@@ -118,6 +118,34 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .detail-status.jersey{background:rgba(59,130,246,0.12);color:#2563eb;border:1px solid rgba(59,130,246,0.3)}
 .detail-status.checkedout{background:rgba(224,104,0,0.12);color:var(--orange);border:1px solid rgba(224,104,0,0.3)}
 .detail-status.out{background:rgba(17,17,40,0.05);color:var(--muted);border:1px solid var(--border)}
+.detail-status.rest{background:rgba(124,58,237,0.12);color:#6d28d9;border:1px solid rgba(124,58,237,0.3)}
+
+/* Rest-stop "check in by number" widget (top of page) */
+.rest-bynum-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05);border-left:3px solid #7c3aed}
+.rest-bynum-head{font-family:'Unbounded',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6d28d9;margin-bottom:10px}
+.rest-bynum-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rest-bynum-select{flex:1 1 240px;min-width:0}
+.rest-bynum-input{flex:0 1 140px;min-width:110px}
+.rest-bynum-result{font-size:12.5px;margin-top:10px;min-height:0;line-height:1.45}
+.rest-bynum-result:empty{display:none}
+.rest-bynum-result.ok{color:#08923f}
+.rest-bynum-result.err{color:#b91c1c}
+
+/* Rest-stop check-ins inside the rider detail sheet */
+.rest-section{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
+.rest-section-head{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.rest-section-count{font-family:'DM Mono',monospace;font-size:11px;color:#6d28d9;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:5px;padding:1px 7px;letter-spacing:0}
+.rest-rows{display:flex;flex-direction:column;gap:6px}
+.rest-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.rest-row:hover{border-color:rgba(124,58,237,0.4);box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+.rest-row.on{background:rgba(124,58,237,0.07);border-color:rgba(124,58,237,0.45)}
+.rest-row-tick{flex:0 0 22px;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;font-weight:700;font-size:13px;color:var(--dimmer);border:1.5px solid var(--border);background:var(--surface)}
+.rest-row.on .rest-row-tick{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.rest-row-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rest-row-name{font-size:13px;font-weight:600;color:var(--text)}
+.rest-row-meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rest-row-action{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#6d28d9}
+.rest-row.on .rest-row-action{color:var(--muted)}
 .detail-actions{display:flex;flex-direction:column;gap:10px}
 .emergency-details{border:1px solid rgba(220,38,38,0.3);border-radius:10px;margin-bottom:10px;overflow:hidden}
 .emergency-summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;user-select:none;padding:12px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:#dc2626;background:rgba(220,38,38,0.06)}
@@ -227,7 +255,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 @media(max-width:680px){
   .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
   .section-label,.section-head{margin-left:0;margin-right:0}
-  .card,.stats-row,.setup-banner,.route-stats,.breakdown,.audit-card,.manage-card,.inventory-card,.reset-card{margin-left:16px;margin-right:16px}
+  .card,.stats-row,.setup-banner,.route-stats,.rest-bynum-card,.breakdown,.audit-card,.manage-card,.inventory-card,.reset-card{margin-left:16px;margin-right:16px}
   .search-input{max-width:none}
   .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
 }
@@ -264,11 +292,30 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
   </div>
 
+  <!-- Quick rest-stop check-in by number: a volunteer stationed at a rest stop picks
+       their stop, then just types the rider's assigned number to check them in. -->
+  <div class="rest-bynum-card" id="rest-bynum-card" style="display:none">
+    <div class="rest-bynum-head">🛑 Check in to rest stop by number</div>
+    <div class="rest-bynum-controls">
+      <select class="filter-select rest-bynum-select" id="rest-stop-select" onchange="onRestStopSelect()"></select>
+      <input class="search-input rest-bynum-input" id="rest-bynum-input" type="number" min="1" step="1"
+             inputmode="numeric" placeholder="Rider number"
+             onkeydown="if(event.key==='Enter')checkInByNumber()">
+      <button class="btn btn-green" onclick="checkInByNumber()">Check in</button>
+    </div>
+    <div class="rest-bynum-result" id="rest-bynum-result"></div>
+  </div>
+
   <div class="section-head" id="route-stats-head" style="display:none">
     <span class="section-label" id="route-stats-label">Registrants by route</span>
     <span class="toggle-pill" id="route-toggle" onclick="toggleRouteCheckins()">Show check-ins</span>
   </div>
   <div class="route-stats" id="route-stats" style="display:none"></div>
+
+  <div class="section-head" id="rest-stats-head" style="display:none">
+    <span class="section-label">Rest stop check-ins</span>
+  </div>
+  <div class="route-stats" id="rest-stats" style="display:none"></div>
 
   <div class="section-head" id="inv-breakdown-head" style="display:none">
     <span class="section-label">By jersey size</span>
@@ -361,6 +408,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkins" onchange="updateResetButton()"> Check-in status <span class="reset-cnt" id="reset-cnt-checkins"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkouts" onchange="updateResetButton()"> Check-out status <span class="reset-cnt" id="reset-cnt-checkouts"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="jerseys" onchange="updateResetButton()"> Jersey pickup status <span class="reset-cnt" id="reset-cnt-jerseys"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="reststops" onchange="updateResetButton()"> Rest-stop check-ins <span class="reset-cnt" id="reset-cnt-reststops"></span></label>
     <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="overrides" onchange="updateResetButton()"> Override edits (route / size / notes) <span class="reset-cnt" id="reset-cnt-overrides"></span></label>
     <div class="reset-confirm-row">
       <input class="search-input reset-confirm-input" id="reset-confirm-input" type="text"
@@ -395,6 +443,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="detail-name" id="detail-name"></div>
     <div class="detail-statuses" id="detail-statuses"></div>
     <div id="detail-body"></div>
+    <div id="detail-reststops"></div>
     <div id="detail-emergency"></div>
     <div class="detail-actions">
       <button class="detail-action-btn" id="detail-action-checkout"></button>
@@ -446,6 +495,19 @@ const FIREBASE_CONFIG = {
 // Which event/roster to show. Override with ?event=<id> to run multiple rides.
 const EVENT_ID = new URLSearchParams(location.search).get('event') || 'default';
 
+// Rest stops along the route. Each is a separate, independent check-in keyed by its
+// `id` (stored under /reststops/{eventId}/{orderNumber}/{id}). Stop 5 is the same
+// physical location as stop 1 but is intentionally a distinct check-in.
+const REST_STOPS = [
+  { id: '1', name: 'Rest Stop 1', location: 'Hoelscher Field, Harrington Park NJ' },
+  { id: '2', name: 'Rest Stop 2', location: 'Tallman State Park' },
+  { id: '3', name: 'Rest Stop 3', location: 'Rockland Lake State Park' },
+  { id: '4', name: 'Rest Stop 4', location: 'Eugene Levy Memorial Park, New City NY' },
+  { id: '5', name: 'Rest Stop 5', location: 'Hoelscher Field, Harrington Park NJ' }
+];
+// Remember which rest stop this volunteer is stationed at (per-event, per-device).
+const REST_STOP_LS = 'oc-reststop-' + EVENT_ID;
+
 // Access is allowlist-driven (not by email domain). A user's role is read from
 // the global /acl lists, keyed by their email lowercased with '.' replaced by ','
 // (RTDB keys cannot contain '.'). The same encoding is used by the security rules.
@@ -470,6 +532,7 @@ let _roster = {};      // orderNumber → roster record
 let _checkins = {};    // orderNumber → { checkedIn, by, at, number }
 let _checkouts = {};   // orderNumber → { checkedOut, by, at }
 let _jerseys = {};     // orderNumber → { pickedUp, by, at }
+let _reststops = {};   // orderNumber → { <stopId>: { checkedIn, by, at } } — per-rest-stop check-ins
 let _overrides = {};   // orderNumber → { route?, jerseySize?, by, at } — day-of corrections
 let _inventory = {};   // { sizes: { <size>: count } } — jersey stock (super-admin managed)
 let _invEnabled = true; // per-user toggle: show count / stock comparison in breakdown
@@ -588,6 +651,11 @@ function subscribeData() {
     _jerseys = snap.val() || {};
     render();
   }, err => { console.error('jerseys read denied', err); });
+
+  onValue(dbRef(fb.db, `reststops/${EVENT_ID}`), snap => {
+    _reststops = snap.val() || {};
+    render();
+  }, err => { console.error('reststops read denied', err); });
 
   onValue(dbRef(fb.db, `overrides/${EVENT_ID}`), snap => {
     _overrides = snap.val() || {};
@@ -774,6 +842,103 @@ async function undoPickUp(orderNumber) {
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
 
+// ── Rest-stop check-ins ─────────────────────────────────────────────────────────
+// Each rest stop is an independent check-in, like check-in / check-out / jersey, but
+// there are five of them per rider, stored under /reststops/{eventId}/{order}/{stopId}.
+function restStop(stopId) { return REST_STOPS.find(s => s.id === String(stopId)) || null; }
+function restStopName(stopId) { const s = restStop(stopId); return s ? s.name : `Rest Stop ${stopId}`; }
+function restStopLabel(stopId) { const s = restStop(stopId); return s ? `${s.name} — ${s.location}` : restStopName(stopId); }
+function restChecked(orderNumber, stopId) {
+  const r = _reststops[orderNumber];
+  return !!(r && r[stopId] && r[stopId].checkedIn);
+}
+function restRecord(orderNumber, stopId) {
+  const r = _reststops[orderNumber];
+  return (r && r[stopId]) || null;
+}
+// Find the rider whose assigned check-in number matches `num` (reverse of assignedNumber).
+function orderByNumber(num) {
+  for (const [on, c] of Object.entries(_checkins)) {
+    if (c && Number.isFinite(c.number) && c.number === num) return on;
+  }
+  return null;
+}
+async function checkInRestStop(orderNumber, stopId) {
+  if (!fb || !_user) return false;
+  try {
+    await dbSet(dbRef(fb.db, `reststops/${EVENT_ID}/${orderNumber}/${stopId}`), {
+      checkedIn: true, by: _user.email, at: serverTimestamp()
+    });
+    logAudit('reststop', `${riderName(orderNumber)} @ ${restStopName(stopId)}`);
+    toast(`Checked in at ${restStopName(stopId)}`);
+    return true;
+  } catch (e) { console.error(e); toast('Rest-stop check-in failed: ' + (e.message || e.code)); return false; }
+}
+async function undoRestStop(orderNumber, stopId) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `reststops/${EVENT_ID}/${orderNumber}/${stopId}`));
+    logAudit('reststop_undo', `${riderName(orderNumber)} @ ${restStopName(stopId)}`);
+    toast(`${restStopName(stopId)} check-in undone`);
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+
+// ── "Check in to rest stop by number" widget (top of page) ──────────────────────
+// Volunteers stationed at a rest stop pick their stop once, then just type the rider's
+// assigned number and confirm. The selected stop is remembered per device.
+function initRestByNumber() {
+  const sel = document.getElementById('rest-stop-select');
+  if (!sel) return;
+  sel.innerHTML = REST_STOPS.map(s =>
+    `<option value="${esc(s.id)}">${esc(s.name)} — ${esc(s.location)}</option>`).join('');
+  let saved = null;
+  try { saved = localStorage.getItem(REST_STOP_LS); } catch (e) {}
+  if (saved && REST_STOPS.some(s => s.id === saved)) sel.value = saved;
+}
+function onRestStopSelect() {
+  const sel = document.getElementById('rest-stop-select');
+  try { localStorage.setItem(REST_STOP_LS, sel.value); } catch (e) {}
+  // Clear any stale confirmation when the stop changes.
+  const res = document.getElementById('rest-bynum-result');
+  if (res) { res.className = 'rest-bynum-result'; res.textContent = ''; }
+}
+function restByNumResult(cls, html) {
+  const res = document.getElementById('rest-bynum-result');
+  if (!res) return;
+  res.className = 'rest-bynum-result ' + cls;
+  res.innerHTML = html;
+}
+async function checkInByNumber() {
+  if (!fb || !_user) return;
+  const stopId = document.getElementById('rest-stop-select').value;
+  const input = document.getElementById('rest-bynum-input');
+  const raw = (input.value || '').trim();
+  const n = parseInt(raw, 10);
+  if (!(Number.isFinite(n) && n > 0 && String(n) === raw)) {
+    restByNumResult('err', '⚠ Enter a valid number greater than 0.');
+    input.focus(); input.select();
+    return;
+  }
+  const order = orderByNumber(n);
+  if (!order) {
+    restByNumResult('err', `⚠ No rider is checked in with number <b>#${n}</b>. Double-check the number assigned at ride check-in.`);
+    input.focus(); input.select();
+    return;
+  }
+  if (restChecked(order, stopId)) {
+    restByNumResult('ok', `✓ <b>${esc(riderName(order))}</b> (#${n}) is already checked in at <b>${esc(restStopName(stopId))}</b>.`);
+    input.value = ''; input.focus();
+    return;
+  }
+  const ok = await checkInRestStop(order, stopId);
+  if (ok) {
+    restByNumResult('ok', `✓ Checked in <b>${esc(riderName(order))}</b> (#${n}) at <b>${esc(restStopName(stopId))}</b>.`);
+    input.value = ''; input.focus();
+  } else {
+    restByNumResult('err', `⚠ Could not check in #${n}. Please try again.`);
+  }
+}
+
 // ── Volunteer management (super-admins only) ────────────────────────────────────
 // Super-admins maintain the volunteer allowlist — i.e. who may see the dashboard
 // and emergency contacts. (The super-admin list itself is console-managed; rules
@@ -858,7 +1023,7 @@ function renderInventoryForm() {
 // volunteer already writes during check-in), so no extra rules are needed.
 const RESET_LABELS = {
   numbers: 'check-in numbers', checkins: 'check-in status', checkouts: 'check-out status',
-  jerseys: 'jersey pickup status', overrides: 'override edits'
+  jerseys: 'jersey pickup status', reststops: 'rest-stop check-ins', overrides: 'override edits'
 };
 function selectedResetKinds() {
   return [...document.querySelectorAll('.reset-opt')].filter(c => c.checked).map(c => c.dataset.kind);
@@ -879,6 +1044,7 @@ function renderResetCounts() {
   set('reset-cnt-checkins', Object.keys(_checkins).length);
   set('reset-cnt-checkouts', Object.keys(_checkouts).length);
   set('reset-cnt-jerseys', Object.keys(_jerseys).length);
+  set('reset-cnt-reststops', Object.values(_reststops).reduce((n, m) => n + Object.keys(m || {}).length, 0));
   set('reset-cnt-overrides', Object.keys(_overrides).length);
 }
 async function performReset() {
@@ -900,6 +1066,7 @@ async function performReset() {
   else if (kinds.includes('numbers')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins, 'number'));
   if (kinds.includes('checkouts')) tasks.push(wipe(`checkouts/${EVENT_ID}`, _checkouts));
   if (kinds.includes('jerseys'))   tasks.push(wipe(`jerseys/${EVENT_ID}`, _jerseys));
+  if (kinds.includes('reststops')) tasks.push(wipe(`reststops/${EVENT_ID}`, _reststops));
   if (kinds.includes('overrides')) tasks.push(wipe(`overrides/${EVENT_ID}`, _overrides));
   try {
     await Promise.all(tasks.filter(Boolean));
@@ -939,7 +1106,9 @@ function rosterRows() {
       checkedOutAt: o?.at || 0,
       picked: !!(j && j.pickedUp),
       pickedBy: j?.by || '',
-      pickedAt: j?.at || 0
+      pickedAt: j?.at || 0,
+      reststops: _reststops[orderNumber] || {},
+      restCount: REST_STOPS.filter(s => restChecked(orderNumber, s.id)).length
     };
   });
 }
@@ -1037,6 +1206,7 @@ function render() {
   document.getElementById('stat-checkedout').textContent = checkedout;
   document.getElementById('stat-jerseys').textContent = picked;
   renderRouteStats(allRows);
+  renderRestStats(allRows);
   renderBreakdown(allRows);
   renderResetCounts();
 
@@ -1138,6 +1308,19 @@ function renderRouteStats(rows) {
     </div>`;
   }).join('');
 }
+// Per-rest-stop check-in totals, shown in the same compact strip style as the routes.
+function renderRestStats(rows) {
+  const el = document.getElementById('rest-stats');
+  if (!el) return;
+  el.innerHTML = REST_STOPS.map(s => {
+    const count = rows.filter(r => restChecked(r.orderNumber, s.id)).length;
+    return `
+    <div class="route-cell">
+      <div class="rc-label" title="${esc(s.name)} — ${esc(s.location)}">${esc(s.name)}</div>
+      <div class="rc-value"><span class="done">${count}</span></div>
+    </div>`;
+  }).join('');
+}
 function toggleRouteCheckins() {
   _routeShowCheckins = !_routeShowCheckins;
   const rt = document.getElementById('route-toggle');
@@ -1173,7 +1356,8 @@ function renderDetail() {
   document.getElementById('detail-statuses').innerHTML =
     `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? `✅ Checked In${r.number != null ? ' · #' + r.number : ''}` : '◦ Not Checked In'}</span>` +
     `<span class="detail-status ${r.checkedout ? 'checkedout' : 'out'}">${r.checkedout ? '🏁 Checked Out' : '◦ Not Checked Out'}</span>` +
-    `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>`;
+    `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>` +
+    `<span class="detail-status ${r.restCount ? 'rest' : 'out'}">${r.restCount ? `🛑 Rest Stops ${r.restCount}/${REST_STOPS.length}` : '◦ No Rest Stops'}</span>`;
 
   const notes = [];
   if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
@@ -1270,6 +1454,8 @@ function renderDetail() {
     jBtn.onclick = () => pickUpJersey(r.orderNumber);
   }
 
+  renderDetailRestStops(r);
+
   // Emergency contact: every account with access (volunteers + super-admins) sees it;
   // the read is also rules-gated, so accounts without access can't fetch it even if
   // forced. Rendered as a collapsible <details> that loads (and audits) once on first
@@ -1293,6 +1479,30 @@ function renderDetail() {
     em.innerHTML = '';
     delete em.dataset.order;
   }
+}
+
+// Render the five rest-stop check-in toggles in the rider detail sheet. Each is an
+// independent check-in (with its own undo), mirroring how check-in/out and jersey work.
+function renderDetailRestStops(r) {
+  const el = document.getElementById('detail-reststops');
+  if (!el) return;
+  const rows = REST_STOPS.map(s => {
+    const on = restChecked(r.orderNumber, s.id);
+    const rec = restRecord(r.orderNumber, s.id);
+    const meta = on && rec
+      ? `${esc((rec.by || '').split('@')[0])}${rec.at ? ' · ' + fmtTime(rec.at) : ''}`
+      : esc(s.location);
+    return `<button type="button" class="rest-row ${on ? 'on' : ''}"
+        onclick="${on ? `undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')` : `checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')`}">
+        <span class="rest-row-tick">${on ? '✓' : '+'}</span>
+        <span class="rest-row-text"><span class="rest-row-name">${esc(s.name)}</span><span class="rest-row-meta">${meta}</span></span>
+        <span class="rest-row-action">${on ? 'Undo' : 'Check in'}</span>
+      </button>`;
+  }).join('');
+  el.innerHTML = `<div class="rest-section">
+      <div class="rest-section-head">Rest Stops <span class="rest-section-count">${r.restCount}/${REST_STOPS.length}</span></div>
+      <div class="rest-rows">${rows}</div>
+    </div>`;
 }
 
 // Fetch + display a rider's emergency contact (privileged only), and audit the view.
@@ -1368,6 +1578,7 @@ const AUDIT_LABEL = {
   number_assigned: 'assigned number',
   checkout: 'checked out', checkout_undo: 'undid check-out',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
+  reststop: 'rest-stop check-in', reststop_undo: 'undid rest-stop check-in',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
   inventory_update: 'updated jersey inventory', reset: 'reset data',
@@ -1407,6 +1618,7 @@ function renderSyncNote() {
 // ── App shell wiring ──────────────────────────────────────────────────────────
 function hideAppSurfaces() {
   show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
+  show('rest-bynum-card', false); show('rest-stats-head', false); show('rest-stats', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false); show('audit-card', false); show('manage-card', false);
   show('inventory-card', false); show('inv-breakdown-head', false); show('reset-card', false);
@@ -1414,7 +1626,9 @@ function hideAppSurfaces() {
 function showSignedIn() {
   closeAuth();
   show('topbar', true); show('stats', true); show('route-stats-head', true); show('route-stats', true);
+  show('rest-bynum-card', true); show('rest-stats-head', true); show('rest-stats', true);
   show('breakdown', true); show('filterbar', true); show('table-card', true);
+  initRestByNumber();
   document.getElementById('user-badge').textContent = _user.email;
   document.getElementById('event-subtitle').textContent =
     EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
@@ -1478,7 +1692,8 @@ Object.assign(window, {
   updateResetButton, performReset,
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick,
-  startEditField, cancelFieldEdit, saveFieldEdit
+  startEditField, cancelFieldEdit, saveFieldEdit,
+  checkInRestStop, undoRestStop, onRestStopSelect, checkInByNumber
 });
 </script>
 </body>
