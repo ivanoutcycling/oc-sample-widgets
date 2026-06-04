@@ -37,6 +37,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .user-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.5px;padding:4px 9px;border-radius:5px;background:rgba(0,180,80,0.1);color:#00a84a;border:1px solid rgba(0,180,80,0.2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .search-input,.filter-select{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color 0.15s}
 .search-input{min-width:200px;flex:1;max-width:280px}
+.search-input.search-number{min-width:110px;max-width:150px;flex:0 1 140px}
 .search-input:focus,.filter-select:focus{border-color:rgba(59,130,246,0.5)}
 .toggle-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);user-select:none}
 .toggle-pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -346,6 +347,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   <!-- Filter bar: search + filters, below the summaries (hidden until authenticated) -->
   <div class="toolbar filterbar" id="filterbar" style="display:none">
     <input class="search-input" id="search" type="search" placeholder="Search name…" oninput="render()">
+    <input class="search-input search-number" id="search-number" type="search" inputmode="numeric"
+           placeholder="Check-in #…" aria-label="Search by check-in number" oninput="render()">
     <select class="filter-select" id="route-filter" onchange="render()">
       <option value="">All routes</option>
     </select>
@@ -1193,9 +1196,13 @@ function render() {
   populateRouteFilter(rows);
 
   const q = document.getElementById('search').value.trim().toLowerCase();
+  const numQ = document.getElementById('search-number').value.trim();
   const routeF = document.getElementById('route-filter').value;
   if (q) rows = rows.filter(r =>
     r.name.toLowerCase().includes(q) || (r.number != null && String(r.number) === q));
+  // Dedicated check-in number search: matches any rider whose assigned number contains the
+  // typed digits (riders without a number are excluded while this box has a value).
+  if (numQ) rows = rows.filter(r => r.number != null && String(r.number).includes(numQ));
   if (routeF) rows = rows.filter(r => r.route === routeF);
   if (_hideChecked) rows = rows.filter(r => !r.checked);
   if (_hidePicked) rows = rows.filter(r => !r.picked);

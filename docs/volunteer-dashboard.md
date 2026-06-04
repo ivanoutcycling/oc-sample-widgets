@@ -54,7 +54,9 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   (defaulting to the lowest unused one). The dialog warns and blocks if the number is **already
   given out** to someone else, so numbers can't be duplicated. The number is stored on the
   `/checkins` record (`number`), shown in the roster's **#** column and the detail sheet, and is
-  **searchable** — typing a number in the search box jumps to that rider. The number can be changed
+  **searchable** — the filter bar has a dedicated **Check-in #** box that filters the table to
+  riders whose number contains the typed digits (the name box also still jumps to an exact-number
+  match). The number can be changed
   later from the detail sheet. (The Squarespace order number is no longer shown on the dashboard.)
   **Un-checking-in** a rider releases their number (it becomes available again), so it first asks
   for confirmation, warning that the number will be freed.
