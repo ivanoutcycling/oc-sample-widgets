@@ -1401,11 +1401,13 @@ function renderRestStats(rows) {
   const rowsHtml = routeKeys.map(k => {
     const group = groups[k];
     const availIds = new Set(stopsForRoute(k).map(s => s.id));
+    // Totals are out of riders who checked in at the start of the ride, not all registered.
+    const started = group.filter(r => r.checked).length;
     let rowChecked = 0, rowPossible = 0;
     const cells = REST_STOPS.map(s => {
       if (!availIds.has(s.id)) return `<td class="bd-num"><span class="rest-na">–</span></td>`;
       const checked = group.filter(r => restChecked(r.orderNumber, s.id)).length;
-      const possible = group.length;
+      const possible = started;
       colChecked[s.id] += checked; colPossible[s.id] += possible;
       rowChecked += checked; rowPossible += possible;
       return cell(checked, possible);
