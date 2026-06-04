@@ -374,7 +374,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
           <th class="col-rest" title="Rest Stop 3 — Rockland Lake State Park">Rest Stop 3</th>
           <th class="col-rest" title="Rest Stop 4 — Eugene Levy Memorial Park, New City NY">Rest Stop 4</th>
           <th class="col-rest" title="Rest Stop 5 — Hoelscher Field, Harrington Park NJ">Rest Stop 5</th>
-          <th class="col-rest" title="Finish line — Hoelscher Field, Harrington Park NJ">Finish line</th>
+          <th class="col-rest" title="Finish line">Finish line</th>
         </tr>
       </thead>
       <tbody id="roster-body"></tbody>
@@ -524,7 +524,7 @@ const REST_STOPS = [
   { id: '3', name: 'Rest Stop 3', location: 'Rockland Lake State Park' },
   { id: '4', name: 'Rest Stop 4', location: 'Eugene Levy Memorial Park, New City NY' },
   { id: '5', name: 'Rest Stop 5', location: 'Hoelscher Field, Harrington Park NJ' },
-  { id: FINISH_STOP_ID, name: 'Finish line', location: 'Hoelscher Field, Harrington Park NJ' }
+  { id: FINISH_STOP_ID, name: 'Finish line', location: '' }
 ];
 // Remember which rest stop this volunteer is stationed at (per-event, per-device).
 const REST_STOP_LS = 'oc-reststop-' + EVENT_ID;
@@ -858,7 +858,7 @@ async function undoPickUp(orderNumber) {
 // there are five of them per rider, stored under /reststops/{eventId}/{order}/{stopId}.
 function restStop(stopId) { return REST_STOPS.find(s => s.id === String(stopId)) || null; }
 function restStopName(stopId) { const s = restStop(stopId); return s ? s.name : `Rest Stop ${stopId}`; }
-function restStopLabel(stopId) { const s = restStop(stopId); return s ? `${s.name} — ${s.location}` : restStopName(stopId); }
+function restStopLabel(stopId) { const s = restStop(stopId); return s ? (s.location ? `${s.name} — ${s.location}` : s.name) : restStopName(stopId); }
 function restChecked(orderNumber, stopId) {
   const r = _reststops[orderNumber];
   return !!(r && r[stopId] && r[stopId].checkedIn);
@@ -901,7 +901,7 @@ function initRestByNumber() {
   const sel = document.getElementById('rest-stop-select');
   if (!sel) return;
   sel.innerHTML = REST_STOPS.map(s =>
-    `<option value="${esc(s.id)}">${esc(s.name)} — ${esc(s.location)}</option>`).join('');
+    `<option value="${esc(s.id)}">${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}</option>`).join('');
   let saved = null;
   try { saved = localStorage.getItem(REST_STOP_LS); } catch (e) {}
   if (saved && REST_STOPS.some(s => s.id === saved)) sel.value = saved;
@@ -1344,9 +1344,13 @@ function renderRestStats(rows) {
   const body = document.getElementById('rest-bd-body');
   if (!head || !body) return;
 
+  // The finish line is tracked like a rest stop but is intentionally left out of this
+  // per-route breakdown — it only covers the intermediate rest stops.
+  const statStops = REST_STOPS.filter(s => s.id !== FINISH_STOP_ID);
+
   head.innerHTML = `<tr>
       <th>Route</th>
-      ${REST_STOPS.map(s => `<th title="${esc(s.name)} — ${esc(s.location)}">${esc(s.name)}</th>`).join('')}
+      ${statStops.map(s => `<th title="${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}">${esc(s.name)}</th>`).join('')}
       <th>Total</th>
     </tr>`;
 
@@ -1356,7 +1360,7 @@ function renderRestStats(rows) {
   const routeKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   if (!routeKeys.length) {
-    body.innerHTML = `<tr><td colspan="${REST_STOPS.length + 2}" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>`;
+    body.innerHTML = `<tr><td colspan="${statStops.length + 2}" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>`;
     return;
   }
 
@@ -1367,7 +1371,7 @@ function renderRestStats(rows) {
 
   // Column + grand totals accumulate as we render each route row.
   const colChecked = {}, colPossible = {};
-  REST_STOPS.forEach(s => { colChecked[s.id] = 0; colPossible[s.id] = 0; });
+  statStops.forEach(s => { colChecked[s.id] = 0; colPossible[s.id] = 0; });
   let grandChecked = 0, grandPossible = 0;
 
   const rowsHtml = routeKeys.map(k => {
@@ -1376,7 +1380,7 @@ function renderRestStats(rows) {
     // Totals are out of riders who checked in at the start of the ride, not all registered.
     const started = group.filter(r => r.checked).length;
     let rowChecked = 0, rowPossible = 0;
-    const cells = REST_STOPS.map(s => {
+    const cells = statStops.map(s => {
       if (!availIds.has(s.id)) return `<td class="bd-num"><span class="rest-na">–</span></td>`;
       const checked = group.filter(r => restChecked(r.orderNumber, s.id)).length;
       const possible = started;
@@ -1391,7 +1395,7 @@ function renderRestStats(rows) {
       </tr>`;
   }).join('');
 
-  const totalCells = REST_STOPS.map(s => cell(colChecked[s.id], colPossible[s.id])).join('');
+  const totalCells = statStops.map(s => cell(colChecked[s.id], colPossible[s.id])).join('');
   body.innerHTML = rowsHtml + `<tr class="bd-total">
       <td>Total</td>${totalCells}${cell(grandChecked, grandPossible)}
     </tr>`;

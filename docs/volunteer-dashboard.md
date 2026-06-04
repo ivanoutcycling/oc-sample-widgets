@@ -66,9 +66,8 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
   `finish`). The stops are **Rest Stop 1** — Hoelscher Field, Harrington Park NJ; **2** — Tallman
   State Park; **3** — Rockland Lake State Park; **4** — Eugene Levy Memorial Park, New City NY;
   **5** — Hoelscher Field, Harrington Park NJ (same location as stop 1 but a deliberately separate
-  check-in); and the **Finish line** — Hoelscher Field, Harrington Park NJ (the former "check out",
-  which every route passes through regardless of mileage). There are two ways to check a rider in
-  at a rest stop:
+  check-in); and the **Finish line** (the former "check out", which every route passes through
+  regardless of mileage). There are two ways to check a rider in at a rest stop:
   1. **Open the rider** and tap a rest stop in the detail sheet's *Rest Stops* list (each toggles
      on/off independently, exactly like check-in / jersey pickup). The roster table also
      has a per-stop column for each rest stop (named in the header; the finish line is the last one).
@@ -78,7 +77,8 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
      if the number isn't assigned). A *Rest stop check-ins by route* table shows, per route, how
      many riders have checked in at each of that route's stops out of how many are possible (the
      riders on that route who checked in at the start of the ride); stops a route doesn't use show
-     `–`. It derives from live data, so it
+     `–`. The finish line is **not** included in this breakdown — it covers only the intermediate
+     rest stops. It derives from live data, so it
      follows route edits — a re-routed rider is counted under their new route, and a check-in left
      at a stop the new route doesn't use simply stops being counted.
 
