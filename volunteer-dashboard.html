@@ -30,6 +30,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .btn-green:hover{background:#08923f;border-color:#08923f;color:#fff}
 .btn-blue{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn-blue:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-orange{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn-orange:hover{background:#c25a00;border-color:#c25a00;color:#fff}
 .btn-undo{background:rgba(0,168,74,0.08);border-color:rgba(0,168,74,0.3);color:#08923f}
 .btn-undo:hover{background:rgba(0,168,74,0.16)}
 .user-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.5px;padding:4px 9px;border-radius:5px;background:rgba(0,180,80,0.1);color:#00a84a;border:1px solid rgba(0,180,80,0.2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -75,6 +77,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .icon-toggle:hover{border-color:rgba(0,0,0,0.25);box-shadow:0 1px 4px rgba(0,0,0,0.08)}
 .icon-toggle.on-green{background:var(--green);border-color:var(--green);color:#fff}
 .icon-toggle.on-blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.icon-toggle.on-orange{background:var(--orange);border-color:var(--orange);color:#fff}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 0;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
 .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
 .dash-table{width:100%;border-collapse:collapse;min-width:640px}
@@ -90,6 +93,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .name-cell{font-weight:600}
 .route-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:5px;background:rgba(59,130,246,0.1);color:#2563eb;border:1px solid rgba(59,130,246,0.18)}
 .jersey-tag{font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
+.num-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;background:rgba(224,104,0,0.1);color:var(--orange);border:1px solid rgba(224,104,0,0.22)}
 .waiver-yes{color:var(--green);font-weight:600}
 .waiver-no{color:#dc2626;font-weight:600}
 .empty-state{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
@@ -112,6 +116,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;padding:4px 10px;border-radius:6px}
 .detail-status.in{background:rgba(0,168,74,0.12);color:#08923f;border:1px solid rgba(0,168,74,0.3)}
 .detail-status.jersey{background:rgba(59,130,246,0.12);color:#2563eb;border:1px solid rgba(59,130,246,0.3)}
+.detail-status.checkedout{background:rgba(224,104,0,0.12);color:var(--orange);border:1px solid rgba(224,104,0,0.3)}
 .detail-status.out{background:rgba(17,17,40,0.05);color:var(--muted);border:1px solid var(--border)}
 .detail-actions{display:flex;flex-direction:column;gap:10px}
 .emergency-details{border:1px solid rgba(220,38,38,0.3);border-radius:10px;margin-bottom:10px;overflow:hidden}
@@ -174,6 +179,16 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 }
 .setup-banner{display:none;margin:0 32px 16px;padding:14px 18px;background:rgba(224,104,0,0.07);border:1px solid rgba(224,104,0,0.3);border-radius:10px;font-size:12px;color:var(--text);line-height:1.6}
 .setup-banner code{font-family:'DM Mono',monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:4px}
+/* Assign-number dialog */
+.assign-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:360px;padding:26px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left}
+.assign-panel h3{font-family:'Unbounded',sans-serif;font-size:13px;letter-spacing:1px;color:var(--text);margin-bottom:4px}
+.assign-panel .assign-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+.assign-input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Mono',monospace;font-size:26px;font-weight:600;text-align:center;padding:12px;outline:none;-webkit-appearance:none;letter-spacing:1px}
+.assign-input:focus{border-color:rgba(59,130,246,0.5)}
+.assign-warn{min-height:18px;margin-top:10px;font-size:12px;font-weight:600;color:#b91c1c;text-align:center;line-height:1.4}
+.assign-warn.ok{color:var(--green)}
+.assign-actions{display:flex;gap:10px;margin-top:18px}
+.assign-actions .btn{flex:1;justify-content:center;padding:11px;font-size:13px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
 .toast.show{opacity:1}
 .sync-note{padding:0 32px 8px;font-size:10px;color:var(--dimmer);font-family:'DM Mono',monospace}
@@ -233,6 +248,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   <div class="stats-row" id="stats" style="display:none">
     <div class="stat-item"><div class="stat-label">Registered</div><div class="stat-value" id="stat-total">0</div></div>
     <div class="stat-item"><div class="stat-label">Checked In</div><div class="stat-value green" id="stat-checked">0</div></div>
+    <div class="stat-item"><div class="stat-label">Checked Out</div><div class="stat-value orange" id="stat-checkedout">0</div></div>
     <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
   </div>
 
@@ -272,12 +288,14 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
       <thead>
         <tr>
           <th class="sortable" onclick="setSort('name')">Rider</th>
+          <th class="sortable" onclick="setSort('number')">#</th>
           <th class="sortable" onclick="setSort('route')">Route</th>
           <th>Size</th>
           <th class="col-item">Registration</th>
           <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
           <th>Waiver</th>
           <th class="sortable" onclick="setSort('checked')">Check-In</th>
+          <th class="sortable" onclick="setSort('checkedout')">Check-Out</th>
           <th class="sortable" onclick="setSort('picked')">Pickup</th>
         </tr>
       </thead>
@@ -349,8 +367,24 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div id="detail-body"></div>
     <div id="detail-emergency"></div>
     <div class="detail-actions">
+      <button class="detail-action-btn" id="detail-action-checkout"></button>
       <button class="detail-action-btn" id="detail-action-checkin"></button>
       <button class="detail-action-btn" id="detail-action-jersey"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ASSIGN NUMBER (at check-in) ═══ -->
+<div class="overlay" id="assign-overlay" onclick="assignBgClick(event)">
+  <div class="assign-panel">
+    <h3>Assign Number</h3>
+    <div class="assign-sub" id="assign-sub"></div>
+    <input class="assign-input" id="assign-input" type="number" min="1" step="1" inputmode="numeric"
+           oninput="updateAssignWarning()" onkeydown="if(event.key==='Enter')confirmAssign()">
+    <div class="assign-warn" id="assign-warn"></div>
+    <div class="assign-actions">
+      <button class="btn" onclick="closeAssign()">Cancel</button>
+      <button class="btn btn-green" id="assign-confirm" onclick="confirmAssign()">Check In</button>
     </div>
   </div>
 </div>
@@ -403,7 +437,8 @@ if (CONFIGURED) {
 
 // ── Runtime state ─────────────────────────────────────────────────────────────
 let _roster = {};      // orderNumber → roster record
-let _checkins = {};    // orderNumber → { checkedIn, by, at }
+let _checkins = {};    // orderNumber → { checkedIn, by, at, number }
+let _checkouts = {};   // orderNumber → { checkedOut, by, at }
 let _jerseys = {};     // orderNumber → { pickedUp, by, at }
 let _overrides = {};   // orderNumber → { route?, jerseySize?, by, at } — day-of corrections
 let _inventory = {};   // { sizes: { <size>: count } } — jersey stock (super-admin managed)
@@ -420,6 +455,7 @@ const invEnabled = () => _invEnabled;   // x / y comparison mode on?
 let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;    // order key of the rider whose detail sheet is open
 let _editingField = null; // 'route' | 'jerseySize' | null — inline edit state in detail sheet
+let _assignOrder = null;  // order key of the rider whose number is being assigned (dialog open)
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -513,6 +549,11 @@ function subscribeData() {
     render();
   }, err => { console.error('checkins read denied', err); });
 
+  onValue(dbRef(fb.db, `checkouts/${EVENT_ID}`), snap => {
+    _checkouts = snap.val() || {};
+    render();
+  }, err => { console.error('checkouts read denied', err); });
+
   onValue(dbRef(fb.db, `jerseys/${EVENT_ID}`), snap => {
     _jerseys = snap.val() || {};
     render();
@@ -561,14 +602,93 @@ function logAudit(action, target) {
     ts: serverTimestamp(), actor: _user.email, action, target: String(target)
   }).catch(e => console.warn('audit log failed', e));
 }
-async function checkIn(orderNumber) {
+// Numbers assigned at check-in. Each rider gets a unique number we can search by.
+function assignedNumber(orderNumber) {
+  const c = _checkins[orderNumber];
+  return (c && Number.isFinite(c.number)) ? c.number : null;
+}
+// Who (if anyone other than `exceptOrder`) already holds this number? Returns name or null.
+function numberHolder(num, exceptOrder) {
+  for (const [on, c] of Object.entries(_checkins)) {
+    if (on === exceptOrder) continue;
+    if (c && Number.isFinite(c.number) && c.number === num) return riderName(on);
+  }
+  return null;
+}
+// Lowest unused number ≥ 1 (suggested default in the dialog).
+function nextFreeNumber() {
+  const used = new Set(Object.values(_checkins)
+    .map(c => (c && Number.isFinite(c.number)) ? c.number : null)
+    .filter(n => n != null));
+  let n = 1;
+  while (used.has(n)) n++;
+  return n;
+}
+
+// Open the assign-number dialog. Used both to check a rider in and to edit an
+// already-assigned number. The actual write happens in confirmAssign().
+function openAssign(orderNumber) {
   if (!fb || !_user) return;
+  _assignOrder = orderNumber;
+  const existing = assignedNumber(orderNumber);
+  const already = !!_checkins[orderNumber] && _checkins[orderNumber].checkedIn;
+  document.getElementById('assign-sub').textContent = riderName(orderNumber);
+  document.getElementById('assign-confirm').textContent = already ? 'Save Number' : 'Check In';
+  const input = document.getElementById('assign-input');
+  input.value = existing != null ? existing : nextFreeNumber();
+  document.getElementById('assign-overlay').classList.add('open');
+  updateAssignWarning();
+  input.focus();
+  input.select();
+}
+function closeAssign() {
+  _assignOrder = null;
+  document.getElementById('assign-overlay').classList.remove('open');
+}
+function assignBgClick(e) { if (e.target.id === 'assign-overlay') closeAssign(); }
+// Parse the current input → positive integer, or null if invalid.
+function assignInputValue() {
+  const raw = (document.getElementById('assign-input').value || '').trim();
+  if (raw === '') return null;
+  const n = parseInt(raw, 10);
+  return (Number.isFinite(n) && n > 0 && String(n) === raw) ? n : null;
+}
+// Live feedback as the volunteer types: block invalid entries and, crucially, warn
+// (and disable the button) when the number is already given out, so it can't be duplicated.
+function updateAssignWarning() {
+  const warn = document.getElementById('assign-warn');
+  const btn = document.getElementById('assign-confirm');
+  const n = assignInputValue();
+  warn.classList.remove('ok');
+  if (n == null) {
+    warn.textContent = 'Enter a number greater than 0.';
+    btn.disabled = true;
+    return;
+  }
+  const holder = numberHolder(n, _assignOrder);
+  if (holder) {
+    warn.textContent = `⚠ Number ${n} is already assigned to ${holder}. Pick a different number.`;
+    btn.disabled = true;
+    return;
+  }
+  warn.textContent = `Number ${n} is available.`;
+  warn.classList.add('ok');
+  btn.disabled = false;
+}
+async function confirmAssign() {
+  if (!fb || !_user || _assignOrder == null) return;
+  const n = assignInputValue();
+  if (n == null) { updateAssignWarning(); return; }
+  if (numberHolder(n, _assignOrder)) { updateAssignWarning(); return; }   // never duplicate
+  const orderNumber = _assignOrder;
+  const wasCheckedIn = !!(_checkins[orderNumber] && _checkins[orderNumber].checkedIn);
   try {
     await dbSet(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`), {
-      checkedIn: true, by: _user.email, at: serverTimestamp()
+      checkedIn: true, by: _user.email, at: serverTimestamp(), number: n
     });
-    logAudit('checkin', riderName(orderNumber));
-    toast('Checked in');
+    logAudit(wasCheckedIn ? 'number_assigned' : 'checkin', `${riderName(orderNumber)} (#${n})`);
+    toast(wasCheckedIn ? `Number set to #${n}` : `Checked in as #${n}`);
+    closeAssign();
   } catch (e) { console.error(e); toast('Check-in failed: ' + (e.message || e.code)); }
 }
 async function undoCheckIn(orderNumber) {
@@ -577,6 +697,24 @@ async function undoCheckIn(orderNumber) {
     await dbRemove(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`));
     logAudit('checkin_undo', riderName(orderNumber));
     toast('Check-in undone');
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+async function checkOut(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbSet(dbRef(fb.db, `checkouts/${EVENT_ID}/${orderNumber}`), {
+      checkedOut: true, by: _user.email, at: serverTimestamp()
+    });
+    logAudit('checkout', riderName(orderNumber));
+    toast('Checked out');
+  } catch (e) { console.error(e); toast('Check-out failed: ' + (e.message || e.code)); }
+}
+async function undoCheckOut(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `checkouts/${EVENT_ID}/${orderNumber}`));
+    logAudit('checkout_undo', riderName(orderNumber));
+    toast('Check-out undone');
   } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
 }
 async function pickUpJersey(orderNumber) {
@@ -680,11 +818,12 @@ function renderInventoryForm() {
 function rosterRows() {
   return Object.entries(_roster).map(([orderNumber, r]) => {
     const c = _checkins[orderNumber];
+    const o = _checkouts[orderNumber];
     const j = _jerseys[orderNumber];
     const ov = _overrides[orderNumber];
     return {
       orderNumber,
-      orderLabel: r.orderNumber || orderNumber,
+      number: (c && Number.isFinite(c.number)) ? c.number : null,
       name: r.name || '(no name)',
       route: (ov && ov.route != null) ? ov.route : (r.route || ''),
       jerseySize: (ov && ov.jerseySize != null) ? ov.jerseySize : (r.jerseySize || ''),
@@ -698,6 +837,9 @@ function rosterRows() {
       checked: !!(c && c.checkedIn),
       checkedBy: c?.by || '',
       checkedAt: c?.at || 0,
+      checkedout: !!(o && o.checkedOut),
+      checkedOutBy: o?.by || '',
+      checkedOutAt: o?.at || 0,
       picked: !!(j && j.pickedUp),
       pickedBy: j?.by || '',
       pickedAt: j?.at || 0
@@ -747,7 +889,8 @@ function render() {
 
   const q = document.getElementById('search').value.trim().toLowerCase();
   const routeF = document.getElementById('route-filter').value;
-  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
+  if (q) rows = rows.filter(r =>
+    r.name.toLowerCase().includes(q) || (r.number != null && String(r.number) === q));
   if (routeF) rows = rows.filter(r => r.route === routeF);
   if (_hideChecked) rows = rows.filter(r => !r.checked);
   if (_hidePicked) rows = rows.filter(r => !r.picked);
@@ -756,6 +899,9 @@ function render() {
   rows.sort((a, b) => {
     let av = a[key], bv = b[key];
     if (key === 'checked') { av = a.checked ? 1 : 0; bv = b.checked ? 1 : 0; }
+    if (key === 'checkedout') { av = a.checkedout ? 1 : 0; bv = b.checkedout ? 1 : 0; }
+    if (key === 'picked') { av = a.picked ? 1 : 0; bv = b.picked ? 1 : 0; }
+    if (key === 'number') { av = a.number == null ? Infinity : a.number; bv = b.number == null ? Infinity : b.number; }
     if (typeof av === 'string') av = av.toLowerCase();
     if (typeof bv === 'string') bv = bv.toLowerCase();
     if (av < bv) return -1 * dir;
@@ -767,14 +913,18 @@ function render() {
   body.innerHTML = rows.map(r => `
     <tr class="${r.checked ? 'checked' : ''}" onclick="openDetail('${esc(r.orderNumber)}')">
       <td class="name-cell">${esc(r.name)}${r.notes ? `<span class="note-dot" title="${esc(r.notes)}"></span>` : ''}</td>
+      <td>${r.number != null ? `<span class="num-tag">${r.number}</span>` : '—'}</td>
       <td>${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</td>
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
       <td class="col-created">${fmtDate(r.createdAt)}</td>
       <td>${r.waiver ? '<span class="waiver-yes">✓</span>' : '<span class="waiver-no">✗</span>'}</td>
       <td>${r.checked
-        ? `<button class="icon-toggle on-green" title="Checked in by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
-        : `<button class="icon-toggle" title="Tap to check in" onclick="event.stopPropagation();checkIn('${esc(r.orderNumber)}')">✓</button>`}</td>
+        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
+      <td>${r.checkedout
+        ? `<button class="icon-toggle on-orange" title="Checked out by ${esc(r.checkedOutBy)} — tap to undo" onclick="event.stopPropagation();undoCheckOut('${esc(r.orderNumber)}')">🏁</button>`
+        : `<button class="icon-toggle" title="Tap to check out" onclick="event.stopPropagation();checkOut('${esc(r.orderNumber)}')">🏁</button>`}</td>
       <td>${r.picked
         ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
         : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
@@ -783,9 +933,11 @@ function render() {
   const allRows = rosterRows();
   const total = allRows.length;
   const checked = allRows.filter(r => r.checked).length;
+  const checkedout = allRows.filter(r => r.checkedout).length;
   const picked = allRows.filter(r => r.picked).length;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-checked').textContent = checked;
+  document.getElementById('stat-checkedout').textContent = checkedout;
   document.getElementById('stat-jerseys').textContent = picked;
   renderRouteStats(allRows);
   renderBreakdown(allRows);
@@ -921,11 +1073,13 @@ function renderDetail() {
 
   document.getElementById('detail-name').textContent = r.name;
   document.getElementById('detail-statuses').innerHTML =
-    `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? '✅ Checked In' : '◦ Not Checked In'}</span>` +
+    `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? `✅ Checked In${r.number != null ? ' · #' + r.number : ''}` : '◦ Not Checked In'}</span>` +
+    `<span class="detail-status ${r.checkedout ? 'checkedout' : 'out'}">${r.checkedout ? '🏁 Checked Out' : '◦ Not Checked Out'}</span>` +
     `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>`;
 
   const notes = [];
   if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
+  if (r.checkedout) notes.push(`Checked out by ${esc((r.checkedOutBy || '').split('@')[0])}${r.checkedOutAt ? ' at ' + fmtTime(r.checkedOutAt) : ''}`);
   if (r.picked) notes.push(`Jersey by ${esc((r.pickedBy || '').split('@')[0])}${r.pickedAt ? ' at ' + fmtTime(r.pickedAt) : ''}`);
 
   const allRoutes = [...new Set([
@@ -972,16 +1126,29 @@ function renderDetail() {
 
   document.getElementById('detail-body').innerHTML = `
     <div class="detail-grid">
+      <div class="dl">Number</div><div class="dv">${r.number != null
+        ? `<span class="num-tag">${r.number}</span><button class="field-edit-btn" title="Change number" onclick="openAssign('${esc(r.orderNumber)}')">✎</button>`
+        : (r.checked ? `— <button class="field-edit-btn" title="Assign number" onclick="openAssign('${esc(r.orderNumber)}')">✎</button>` : '<span style="color:var(--dimmer)">assigned at check-in</span>')}</div>
       <div class="dl">Route</div><div class="dv">${routeVal}</div>
       <div class="dl">Jersey Size</div><div class="dv">${sizeVal}</div>
       <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
       <div class="dl">Quantity</div><div class="dv">${esc(r.quantity)}</div>
       <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
       <div class="dl">Waiver</div><div class="dv">${r.waiver ? '<span class="waiver-yes">✓ Acknowledged</span>' : '<span class="waiver-no">✗ Not signed</span>'}</div>
-      <div class="dl">Order</div><div class="dv">${esc(r.orderLabel)}</div>
     </div>
     ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}
     ${notesHtml}`;
+
+  const oBtn = document.getElementById('detail-action-checkout');
+  if (r.checkedout) {
+    oBtn.className = 'detail-action-btn btn-undo';
+    oBtn.textContent = 'Undo Check-Out';
+    oBtn.onclick = () => undoCheckOut(r.orderNumber);
+  } else {
+    oBtn.className = 'detail-action-btn btn-orange';
+    oBtn.textContent = '🏁 Check Out';
+    oBtn.onclick = () => checkOut(r.orderNumber);
+  }
 
   const cBtn = document.getElementById('detail-action-checkin');
   if (r.checked) {
@@ -991,7 +1158,7 @@ function renderDetail() {
   } else {
     cBtn.className = 'detail-action-btn btn-green';
     cBtn.textContent = '✓ Check In';
-    cBtn.onclick = () => checkIn(r.orderNumber);
+    cBtn.onclick = () => openAssign(r.orderNumber);
   }
 
   const jBtn = document.getElementById('detail-action-jersey');
@@ -1100,6 +1267,8 @@ async function saveFieldEdit(orderNumber, field) {
 // Render the audit-log panel (privileged only), newest entries first.
 const AUDIT_LABEL = {
   checkin: 'checked in', checkin_undo: 'undid check-in',
+  number_assigned: 'assigned number',
+  checkout: 'checked out', checkout_undo: 'undid check-out',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   emergency_view: 'viewed emergency contact', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
@@ -1124,7 +1293,11 @@ function renderAudit(obj) {
   }).join('');
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && _openOrder) closeDetail(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (_assignOrder != null) closeAssign();
+  else if (_openOrder) closeDetail();
+});
 
 function renderSyncNote() {
   const note = document.getElementById('sync-note');
@@ -1198,7 +1371,9 @@ if (!CONFIGURED) {
 }
 
 Object.assign(window, {
-  signInWithGoogle, signOutVolunteer, checkIn, undoCheckIn, pickUpJersey, undoPickUp,
+  signInWithGoogle, signOutVolunteer, undoCheckIn, pickUpJersey, undoPickUp,
+  checkOut, undoCheckOut,
+  openAssign, closeAssign, assignBgClick, updateAssignWarning, confirmAssign,
   addVolunteer, removeVolunteer, toggleInventory, saveInventory,
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick,
