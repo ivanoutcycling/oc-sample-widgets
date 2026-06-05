@@ -367,8 +367,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
           <th>Size</th>
           <th class="col-item">Registration</th>
           <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
-          <th class="sortable" onclick="setSort('checked')">Check-In</th>
           <th class="sortable" onclick="setSort('picked')">Pickup</th>
+          <th class="sortable" onclick="setSort('checked')">Check-In</th>
           <th class="col-rest" title="Rest Stop 1 — Hoelscher Field, Harrington Park NJ">Rest Stop 1</th>
           <th class="col-rest" title="Rest Stop 2 — Tallman State Park">Rest Stop 2</th>
           <th class="col-rest" title="Rest Stop 3 — Rockland Lake State Park">Rest Stop 3</th>
@@ -1204,12 +1204,12 @@ function render() {
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
       <td class="col-created">${fmtDate(r.createdAt)}</td>
-      <td>${r.checked
-        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
-        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
       <td>${r.picked
         ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
         : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
+      <td>${r.checked
+        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
       ${REST_STOPS.map(s => {
         const avail = r.availableStops.some(a => a.id === s.id);
         if (!avail) return `<td class="col-rest"><span class="rest-na" title="Not on the ${esc(r.route) || 'selected'} route">–</span></td>`;
