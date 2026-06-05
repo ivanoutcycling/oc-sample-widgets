@@ -6,9 +6,10 @@
  * Firebase Realtime Database. Sensitive PII (email, phone, billing address,
  * payment/financial data) is NEVER read into the payload.
  *
- * Emergency contacts are the one exception: they ARE pulled, but written ONLY to
- * the access-restricted /restricted/emergencyContacts node (readable by a small
- * hard-coded allowlist in the security rules), never to /eventRoster.
+ * Emergency contacts and the rider's own phone are the exceptions: they ARE pulled,
+ * but written ONLY to the access-restricted /restricted/emergencyContacts and
+ * /restricted/riderPhones nodes (readable only by authorized volunteers/super-admins
+ * per the security rules), never to /eventRoster.
  *
  * Security model: the allowlist below is the single source of truth for what
  * leaves this spreadsheet. Adding a new column to the sheet does nothing until
@@ -51,6 +52,10 @@ var WAIVER_HEADER = 'Product Form: I have read and acknowledge the ride waiver a
 var EMERGENCY_NAME_HEADER  = 'Product Form: Emergency Contact Name';
 var EMERGENCY_PHONE_HEADER = 'Product Form: Emergency Contact Phone';
 
+// Rider's own phone. SENSITIVE: written ONLY to the access-restricted
+// /restricted/riderPhones node, never to /eventRoster.
+var PHONE_HEADER = 'Product Form: Phone';
+
 // Columns consulted ONLY to drop cancelled/refunded rows — never written out.
 var CANCELLED_HEADER = 'Cancelled at';
 var FINANCIAL_HEADER = 'Financial Status';
@@ -78,9 +83,10 @@ function toBool_(v) {
  * orders across rows and the form fields live on whichever row carried them — so we merge
  * across the given rows, preferring the first non-empty value seen.
  */
-function addRecord_(roster, emergency, col, key, orderNumber, rows) {
+function addRecord_(roster, emergency, phones, col, key, orderNumber, rows) {
   var rec = { orderNumber: orderNumber, waiver: false };
   var em = {};
+  var phone = '';
 
   rows.forEach(function (row) {
     Object.keys(ALLOWLIST).forEach(function (field) {
@@ -103,10 +109,17 @@ function addRecord_(roster, emergency, col, key, orderNumber, rows) {
       var ph = String(row[col[EMERGENCY_PHONE_HEADER]] == null ? '' : row[col[EMERGENCY_PHONE_HEADER]]).trim();
       if (ph) em.phone = ph;
     }
+
+    // Rider's own phone → restricted map only (first non-empty value wins).
+    if (PHONE_HEADER in col && !phone) {
+      var rp = String(row[col[PHONE_HEADER]] == null ? '' : row[col[PHONE_HEADER]]).trim();
+      if (rp) phone = rp;
+    }
   });
 
   roster[key] = rec;
   if (em.name || em.phone) emergency[key] = em;
+  if (phone) phones[key] = { phone: phone };
 }
 
 /** Read the orders sheet and build the safe roster + the restricted emergency map. */
@@ -117,7 +130,7 @@ function buildRoster_() {
   if (!sheet) throw new Error('Sheet not found: ' + sheetName);
 
   var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return { roster: {}, emergency: {} };
+  if (values.length < 2) return { roster: {}, emergency: {}, phones: {} };
 
   var headers = values[0].map(function (h) { return String(h).trim(); });
   var col = {};
@@ -158,6 +171,7 @@ function buildRoster_() {
   var nameCol = (ALLOWLIST.name in col) ? col[ALLOWLIST.name] : -1;
   var roster = {};
   var emergency = {};
+  var phones = {};
 
   orderKeys.forEach(function (okey) {
     var grp = rowsByOrder[okey];
@@ -172,19 +186,19 @@ function buildRoster_() {
       // Zero or one registrant: one record per order, merging every row — this
       // preserves the original behaviour (and the bare order-number key, so any
       // existing check-in / jersey state stays attached) for the common case.
-      addRecord_(roster, emergency, col, okey, grp.orderNumber, rows);
+      addRecord_(roster, emergency, phones, col, okey, grp.orderNumber, rows);
     } else {
       // Group registration: one record per registrant row. The first registrant
       // keeps the plain order key (check-in continuity); the rest get a stable
       // "__2", "__3" … suffix so each rider has a distinct, repeatable identity.
       registrantRows.forEach(function (row, i) {
         var key = (i === 0) ? okey : okey + '__' + (i + 1);
-        addRecord_(roster, emergency, col, key, grp.orderNumber, [row]);
+        addRecord_(roster, emergency, phones, col, key, grp.orderNumber, [row]);
       });
     }
   });
 
-  return { roster: roster, emergency: emergency };
+  return { roster: roster, emergency: emergency, phones: phones };
 }
 
 /** Exchange the service-account JSON for an OAuth access token (RTDB + userinfo scopes). */
@@ -260,7 +274,7 @@ function rtdbAudit_(token, eventId, action, target) {
 function syncRoster() {
   var eventId = prop_('EVENT_ID', 'default');
   var built = buildRoster_();
-  var roster = built.roster, emergency = built.emergency;
+  var roster = built.roster, emergency = built.emergency, phones = built.phones;
   var token = getAccessToken_();
 
   // Diff against the previous roster so we can audit-log newly added registrations.
@@ -269,8 +283,10 @@ function syncRoster() {
   // Overwrite the roster node (registrations removed from the sheet disappear here too).
   // Check-in state lives under a separate /checkins node and is untouched.
   rtdbPut_(token, 'eventRoster/' + eventId, roster);
-  // Emergency contacts go ONLY to the access-restricted node, never to /eventRoster.
+  // Emergency contacts and rider phones go ONLY to the access-restricted nodes,
+  // never to /eventRoster.
   rtdbPut_(token, 'restricted/emergencyContacts/' + eventId, emergency);
+  rtdbPut_(token, 'restricted/riderPhones/' + eventId, phones);
   rtdbPut_(token, 'meta/' + eventId + '/lastSync', Date.now());
   rtdbPut_(token, 'meta/' + eventId + '/count', Object.keys(roster).length);
 
