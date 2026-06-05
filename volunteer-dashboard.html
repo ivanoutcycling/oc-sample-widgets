@@ -98,8 +98,6 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .route-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:5px;background:rgba(59,130,246,0.1);color:#2563eb;border:1px solid rgba(59,130,246,0.18)}
 .jersey-tag{font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
 .num-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;background:rgba(224,104,0,0.1);color:var(--orange);border:1px solid rgba(224,104,0,0.22)}
-.waiver-yes{color:var(--green);font-weight:600}
-.waiver-no{color:#dc2626;font-weight:600}
 .empty-state{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
 .empty-state .big{font-size:28px;margin-bottom:10px}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:center;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
@@ -151,18 +149,26 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .rest-row-meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rest-row-action{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#6d28d9}
 .rest-row.on .rest-row-action{color:var(--muted)}
-.detail-actions{display:flex;flex-direction:column;gap:10px}
-.emergency-details{border:1px solid rgba(220,38,38,0.3);border-radius:10px;margin-bottom:10px;overflow:hidden}
-.emergency-summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;user-select:none;padding:12px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:#dc2626;background:rgba(220,38,38,0.06)}
-.emergency-summary::-webkit-details-marker{display:none}
-.emergency-summary::after{content:'▸';font-size:11px;transition:transform .15s}
-.emergency-details[open] .emergency-summary::after{transform:rotate(90deg)}
-.emergency-body{padding:12px 16px}
-.emergency-box{margin:0}
-.emergency-box.muted{color:var(--muted);font-size:12px}
-.emergency-box .eb-row{display:flex;gap:12px;font-size:14px;padding:3px 0}
-.emergency-box .eb-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);min-width:54px;align-self:center}
-.emergency-box a{color:var(--accent);text-decoration:none;font-weight:600}
+/* Collapsible, audit-logged disclosures (rider phone, emergency contact) sit between
+   the rest-stop list and the action buttons, with breathing room on each side so the
+   tappable summaries are never crowded against the toggles above or buttons below. */
+.detail-disclosures{display:flex;flex-direction:column;gap:12px;margin:20px 0}
+.disclosure{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.disclosure-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;list-style:none;user-select:none;padding:14px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;min-height:48px;box-sizing:border-box}
+.disclosure-summary::-webkit-details-marker{display:none}
+.disclosure-summary::after{content:'▸';font-size:11px;flex:none;transition:transform .15s}
+.disclosure[open] .disclosure-summary::after{transform:rotate(90deg)}
+.disclosure-body{padding:13px 16px;border-top:1px solid var(--border)}
+.disclosure.contact{border-color:rgba(59,130,246,0.3)}
+.disclosure.contact .disclosure-summary{color:#2563eb;background:rgba(59,130,246,0.06)}
+.disclosure.emergency{border-color:rgba(220,38,38,0.3)}
+.disclosure.emergency .disclosure-summary{color:#dc2626;background:rgba(220,38,38,0.06)}
+.info-box{margin:0}
+.info-box.muted{color:var(--muted);font-size:12px}
+.info-box .ib-row{display:flex;gap:12px;font-size:14px;padding:3px 0}
+.info-box .ib-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);min-width:54px;align-self:center}
+.info-box a{color:var(--accent);text-decoration:none;font-weight:600}
+.detail-actions{display:flex;flex-direction:column;gap:12px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
 .audit-card{margin:0 32px 16px}
 #audit-body{max-height:340px;overflow-y:auto}
 .audit-row{display:grid;grid-template-columns:120px 90px 1fr;gap:8px;padding:7px 4px;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,0.04);align-items:baseline}
@@ -367,8 +373,8 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
           <th>Size</th>
           <th class="col-item">Registration</th>
           <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
-          <th class="sortable" onclick="setSort('checked')">Check-In</th>
           <th class="sortable" onclick="setSort('picked')">Pickup</th>
+          <th class="sortable" onclick="setSort('checked')">Check-In</th>
           <th class="col-rest" title="Rest Stop 1 — Hoelscher Field, Harrington Park NJ">Rest Stop 1</th>
           <th class="col-rest" title="Rest Stop 2 — Tallman State Park">Rest Stop 2</th>
           <th class="col-rest" title="Rest Stop 3 — Rockland Lake State Park">Rest Stop 3</th>
@@ -462,7 +468,10 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="detail-statuses" id="detail-statuses"></div>
     <div id="detail-body"></div>
     <div id="detail-reststops"></div>
-    <div id="detail-emergency"></div>
+    <div class="detail-disclosures">
+      <div id="detail-contact"></div>
+      <div id="detail-emergency"></div>
+    </div>
     <div class="detail-actions">
       <button class="detail-action-btn" id="detail-action-checkin"></button>
       <button class="detail-action-btn" id="detail-action-jersey"></button>
@@ -1110,9 +1119,7 @@ function rosterRows() {
       jerseySize: (ov && ov.jerseySize != null) ? ov.jerseySize : (r.jerseySize || ''),
       notes: (ov && ov.notes) ? ov.notes : '',
       lineItemName: r.lineItemName || '',
-      quantity: r.quantity || 1,
       createdAt: r.createdAt || '',
-      waiver: !!r.waiver,
       routeOverridden: !!(ov && ov.route != null),
       jerseySizeOverridden: !!(ov && ov.jerseySize != null),
       checked: !!(c && c.checkedIn),
@@ -1204,12 +1211,12 @@ function render() {
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
       <td class="col-created">${fmtDate(r.createdAt)}</td>
-      <td>${r.checked
-        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
-        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
       <td>${r.picked
         ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
         : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
+      <td>${r.checked
+        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
       ${REST_STOPS.map(s => {
         const avail = r.availableStops.some(a => a.id === s.id);
         if (!avail) return `<td class="col-rest"><span class="rest-na" title="Not on the ${esc(r.route) || 'selected'} route">–</span></td>`;
@@ -1416,7 +1423,8 @@ function openDetail(orderKey) {
 function closeDetail() {
   _openOrder = null;
   _editingField = null;
-  // Reset the emergency block so reopening any rider starts collapsed & unloaded.
+  // Reset the disclosures so reopening any rider starts collapsed & unloaded.
+  delete document.getElementById('detail-contact').dataset.order;
   delete document.getElementById('detail-emergency').dataset.order;
   document.getElementById('detail-overlay').classList.remove('open');
 }
@@ -1488,9 +1496,7 @@ function renderDetail() {
       <div class="dl">Route</div><div class="dv">${routeVal}</div>
       <div class="dl">Jersey Size</div><div class="dv">${sizeVal}</div>
       <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
-      <div class="dl">Quantity</div><div class="dv">${esc(r.quantity)}</div>
       <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
-      <div class="dl">Waiver</div><div class="dv">${r.waiver ? '<span class="waiver-yes">✓ Acknowledged</span>' : '<span class="waiver-no">✗ Not signed</span>'}</div>
     </div>
     ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}
     ${notesHtml}`;
@@ -1519,29 +1525,38 @@ function renderDetail() {
 
   renderDetailRestStops(r);
 
-  // Emergency contact: every account with access (volunteers + super-admins) sees it;
-  // the read is also rules-gated, so accounts without access can't fetch it even if
-  // forced. Rendered as a collapsible <details> that loads (and audits) once on first
-  // open and stays open. The block is idempotent — if it's already rendered for this
-  // same rider it is left untouched, so a background re-render (another volunteer's
-  // check-in, our own audit write) can't collapse a disclosure the user just opened.
-  const em = document.getElementById('detail-emergency');
-  if (hasAccess()) {
-    if (em.dataset.order !== r.orderNumber) {
-      em.dataset.order = r.orderNumber;
-      em.innerHTML = `<details class="emergency-details" id="emergency-details">
-          <summary class="emergency-summary">🚑 Emergency contact</summary>
-          <div class="emergency-body" id="emergency-body"><div class="emergency-box muted">Open to load…</div></div>
-        </details>`;
-      let loaded = false;
-      document.getElementById('emergency-details').addEventListener('toggle', function () {
-        if (this.open && !loaded) { loaded = true; revealEmergency(r.orderNumber, r.name); }
-      });
-    }
-  } else {
-    em.innerHTML = '';
-    delete em.dataset.order;
-  }
+  // Rider phone + emergency contact: both are PII held in access-restricted nodes and
+  // every account with access (volunteers + super-admins) may reveal them; the reads are
+  // also rules-gated, so accounts without access can't fetch them even if forced. Each is
+  // a collapsible <details> that loads (and audits) once on first open and stays open.
+  // Rendering is idempotent — if it's already rendered for this same rider it is left
+  // untouched, so a background re-render (another volunteer's check-in, our own audit
+  // write) can't collapse a disclosure the user just opened.
+  renderDisclosure('detail-contact', r, hasAccess(), {
+    id: 'contact', variant: 'contact', summary: '📞 Rider phone',
+    reveal: () => revealPhone(r.orderNumber, r.name)
+  });
+  renderDisclosure('detail-emergency', r, hasAccess(), {
+    id: 'emergency', variant: 'emergency', summary: '🚑 Emergency contact',
+    reveal: () => revealEmergency(r.orderNumber, r.name)
+  });
+}
+
+// Build (once per rider) a collapsible, audit-on-open disclosure into the container `elId`.
+function renderDisclosure(elId, r, allowed, opts) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!allowed) { el.innerHTML = ''; delete el.dataset.order; return; }
+  if (el.dataset.order === r.orderNumber) return;   // already rendered for this rider
+  el.dataset.order = r.orderNumber;
+  el.innerHTML = `<details class="disclosure ${opts.variant}" id="${opts.id}-details">
+      <summary class="disclosure-summary">${opts.summary}</summary>
+      <div class="disclosure-body" id="${opts.id}-body"><div class="info-box muted">Open to load…</div></div>
+    </details>`;
+  let loaded = false;
+  document.getElementById(`${opts.id}-details`).addEventListener('toggle', function () {
+    if (this.open && !loaded) { loaded = true; opts.reveal(); }
+  });
 }
 
 // Render the rider's rest-stop check-in toggles in the detail sheet. Only the stops on
@@ -1572,6 +1587,9 @@ function renderDetailRestStops(r) {
 }
 
 // Fetch + display a rider's emergency contact (privileged only), and audit the view.
+function telLink(phone) {
+  return phone ? `<a href="tel:${esc(String(phone).replace(/[^+\d]/g,''))}">${esc(phone)}</a>` : '—';
+}
 async function revealEmergency(orderNumber, name) {
   const body = document.getElementById('emergency-body');
   if (!body) return;
@@ -1580,17 +1598,35 @@ async function revealEmergency(orderNumber, name) {
     const c = snap.val();
     logAudit('emergency_view', name);
     if (!c || (!c.name && !c.phone)) {
-      body.innerHTML = '<div class="emergency-box muted">No emergency contact on file.</div>';
+      body.innerHTML = '<div class="info-box muted">No emergency contact on file.</div>';
       return;
     }
-    const phone = c.phone ? `<a href="tel:${esc(String(c.phone).replace(/[^+\d]/g,''))}">${esc(c.phone)}</a>` : '—';
-    body.innerHTML = `<div class="emergency-box">
-        <div class="eb-row"><span class="eb-label">Name</span><span>${esc(c.name) || '—'}</span></div>
-        <div class="eb-row"><span class="eb-label">Phone</span><span>${phone}</span></div>
+    body.innerHTML = `<div class="info-box">
+        <div class="ib-row"><span class="ib-label">Name</span><span>${esc(c.name) || '—'}</span></div>
+        <div class="ib-row"><span class="ib-label">Phone</span><span>${telLink(c.phone)}</span></div>
       </div>`;
   } catch (e) {
     console.error(e);
-    body.innerHTML = '<div class="emergency-box muted">Could not load (access denied).</div>';
+    body.innerHTML = '<div class="info-box muted">Could not load (access denied).</div>';
+  }
+}
+async function revealPhone(orderNumber, name) {
+  const body = document.getElementById('contact-body');
+  if (!body) return;
+  try {
+    const snap = await dbGet(dbRef(fb.db, `restricted/riderPhones/${EVENT_ID}/${orderNumber}`));
+    const c = snap.val();
+    logAudit('phone_view', name);
+    if (!c || !c.phone) {
+      body.innerHTML = '<div class="info-box muted">No phone number on file.</div>';
+      return;
+    }
+    body.innerHTML = `<div class="info-box">
+        <div class="ib-row"><span class="ib-label">Phone</span><span>${telLink(c.phone)}</span></div>
+      </div>`;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="info-box muted">Could not load (access denied).</div>';
   }
 }
 
@@ -1644,7 +1680,7 @@ const AUDIT_LABEL = {
   number_assigned: 'assigned number',
   jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
   reststop: 'rest-stop check-in', reststop_undo: 'undid rest-stop check-in',
-  emergency_view: 'viewed emergency contact', rider_added: 'rider added',
+  emergency_view: 'viewed emergency contact', phone_view: 'viewed rider phone', rider_added: 'rider added',
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
   inventory_update: 'updated jersey inventory', reset: 'reset data',
   route_override: 'updated route', jersey_override: 'updated jersey size',

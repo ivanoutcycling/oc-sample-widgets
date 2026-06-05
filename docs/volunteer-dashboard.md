@@ -23,6 +23,7 @@ Squarespace ──sync──▶ Google Sheet (master, contains PII)
                 /meta/{eventId}/lastSync sync timestamp
                 /restricted/
                   emergencyContacts/…    emergency name+phone (sync writes; volunteers + super-admins read)
+                  riderPhones/…          rider's own phone     (sync writes; volunteers + super-admins read)
                   auditLog/…             activity log (append by anyone with access; super-admins read)
                           ▲
                           │  Any verified Google account may sign in; ROLE is decided by
@@ -108,22 +109,26 @@ Rider name, route option, jersey size, registration tier (line item), quantity, 
 date, and whether the waiver was acknowledged.
 
 ### What is never synced (everything else)
-Email, phone, billing name/address, payment method/reference, all financial columns, private
-notes, channel info. Cancelled/refunded orders are filtered out (using those columns server-side
+Email, billing name/address, payment method/reference, all financial columns, private
+notes, channel info. (The rider's own phone and emergency contact are exceptions — see below.)
+Cancelled/refunded orders are filtered out (using those columns server-side
 without ever exporting them). The allowlist in `roster-sync.gs` is the single source of truth —
 new sheet columns leak nothing until explicitly added there.
 
-### Restricted data — emergency contacts & activity log
-Emergency contact name/phone **is** synced, but ONLY to `/restricted/emergencyContacts`, which is
-never world-readable. Read access requires a role (volunteer **or** super-admin) — accounts in
-neither allowlist can't retrieve it even by forcing the call.
+### Restricted data — rider phone, emergency contacts & activity log
+The rider's own phone (`/restricted/riderPhones`) and their emergency contact name/phone
+(`/restricted/emergencyContacts`) **are** synced, but ONLY to these access-restricted nodes, which
+are never world-readable and never written to `/eventRoster`. Read access requires a role
+(volunteer **or** super-admin) — accounts in neither allowlist can't retrieve them even by forcing
+the call.
 
-- In the rider detail sheet, anyone with access gets a **🚑 Show emergency contact** disclosure.
-  Each reveal writes an `emergency_view` audit entry.
+- In the rider detail sheet, anyone with access gets a **📞 Rider phone** disclosure and a
+  **🚑 Emergency contact** disclosure. Each is collapsed by default, loads only when opened, and
+  writes an audit entry on reveal (`phone_view` and `emergency_view` respectively).
 - The **Activity Log** (rider additions, check-ins with assigned number, rest-stop check-ins
   including the finish line, jersey pickups, the undo of each, number re-assignments, every
-  emergency-contact reveal, and volunteer add/remove — who · what · when) is readable by
-  **super-admins only**.
+  rider-phone and emergency-contact reveal, and volunteer add/remove — who · what · when) is
+  readable by **super-admins only**.
 - Audit entries are **append-only**: anyone with access can write their own action (so their
   check-ins and emergency-views get logged) but **cannot read the log back** — only super-admins can.
 
@@ -203,26 +208,30 @@ opening the dashboard with `?event=<id>`.
 
 > **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, the
 > jersey-inventory feature added a `/jerseyInventory` node, the check-in number feature added an
-> optional `number` field on `/checkins`, and the rest-stop feature added a `/reststops` node
+> optional `number` field on `/checkins`, the rest-stop feature added a `/reststops` node
 > (whose stop ids now include `finish` for the finish line, which replaced the old `/checkouts`
-> node). If you published the rules before any of these changes,
-> **re-publish them** (Realtime Database → Rules) or those writes will be denied.
+> node), and the rider-phone feature added a `/restricted/riderPhones` node. If you published the
+> rules before any of these changes, **re-publish them** (Realtime Database → Rules) or those
+> reads/writes will be denied.
 
-## Enabling restricted emergency contacts + activity log
+## Enabling restricted rider phone + emergency contacts + activity log
 1. **Seed at least one super-admin** in the console (see "Seeding the first super-admin"), then have
-   them add volunteers via the **Manage Volunteers** card. Volunteers can view emergency contacts;
-   only super-admins read the Activity Log.
-2. **Add the emergency columns to the sync.** `roster-sync.gs` already reads
+   them add volunteers via the **Manage Volunteers** card. Volunteers can view rider phones and
+   emergency contacts; only super-admins read the Activity Log.
+2. **Add the restricted columns to the sync.** `roster-sync.gs` reads
    `Product Form: Emergency Contact Name` and `Product Form: Emergency Contact Phone` into
-   `/restricted/emergencyContacts` (never `/eventRoster`). No Script Property changes are needed; the
-   existing admin service-account token can write `/restricted` (Admin bypasses rules). Re-run
-   `installTriggers()` only if you haven't already.
-3. **Verify the gate:** sign in as a volunteer → the 🚑 disclosure appears in a rider's detail sheet,
-   but **no** Activity Log card. Sign in as a super-admin → both appear. Sign in as an account in no
-   list → "not authorized yet" screen, and a forced read of `/restricted/...` is denied in the
+   `/restricted/emergencyContacts`, and `Product Form: Phone` into `/restricted/riderPhones` — never
+   `/eventRoster`. (Adjust the `PHONE_HEADER` constant if your sheet names the column differently.)
+   No Script Property changes are needed; the existing admin service-account token can write
+   `/restricted` (Admin bypasses rules). Re-run `installTriggers()` only if you haven't already.
+3. **Verify the gate:** sign in as a volunteer → the 📞 and 🚑 disclosures appear in a rider's detail
+   sheet, but **no** Activity Log card. Sign in as a super-admin → both appear. Sign in as an account
+   in no list → "not authorized yet" screen, and a forced read of `/restricted/...` is denied in the
    console network tab.
-4. **Verify auditing:** anyone with access reveals a contact → an `emergency_view` row appears in the
-   super-admin's Activity Log. A volunteer's check-in/jersey toggle appears as a row (the volunteer
-   can't read the log). A super-admin add/remove shows `volunteer_added`/`volunteer_removed`. Add a
-   sheet row → after sync, a `rider_added` row (actor `sync`) appears.
-5. **After the event:** delete `/restricted/emergencyContacts/{eventId}` from the console.
+4. **Verify auditing:** anyone with access reveals a phone or contact → a `phone_view` /
+   `emergency_view` row appears in the super-admin's Activity Log. A volunteer's check-in/jersey
+   toggle appears as a row (the volunteer can't read the log). A super-admin add/remove shows
+   `volunteer_added`/`volunteer_removed`. Add a sheet row → after sync, a `rider_added` row (actor
+   `sync`) appears.
+5. **After the event:** delete `/restricted/emergencyContacts/{eventId}` and
+   `/restricted/riderPhones/{eventId}` from the console.
