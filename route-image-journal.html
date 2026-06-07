@@ -740,7 +740,7 @@ async function saveAnnotation() {
   updateAnnStat();
 
   if (fb) {
-    try { await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${ann.id}`), ann); }
+    try { await fb.dbSet(fb.dbRef(fb.db, `sessions_r2/${sessionId}/annotations/${ann.id}`), ann); }
     catch(e) { console.warn('DB write failed', e); }
   }
   saveAnnotationsLocal();
@@ -791,7 +791,7 @@ async function deleteAnnotation(id) {
   drawAnnotationMarkers();
   updateAnnStat();
   if (fb) {
-    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${id}`)); } catch(e) {}
+    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions_r2/${sessionId}/annotations/${id}`)); } catch(e) {}
   }
   saveAnnotationsLocal();
   updateSessionCount();
@@ -814,9 +814,9 @@ async function clearSession() {
   annotations = [];
   drawAnnotationMarkers();
   updateAnnStat();
-  localStorage.removeItem('pr26_annotations');
+  localStorage.removeItem('pr26_r2_annotations');
   if (fb) {
-    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`)); } catch(e) {}
+    try { await fb.dbRemove(fb.dbRef(fb.db, `sessions_r2/${sessionId}/annotations`)); } catch(e) {}
   }
   updateSessionCount();
 }
@@ -873,7 +873,7 @@ async function _doHandleUploadSession(e) {
 
   if (fb) {
     for (const ann of annotations) {
-      try { await fb.dbSet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations/${ann.id}`), ann); } catch(_) {}
+      try { await fb.dbSet(fb.dbRef(fb.db, `sessions_r2/${sessionId}/annotations/${ann.id}`), ann); } catch(_) {}
     }
   }
   saveAnnotationsLocal();
@@ -883,7 +883,7 @@ async function _doHandleUploadSession(e) {
 
 // ── Persistence ──
 function saveAnnotationsLocal() {
-  try { localStorage.setItem('pr26_annotations', JSON.stringify(annotations)); } catch(e) {}
+  try { localStorage.setItem('pr26_r2_annotations', JSON.stringify(annotations)); } catch(e) {}
 }
 
 function updateAnnStat() { /* stats strip removed */ }
@@ -908,7 +908,7 @@ document.addEventListener('keydown', e => {
 async function writeSessionIndex() {
   if (!fb) return;
   try {
-    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}`), {
+    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex_r2/${sessionId}`), {
       name: sessionName,
       createdAt: Date.now(),
       annotationCount: annotations.length
@@ -919,7 +919,7 @@ async function writeSessionIndex() {
 async function updateSessionCount() {
   if (!fb) return;
   try {
-    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/annotationCount`), annotations.length);
+    await fb.dbSet(fb.dbRef(fb.db, `sessionIndex_r2/${sessionId}/annotationCount`), annotations.length);
   } catch(e) {}
 }
 
@@ -1005,7 +1005,7 @@ async function renameCurrentSession() {
   if (!newName || !newName.trim()) return;
   setSessionNameDisplay(newName.trim());
   if (fb) {
-    try { await fb.dbSet(fb.dbRef(fb.db, `sessionIndex/${sessionId}/name`), sessionName); } catch(e) {}
+    try { await fb.dbSet(fb.dbRef(fb.db, `sessionIndex_r2/${sessionId}/name`), sessionName); } catch(e) {}
   }
 }
 
@@ -1023,7 +1023,7 @@ async function _doOpenSessionBrowser() {
   }
   list.innerHTML = '<div style="color:var(--dimmer);font-size:11px;text-align:center;padding:24px">Loading…</div>';
   try {
-    const snap = await fb.dbGet(fb.dbRef(fb.db, 'sessionIndex'));
+    const snap = await fb.dbGet(fb.dbRef(fb.db, 'sessionIndex_r2'));
     list.innerHTML = '';
     if (!snap.exists()) {
       list.innerHTML = '<div style="color:var(--dimmer);font-size:11px;text-align:center;padding:24px">No sessions found</div>';
@@ -1081,8 +1081,8 @@ async function deleteSessionEntry(id) {
   if (!fb) return;
   try {
     await Promise.all([
-      fb.dbRemove(fb.dbRef(fb.db, `sessionIndex/${id}`)),
-      fb.dbRemove(fb.dbRef(fb.db, `sessions/${id}`))
+      fb.dbRemove(fb.dbRef(fb.db, `sessionIndex_r2/${id}`)),
+      fb.dbRemove(fb.dbRef(fb.db, `sessions_r2/${id}`))
     ]);
     if (id === sessionId) {
       location.href = location.pathname;
@@ -1101,8 +1101,8 @@ async function loadSession() {
   if (fb) {
     try {
       const [idxSnap, annSnap] = await Promise.all([
-        fb.dbGet(fb.dbRef(fb.db, `sessionIndex/${sessionId}`)),
-        fb.dbGet(fb.dbRef(fb.db, `sessions/${sessionId}/annotations`))
+        fb.dbGet(fb.dbRef(fb.db, `sessionIndex_r2/${sessionId}`)),
+        fb.dbGet(fb.dbRef(fb.db, `sessions_r2/${sessionId}/annotations`))
       ]);
       if (idxSnap.exists()) {
         setSessionNameDisplay(idxSnap.val().name || 'Untitled Session');
@@ -1114,11 +1114,11 @@ async function loadSession() {
     } catch(e) {
       console.warn('Firebase load failed, falling back', e);
       setSessionNameDisplay('Untitled Session');
-      annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
+      annotations = JSON.parse(localStorage.getItem('pr26_r2_annotations') || '[]');
     }
   } else {
     setSessionNameDisplay('Local session');
-    annotations = JSON.parse(localStorage.getItem('pr26_annotations') || '[]');
+    annotations = JSON.parse(localStorage.getItem('pr26_r2_annotations') || '[]');
   }
   drawAnnotationMarkers();
   updateAnnStat();
