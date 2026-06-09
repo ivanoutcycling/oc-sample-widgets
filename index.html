@@ -1,11 +1,1800 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=volunteer-dashboard.html">
-  <title>OutCycling Volunteer Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ride Check-In — Volunteer Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f0f6;--surface:#ffffff;--card:#f7f7fb;--border:rgba(0,0,0,0.09);
+  --text:#111128;--muted:rgba(17,17,40,0.52);--dimmer:rgba(17,17,40,0.3);
+  --accent:#3B82F6;--green:#00a84a;--orange:#e06800;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.shell{max-width:1000px;margin:0 auto;padding:0 0 60px}
+.header{padding:28px 32px 8px}
+.accent-bar{height:3px;background:var(--accent);border-radius:2px;margin-bottom:20px;box-shadow:0 0 16px rgba(59,130,246,0.2)}
+.eyebrow{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:5px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;opacity:0.6}
+.title{font-family:'Unbounded',sans-serif;font-size:clamp(20px,4vw,34px);font-weight:900;line-height:0.95;letter-spacing:-0.5px;color:var(--text)}
+.subtitle{font-size:11px;font-weight:300;color:var(--muted);margin-top:6px}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 32px 12px;flex-wrap:wrap}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all 0.15s;-webkit-appearance:none;box-shadow:0 1px 2px rgba(0,0,0,0.05);text-decoration:none}
+.btn:hover{color:var(--text);border-color:rgba(0,0,0,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.09)}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff}
+.btn-green:hover{background:#08923f;border-color:#08923f;color:#fff}
+.btn-blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-blue:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-orange{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn-orange:hover{background:#c25a00;border-color:#c25a00;color:#fff}
+.btn-undo{background:rgba(0,168,74,0.08);border-color:rgba(0,168,74,0.3);color:#08923f}
+.btn-undo:hover{background:rgba(0,168,74,0.16)}
+.user-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.5px;padding:4px 9px;border-radius:5px;background:rgba(0,180,80,0.1);color:#00a84a;border:1px solid rgba(0,180,80,0.2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.search-input,.filter-select{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;outline:none;transition:border-color 0.15s}
+.search-input{min-width:200px;flex:1;max-width:280px}
+.search-input.search-number{min-width:110px;max-width:150px;flex:0 1 140px}
+.search-input:focus,.filter-select:focus{border-color:rgba(59,130,246,0.5)}
+.toggle-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);user-select:none}
+.toggle-pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.stats-row{display:flex;gap:0;margin:0 32px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.stat-item{flex:1;padding:16px;text-align:center;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:5px}
+.stat-value{font-size:22px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace}
+.stat-value.green{color:var(--green)}
+.stat-value.orange{color:var(--orange)}
+.stat-value.blue{color:var(--accent)}
+.section-label{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin:0 32px 8px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 32px 8px}
+.section-head .section-label{margin:0}
+.section-head .toggle-pill{font-size:10px;padding:5px 10px}
+.route-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.route-cell{background:var(--surface);padding:14px 8px;text-align:center;min-width:0}
+.route-cell .rc-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);margin-bottom:6px;line-height:1.25;min-height:1.8em}
+.route-cell .rc-value{font-size:21px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace;line-height:1}
+.route-cell .rc-value .done{color:var(--green)}
+.route-cell .rc-total{color:var(--dimmer);font-size:15px}
+.breakdown{display:grid;grid-template-columns:1fr;gap:16px;margin:0 32px 16px}
+.bd-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-x:auto}
+.bd-title{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
+details.bd-card>summary.bd-title{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;margin-bottom:0;user-select:none}
+details.bd-card>summary.bd-title::-webkit-details-marker{display:none}
+details.bd-card>summary.bd-title::after{content:'▸';font-size:11px;transition:transform .15s;color:var(--muted)}
+details.bd-card[open]>summary.bd-title{margin-bottom:12px}
+details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
+.bd-table{width:100%;border-collapse:collapse}
+.bd-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.bd-table th:first-child{text-align:left}
+.bd-table td{padding:7px 8px;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.04)}
+.bd-num{text-align:right;font-family:'DM Mono',monospace;font-weight:500}
+.bd-table tbody tr:last-child td{border-bottom:none}
+.bd-total td{font-weight:700;border-top:1.5px solid var(--border)!important;padding-top:9px}
+.icon-toggle{width:38px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;line-height:1;color:var(--dimmer);border:1.5px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;transition:all .15s;padding:0}
+.icon-toggle:hover{border-color:rgba(0,0,0,0.25);box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.icon-toggle.on-green{background:var(--green);border-color:var(--green);color:#fff}
+.icon-toggle.on-blue{background:var(--accent);border-color:var(--accent);color:#fff}
+.icon-toggle.on-orange{background:var(--orange);border-color:var(--orange);color:#fff}
+.icon-toggle.on-rest{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.dash-table th.col-rest,.dash-table td.col-rest{text-align:center}
+.rest-na{color:var(--dimmer);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 0;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
+.dash-table{width:100%;border-collapse:collapse;min-width:640px}
+.dash-table th{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);padding:12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.dash-table th.sortable{cursor:pointer;user-select:none}
+.dash-table th.sortable:hover{color:var(--text)}
+.dash-table td{padding:11px 12px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,0.05);vertical-align:middle}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-table tbody tr{cursor:pointer}
+.dash-table tbody tr:hover td{background:var(--card)}
+.dash-table tr.checked td{background:rgba(0,168,74,0.045)}
+.dash-table tr.checked:hover td{background:rgba(0,168,74,0.08)}
+.name-cell{font-weight:600}
+.route-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:5px;background:rgba(59,130,246,0.1);color:#2563eb;border:1px solid rgba(59,130,246,0.18)}
+.jersey-tag{font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
+.num-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;background:rgba(224,104,0,0.1);color:var(--orange);border:1px solid rgba(224,104,0,0.22)}
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
+.empty-state .big{font-size:28px;margin-bottom:10px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:center;justify-content:center;padding:40px 20px;backdrop-filter:blur(8px);overflow-y:auto}
+.overlay.open{display:flex}
+.overlay-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:400px;padding:32px;box-shadow:0 16px 48px rgba(0,0,0,0.15);text-align:center}
+.overlay-panel h3{font-family:'Unbounded',sans-serif;font-size:13px;letter-spacing:1px;color:var(--text);margin-bottom:10px}
+.overlay-panel p{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.google-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:12px 18px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:#3c4043;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.google-btn:hover{box-shadow:0 3px 10px rgba(0,0,0,0.12);border-color:rgba(0,0,0,0.2)}
+.google-btn svg{width:18px;height:18px;flex-shrink:0}
+.ov-status{font-size:11px;color:var(--muted);min-height:16px;margin-top:14px}
+.ov-status.error{color:#dc2626}
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:440px;max-height:calc(100vh - 80px);overflow-y:auto;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left;position:relative}
+.detail-close{position:sticky;top:0;display:block;width:fit-content;margin:-6px -6px 2px auto;border:1px solid var(--border);background:var(--surface);font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:5px 11px;border-radius:10px;z-index:5}
+.detail-close:hover{color:var(--text);background:var(--card)}
+.detail-name{font-family:'Unbounded',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.4px;color:var(--text);margin:0 0 8px 0;line-height:1.1}
+.detail-statuses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.detail-status{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;padding:4px 10px;border-radius:6px}
+.detail-status.in{background:rgba(0,168,74,0.12);color:#08923f;border:1px solid rgba(0,168,74,0.3)}
+.detail-status.jersey{background:rgba(59,130,246,0.12);color:#2563eb;border:1px solid rgba(59,130,246,0.3)}
+.detail-status.checkedout{background:rgba(224,104,0,0.12);color:var(--orange);border:1px solid rgba(224,104,0,0.3)}
+.detail-status.out{background:rgba(17,17,40,0.05);color:var(--muted);border:1px solid var(--border)}
+.detail-status.rest{background:rgba(124,58,237,0.12);color:#6d28d9;border:1px solid rgba(124,58,237,0.3)}
+
+/* Rest-stop "check in by number" widget (top of page) */
+.rest-bynum-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin:0 32px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.05);border-left:3px solid #7c3aed}
+.rest-bynum-head{font-family:'Unbounded',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6d28d9;margin-bottom:10px}
+.rest-bynum-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rest-bynum-select{flex:1 1 240px;min-width:0}
+.rest-bynum-input{flex:0 1 140px;min-width:110px}
+.rest-bynum-result{font-size:12.5px;margin-top:10px;min-height:0;line-height:1.45}
+.rest-bynum-result:empty{display:none}
+.rest-bynum-result.ok{color:#08923f}
+.rest-bynum-result.err{color:#b91c1c}
+
+/* Rest-stop check-ins inside the rider detail sheet */
+.rest-section{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
+.rest-section-head{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.rest-section-count{font-family:'DM Mono',monospace;font-size:11px;color:#6d28d9;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:5px;padding:1px 7px;letter-spacing:0}
+.rest-section-note{font-family:'Inter',sans-serif;font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted)}
+.rest-rows{display:flex;flex-direction:column;gap:6px}
+.rest-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.rest-row:hover{border-color:rgba(124,58,237,0.4);box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+.rest-row.on{background:rgba(124,58,237,0.07);border-color:rgba(124,58,237,0.45)}
+.rest-row-tick{flex:0 0 22px;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;font-weight:700;font-size:13px;color:var(--dimmer);border:1.5px solid var(--border);background:var(--surface)}
+.rest-row.on .rest-row-tick{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.rest-row-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rest-row-name{font-size:13px;font-weight:600;color:var(--text)}
+.rest-row-meta{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rest-row-action{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#6d28d9}
+.rest-row.on .rest-row-action{color:var(--muted)}
+/* Collapsible, audit-logged disclosures (rider phone, emergency contact) sit between
+   the rest-stop list and the action buttons, with breathing room on each side so the
+   tappable summaries are never crowded against the toggles above or buttons below. */
+.detail-disclosures{display:flex;flex-direction:column;gap:12px;margin:20px 0}
+.disclosure{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.disclosure-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;list-style:none;user-select:none;padding:14px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;min-height:48px;box-sizing:border-box}
+.disclosure-summary::-webkit-details-marker{display:none}
+.disclosure-summary::after{content:'▸';font-size:11px;flex:none;transition:transform .15s}
+.disclosure[open] .disclosure-summary::after{transform:rotate(90deg)}
+.disclosure-body{padding:13px 16px;border-top:1px solid var(--border)}
+.disclosure.contact{border-color:rgba(59,130,246,0.3)}
+.disclosure.contact .disclosure-summary{color:#2563eb;background:rgba(59,130,246,0.06)}
+.disclosure.emergency{border-color:rgba(220,38,38,0.3)}
+.disclosure.emergency .disclosure-summary{color:#dc2626;background:rgba(220,38,38,0.06)}
+.info-box{margin:0}
+.info-box.muted{color:var(--muted);font-size:12px}
+.info-box .ib-row{display:flex;gap:12px;font-size:14px;padding:3px 0}
+.info-box .ib-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);min-width:54px;align-self:center}
+.info-box a{color:var(--accent);text-decoration:none;font-weight:600}
+.detail-actions{display:flex;flex-direction:column;gap:12px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+.audit-card{margin:0 32px 16px}
+#audit-body{max-height:340px;overflow-y:auto}
+.audit-row{display:grid;grid-template-columns:120px 90px 1fr;gap:8px;padding:7px 4px;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,0.04);align-items:baseline}
+.audit-row:last-child{border-bottom:none}
+.audit-when{color:var(--dimmer);font-family:'DM Mono',monospace;font-size:10px}
+.audit-who{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.audit-action{color:var(--muted)}
+.audit-target{font-weight:500;grid-column:2 / -1}
+.audit-empty{color:var(--dimmer);font-size:12px;padding:8px 4px}
+.manage-card{margin:0 32px 16px}
+.inventory-card{margin:0 32px 16px}
+.manage-add{display:flex;gap:8px;padding:6px 4px 12px}
+.manage-add .search-input{flex:1}
+.manage-row{display:flex;align-items:center;gap:10px;padding:7px 4px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,0.04)}
+.manage-row:last-child{border-bottom:none}
+.manage-em{flex:1;font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manage-remove{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1;flex:none}
+.manage-remove:hover{color:#c0392b;border-color:rgba(192,57,43,0.4)}
+.manage-empty{color:var(--dimmer);font-size:12px;padding:8px 4px}
+/* Jersey inventory (super-admin) */
+.inv-toggle-row{display:flex;align-items:center;gap:9px;padding:4px 4px 12px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none}
+.inv-toggle-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none}
+.inv-hint{color:var(--dimmer);font-size:11px;padding:0 4px 10px;line-height:1.4}
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;padding:4px 4px 12px}
+.inv-cell{display:flex;flex-direction:column;gap:4px}
+.inv-size{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding-left:2px}
+.inv-input{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:7px 9px;outline:none;width:100%;-webkit-appearance:none}
+.inv-input:focus{border-color:rgba(59,130,246,0.5)}
+.inv-actions{display:flex;justify-content:flex-end;padding:2px 4px}
+/* Reset data (super-admin) */
+.reset-card{margin:0 32px 16px}
+.reset-warn{font-size:12px;color:#b91c1c;line-height:1.5;background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.25);border-radius:8px;padding:10px 12px;margin:4px 0 12px}
+.reset-warn code{font-family:'DM Mono',monospace;background:rgba(0,0,0,0.07);padding:1px 5px;border-radius:4px}
+.reset-row{display:flex;align-items:center;gap:9px;padding:6px 4px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none}
+.reset-row input{width:16px;height:16px;accent-color:#dc2626;cursor:pointer;flex:none}
+.reset-cnt{color:var(--dimmer);font-family:'DM Mono',monospace;font-size:11px}
+.reset-confirm-row{display:flex;gap:8px;padding:12px 4px 4px;flex-wrap:wrap}
+.reset-confirm-input{flex:1;min-width:160px;max-width:none}
+.btn-danger{background:#dc2626;border-color:#dc2626;color:#fff}
+.btn-danger:hover:not(:disabled){background:#b91c1c;border-color:#b91c1c;color:#fff}
+/* x / y comparison cells in the jersey-size breakdown */
+.bd-num.inv-over{background:rgba(220,38,38,0.14);color:#b91c1c;border-radius:6px}
+.bd-num.inv-equal{background:rgba(234,179,8,0.20);color:#92600a;border-radius:6px}
+.bd-num.bd-done{background:rgba(0,168,74,0.14);color:#08923f;border-radius:6px}
+@media(max-width:680px){
+  .audit-row{grid-template-columns:1fr auto}
+  .audit-when{grid-column:1 / -1}
+  .audit-target{grid-column:1 / -1}
+}
+.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
+.detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
+.detail-grid .dv{font-size:13.5px;color:var(--text);font-weight:500}
+.detail-checked-note{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin:-4px 0 16px;line-height:1.4}
+.detail-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;padding:14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all 0.15s}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(max-width:560px){
+  #detail-overlay{align-items:flex-end;padding:0;overflow:hidden}
+  #detail-overlay .detail-panel{max-width:none;max-height:90dvh;border-radius:18px 18px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom))}
+  #detail-overlay.open .detail-panel{animation:sheetUp .22s ease}
+}
+.setup-banner{display:none;margin:0 32px 16px;padding:14px 18px;background:rgba(224,104,0,0.07);border:1px solid rgba(224,104,0,0.3);border-radius:10px;font-size:12px;color:var(--text);line-height:1.6}
+.setup-banner code{font-family:'DM Mono',monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:4px}
+/* Assign-number dialog */
+.assign-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:360px;padding:26px;box-shadow:0 16px 48px rgba(0,0,0,0.18);text-align:left}
+.assign-panel h3{font-family:'Unbounded',sans-serif;font-size:13px;letter-spacing:1px;color:var(--text);margin-bottom:4px}
+.assign-panel .assign-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+.assign-input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Mono',monospace;font-size:26px;font-weight:600;text-align:center;padding:12px;outline:none;-webkit-appearance:none;letter-spacing:1px}
+.assign-input:focus{border-color:rgba(59,130,246,0.5)}
+.assign-warn{min-height:18px;margin-top:10px;font-size:12px;font-weight:600;color:#b91c1c;text-align:center;line-height:1.4}
+.assign-warn.ok{color:var(--green)}
+.assign-actions{display:flex;gap:10px;margin-top:18px}
+.assign-actions .btn{flex:1;justify-content:center;padding:11px;font-size:13px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(17,17,40,0.92);color:#eeeaff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:40px;z-index:4000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap}
+.toast.show{opacity:1}
+.sync-note{padding:0 32px 8px;font-size:10px;color:var(--dimmer);font-family:'DM Mono',monospace}
+/* ── Field overrides (route / jersey size editing) ─────────────────────────── */
+.field-edit-btn{background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--accent);cursor:pointer;font-size:11px;padding:2px 7px;border-radius:5px;line-height:1.4;vertical-align:middle;margin-left:6px;transition:all .15s;font-family:'DM Mono',monospace}
+.field-edit-btn:hover{background:rgba(59,130,246,0.16);border-color:rgba(59,130,246,0.5);color:#2563eb}
+.field-edit-row{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.field-edit-select{background:var(--surface);border:1.5px solid rgba(59,130,246,0.5);border-radius:7px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;outline:none;cursor:pointer;flex:1}
+.field-edit-confirm{background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px;line-height:1;transition:background .15s}
+.field-edit-confirm:hover{background:#08923f}
+.field-edit-cancel{background:rgba(17,17,40,0.07);color:var(--muted);border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;padding:5px 10px;line-height:1;transition:background .15s}
+.field-edit-cancel:hover{background:rgba(17,17,40,0.14);color:var(--text)}
+.override-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:0.3px;padding:1px 6px;border-radius:4px;background:rgba(234,179,8,0.15);color:#92600a;border:1px solid rgba(234,179,8,0.35);margin-left:5px;vertical-align:middle}
+.note-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--orange);margin-left:6px;vertical-align:middle;flex-shrink:0}
+.notes-section{margin-bottom:14px}
+.notes-header{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.notes-lbl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer)}
+.notes-text{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.notes-add-btn{background:none;border:1.5px dashed var(--border);color:var(--dimmer);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;border-radius:8px;width:100%;text-align:left;margin-bottom:14px;transition:all .15s}
+.notes-add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,0.04)}
+.notes-textarea{width:100%;background:var(--surface);border:1.5px solid rgba(59,130,246,0.5);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;resize:vertical;min-height:80px;line-height:1.5;display:block;margin-bottom:8px;box-sizing:border-box}
+.notes-textarea:focus{border-color:var(--accent)}
+.notes-edit-actions{display:flex;gap:8px;margin-bottom:14px}
+@media(max-width:680px){
+  .header,.toolbar,.sync-note,.section-label,.section-head{padding-left:16px;padding-right:16px}
+  .section-label,.section-head{margin-left:0;margin-right:0}
+  .card,.stats-row,.setup-banner,.route-stats,.rest-bynum-card,.breakdown,.audit-card,.manage-card,.inventory-card,.reset-card{margin-left:16px;margin-right:16px}
+  .search-input{max-width:none}
+  .dash-table th.col-item,.dash-table td.col-item,.dash-table th.col-created,.dash-table td.col-created{display:none}
+}
+</style>
 </head>
 <body>
-  <p>Redirecting to <a href="volunteer-dashboard.html">Volunteer Dashboard</a>…</p>
+
+<div class="shell">
+  <div class="header">
+    <div class="accent-bar"></div>
+    <div class="eyebrow">OutCycling · Volunteer</div>
+    <div class="title">Ride Check-In</div>
+    <div class="subtitle" id="event-subtitle">Registered riders &amp; day-of check-in</div>
+  </div>
+
+  <div class="setup-banner" id="setup-banner">
+    <strong>Setup needed:</strong> this dashboard isn't connected to a Firebase project yet.
+    Replace the placeholder <code>FIREBASE_CONFIG</code> near the top of the script in
+    <code>volunteer-dashboard.html</code> with your OutCycling.org Firebase project's web config.
+    See <code>firebase/database.rules.json</code> and <code>apps-script/roster-sync.gs</code> for the rest.
+  </div>
+
+  <!-- Top bar: identity + sign out (hidden until authenticated) -->
+  <div class="toolbar" id="topbar" style="display:none">
+    <span class="spacer"></span>
+    <span class="user-badge" id="user-badge"></span>
+    <button class="btn" onclick="signOutVolunteer()">Sign out</button>
+  </div>
+
+  <div class="stats-row" id="stats" style="display:none">
+    <div class="stat-item"><div class="stat-label">Registered</div><div class="stat-value" id="stat-total">0</div></div>
+    <div class="stat-item"><div class="stat-label">Checked In</div><div class="stat-value green" id="stat-checked">0</div></div>
+    <div class="stat-item"><div class="stat-label">Finished</div><div class="stat-value orange" id="stat-finished">0</div></div>
+    <div class="stat-item"><div class="stat-label">Jerseys Out</div><div class="stat-value blue" id="stat-jerseys">0</div></div>
+  </div>
+
+  <!-- Quick rest-stop check-in by number: a volunteer stationed at a rest stop picks
+       their stop, then just types the rider's assigned number to check them in. -->
+  <div class="rest-bynum-card" id="rest-bynum-card" style="display:none">
+    <div class="rest-bynum-head">🛑 Check in to rest stop by number</div>
+    <div class="rest-bynum-controls">
+      <select class="filter-select rest-bynum-select" id="rest-stop-select" onchange="onRestStopSelect()"></select>
+      <input class="search-input rest-bynum-input" id="rest-bynum-input" type="number" min="1" step="1"
+             inputmode="numeric" placeholder="Rider number"
+             onkeydown="if(event.key==='Enter')checkInByNumber()">
+      <button class="btn btn-green" onclick="checkInByNumber()">Check in</button>
+    </div>
+    <div class="rest-bynum-result" id="rest-bynum-result"></div>
+  </div>
+
+  <div class="section-head" id="route-stats-head" style="display:none">
+    <span class="section-label" id="route-stats-label">Registrants by route</span>
+    <span class="toggle-pill" id="route-toggle" onclick="toggleRouteCheckins()">Show check-ins</span>
+  </div>
+  <div class="route-stats" id="route-stats" style="display:none"></div>
+
+  <div class="section-head" id="rest-stats-head" style="display:none">
+    <span class="section-label">Rest stop check-ins by route</span>
+  </div>
+  <div class="breakdown" id="rest-stats" style="display:none">
+    <div class="bd-card">
+      <table class="bd-table">
+        <thead id="rest-bd-head"></thead>
+        <tbody id="rest-bd-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-head" id="inv-breakdown-head" style="display:none">
+    <span class="section-label">By jersey size</span>
+    <span class="toggle-pill" id="inv-toggle" onclick="toggleInventory()">Hide inventory</span>
+  </div>
+  <div class="breakdown" id="breakdown" style="display:none">
+    <details class="bd-card">
+      <summary class="bd-title">By Jersey Size</summary>
+      <table class="bd-table">
+        <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
+        <tbody id="bd-size"></tbody>
+      </table>
+    </details>
+  </div>
+
+  <!-- Filter bar: search + filters, below the summaries (hidden until authenticated) -->
+  <div class="toolbar filterbar" id="filterbar" style="display:none">
+    <input class="search-input" id="search" type="search" placeholder="Search name…" oninput="render()">
+    <input class="search-input search-number" id="search-number" type="search" inputmode="numeric"
+           placeholder="Check-in #…" aria-label="Search by check-in number" oninput="render()">
+    <select class="filter-select" id="route-filter" onchange="render()">
+      <option value="">All routes</option>
+    </select>
+    <span class="toggle-pill" id="hide-checked" onclick="toggleHideChecked()">Hide checked-in</span>
+    <span class="toggle-pill" id="hide-picked" onclick="toggleHidePicked()">Hide picked up</span>
+  </div>
+
+  <div class="card" id="table-card" style="display:none">
+    <div class="table-scroll">
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th class="sortable" onclick="setSort('name')">Rider</th>
+          <th class="sortable" onclick="setSort('number')">#</th>
+          <th class="sortable" onclick="setSort('route')">Route</th>
+          <th>Size</th>
+          <th class="col-item">Registration</th>
+          <th class="col-created sortable" onclick="setSort('createdAt')">Registered</th>
+          <th class="sortable" onclick="setSort('picked')">Pickup</th>
+          <th class="sortable" onclick="setSort('checked')">Check-In</th>
+          <th class="col-rest" title="Rest Stop 1 — Hoelscher Field, Harrington Park NJ">Rest Stop 1</th>
+          <th class="col-rest" title="Rest Stop 2 — Tallman State Park">Rest Stop 2</th>
+          <th class="col-rest" title="Rest Stop 3 — Rockland Lake State Park">Rest Stop 3</th>
+          <th class="col-rest" title="Rest Stop 4 — Eugene Levy Memorial Park, New City NY">Rest Stop 4</th>
+          <th class="col-rest" title="Rest Stop 5 — Hoelscher Field, Harrington Park NJ">Rest Stop 5</th>
+          <th class="col-rest" title="Finish line">Finish line</th>
+        </tr>
+      </thead>
+      <tbody id="roster-body"></tbody>
+    </table>
+    </div>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="big">🚲</div>
+      <div id="empty-msg">No riders match your filters.</div>
+    </div>
+  </div>
+
+  <!-- Activity log: super-admins only -->
+  <details class="bd-card audit-card" id="audit-card" style="display:none">
+    <summary class="bd-title">Activity Log</summary>
+    <div id="audit-body"></div>
+  </details>
+
+  <!-- Volunteer management: super-admins only. Controls who can see the dashboard
+       and emergency contacts. (Super-admins themselves are managed in the console.) -->
+  <details class="bd-card manage-card" id="manage-card" style="display:none">
+    <summary class="bd-title">Manage Volunteers</summary>
+    <div class="manage-add">
+      <input class="search-input" id="manage-email" type="email" placeholder="volunteer@example.com"
+             onkeydown="if(event.key==='Enter')addVolunteer()">
+      <button class="btn" onclick="addVolunteer()">Add</button>
+    </div>
+    <div id="manage-list"></div>
+  </details>
+
+  <!-- Jersey inventory: super-admins only. Sets how many jerseys exist per size.
+       The comparison toggle is per-user and lives in the By Jersey Size card. -->
+  <details class="bd-card inventory-card" id="inventory-card" style="display:none">
+    <summary class="bd-title">Jersey Inventory</summary>
+    <div class="inv-hint">Enter how many jerseys are available per size. Once saved, the
+      By&nbsp;Jersey&nbsp;Size breakdown will show <b>count&nbsp;/&nbsp;stock</b> for each column.
+      Cells turn <b style="color:#b91c1c">red</b> when count exceeds stock and
+      <b style="color:#92600a">yellow</b> when they match exactly. Each volunteer can toggle
+      the comparison on/off from the breakdown card.</div>
+    <div class="inv-grid" id="inv-grid"></div>
+    <div class="inv-actions"><button class="btn" onclick="saveInventory()">Save inventory</button></div>
+  </details>
+
+  <!-- Reset data: super-admins only. Bulk-clears the selected day-of state for this event.
+       Each target is opt-in via checkbox and requires typing RESET to confirm. -->
+  <details class="bd-card reset-card" id="reset-card" style="display:none">
+    <summary class="bd-title">Reset Data</summary>
+    <div class="reset-warn">⚠ Permanently clears the selected data for <b id="reset-event"></b> for
+      <b>everyone</b>. This can't be undone. Choose what to reset, then type <code>RESET</code> below to confirm.</div>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="numbers" onchange="updateResetButton()"> Check-in numbers <span class="reset-cnt" id="reset-cnt-numbers"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="checkins" onchange="updateResetButton()"> Check-in status <span class="reset-cnt" id="reset-cnt-checkins"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="jerseys" onchange="updateResetButton()"> Jersey pickup status <span class="reset-cnt" id="reset-cnt-jerseys"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="reststops" onchange="updateResetButton()"> Rest-stop check-ins <span class="reset-cnt" id="reset-cnt-reststops"></span></label>
+    <label class="reset-row"><input type="checkbox" class="reset-opt" data-kind="overrides" onchange="updateResetButton()"> Override edits (route / size / notes) <span class="reset-cnt" id="reset-cnt-overrides"></span></label>
+    <div class="reset-confirm-row">
+      <input class="search-input reset-confirm-input" id="reset-confirm-input" type="text"
+             placeholder="Type RESET to confirm" autocomplete="off" oninput="updateResetButton()">
+      <button class="btn btn-danger" id="reset-btn" onclick="performReset()" disabled>Reset selected</button>
+    </div>
+  </details>
+
+  <div class="sync-note" id="sync-note" style="display:none"></div>
+</div>
+
+<!-- ═══ SIGN-IN OVERLAY ═══ -->
+<div class="overlay" id="auth-overlay">
+  <div class="overlay-panel">
+    <h3>Volunteer Sign In</h3>
+    <p>Sign in with your <strong>Google account</strong> to view the rider roster and manage check-in. Access is granted by an OutCycling super-admin.</p>
+    <button class="google-btn" id="google-signin-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="ov-status" id="auth-status"></div>
+    <div id="locked-actions" style="display:none;margin-top:14px">
+      <button class="btn" onclick="signOutVolunteer()">Sign out / use another account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RIDER DETAIL (modal on desktop, bottom sheet on mobile) ═══ -->
+<div class="overlay" id="detail-overlay" onclick="detailBgClick(event)">
+  <div class="detail-panel">
+    <button class="detail-close" onclick="closeDetail()" aria-label="Close">×</button>
+    <div class="detail-name" id="detail-name"></div>
+    <div class="detail-statuses" id="detail-statuses"></div>
+    <div id="detail-body"></div>
+    <div id="detail-reststops"></div>
+    <div class="detail-disclosures">
+      <div id="detail-contact"></div>
+      <div id="detail-emergency"></div>
+    </div>
+    <div class="detail-actions">
+      <button class="detail-action-btn" id="detail-action-checkin"></button>
+      <button class="detail-action-btn" id="detail-action-jersey"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ASSIGN NUMBER (at check-in) ═══ -->
+<div class="overlay" id="assign-overlay" onclick="assignBgClick(event)">
+  <div class="assign-panel">
+    <h3>Assign Number</h3>
+    <div class="assign-sub" id="assign-sub"></div>
+    <input class="assign-input" id="assign-input" type="number" min="1" step="1" inputmode="numeric"
+           oninput="updateAssignWarning()" onkeydown="if(event.key==='Enter')confirmAssign()">
+    <div class="assign-warn" id="assign-warn"></div>
+    <div class="assign-actions">
+      <button class="btn" onclick="closeAssign()">Cancel</button>
+      <button class="btn btn-green" id="assign-confirm" onclick="confirmAssign()">Check In</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref as dbRef, onValue, set as dbSet, remove as dbRemove, serverTimestamp,
+         push as dbPush, query as dbQuery, limitToLast, get as dbGet, update as dbUpdate }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+// ── Config ──────────────────────────────────────────────────────────────────
+// Web config from the dedicated OutCycling.org Firebase project (widgets-2e848).
+// These values are public client identifiers and are safe to commit, exactly like
+// the existing widgets' Firebase config — security is enforced by database rules.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA4zZ7DElWWi9oxN_VwO284LFkCYJWC_eY",
+  authDomain: "widgets-2e848.firebaseapp.com",
+  databaseURL: "https://widgets-2e848-default-rtdb.firebaseio.com",
+  projectId: "widgets-2e848",
+  storageBucket: "widgets-2e848.firebasestorage.app",
+  messagingSenderId: "469117752003",
+  appId: "1:469117752003:web:a5ae9713708d7b7cd2c876"
+};
+
+// Which event/roster to show. Override with ?event=<id> to run multiple rides.
+const EVENT_ID = new URLSearchParams(location.search).get('event') || 'default';
+
+// Rest stops along the route. Each is a separate, independent check-in keyed by its
+// `id` (stored under /reststops/{eventId}/{orderNumber}/{id}). Stop 5 is the same
+// physical location as stop 1 but is intentionally a distinct check-in. The final
+// stop ('finish') is the finish line — it replaces the old standalone "check out" and
+// every route passes through it regardless of mileage (see stopsForRoute).
+const FINISH_STOP_ID = 'finish';
+const REST_STOPS = [
+  { id: '1', name: 'Rest Stop 1', location: 'Hoelscher Field, Harrington Park NJ' },
+  { id: '2', name: 'Rest Stop 2', location: 'Tallman State Park' },
+  { id: '3', name: 'Rest Stop 3', location: 'Rockland Lake State Park' },
+  { id: '4', name: 'Rest Stop 4', location: 'Eugene Levy Memorial Park, New City NY' },
+  { id: '5', name: 'Rest Stop 5', location: 'Hoelscher Field, Harrington Park NJ' },
+  { id: FINISH_STOP_ID, name: 'Finish line', location: '' }
+];
+// Remember which rest stop this volunteer is stationed at (per-event, per-device).
+const REST_STOP_LS = 'oc-reststop-' + EVENT_ID;
+
+// Which rest stops each route uses, keyed by the route's mileage. Shorter routes skip
+// the later stops. Any route not listed here gets all rest stops. (The chosen stops are
+// always taken from REST_STOPS in order.)
+const ROUTE_REST_STOPS = { 40: ['1', '2'], 65: ['1', '2', '3'] };
+// The rest stops available to a rider on a given route (subset of REST_STOPS, in order).
+function stopsForRoute(route) {
+  const m = String(route || '').match(/\d+/);
+  const miles = m ? parseInt(m[0], 10) : null;
+  const ids = (miles != null && ROUTE_REST_STOPS[miles]) || REST_STOPS.map(s => s.id);
+  // Every route ends at the finish line, regardless of mileage.
+  const withFinish = ids.includes(FINISH_STOP_ID) ? ids : [...ids, FINISH_STOP_ID];
+  return REST_STOPS.filter(s => withFinish.includes(s.id));
+}
+
+// Access is allowlist-driven (not by email domain). A user's role is read from
+// the global /acl lists, keyed by their email lowercased with '.' replaced by ','
+// (RTDB keys cannot contain '.'). The same encoding is used by the security rules.
+const aclKey = email => String(email || '').toLowerCase().replace(/\./g, ',');
+
+const CONFIGURED = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE');
+
+// ── Firebase init ─────────────────────────────────────────────────────────────
+let fb = null, fbAuth = null, provider = null;
+if (CONFIGURED) {
+  try {
+    const app = initializeApp(FIREBASE_CONFIG, 'volunteer-dashboard');
+    fb = { db: getDatabase(app) };
+    fbAuth = getAuth(app);
+    provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+  } catch (e) { console.error('Firebase init failed', e); }
+}
+
+// ── Runtime state ─────────────────────────────────────────────────────────────
+let _roster = {};      // orderNumber → roster record
+let _checkins = {};    // orderNumber → { checkedIn, by, at, number }
+let _jerseys = {};     // orderNumber → { pickedUp, by, at }
+let _reststops = {};   // orderNumber → { <stopId>: { checkedIn, by, at } } — per-rest-stop check-ins
+let _overrides = {};   // orderNumber → { route?, jerseySize?, by, at } — day-of corrections
+let _inventory = {};   // { sizes: { <size>: count } } — jersey stock (super-admin managed)
+let _invEnabled = true; // per-user toggle: show count / stock comparison in breakdown
+let _lastSync = null;
+let _user = null;
+let _hideChecked = false;
+let _hidePicked = false;
+let _routeShowCheckins = false;   // route strip: off = totals only, on = checked-in/total
+let _role = 'none';               // 'none' | 'volunteer' | 'superadmin'
+const hasAccess = () => _role !== 'none';            // sees dashboard + emergency contacts
+const isSuperAdmin = () => _role === 'superadmin';   // also reads audit log + manages volunteers
+const invEnabled = () => _invEnabled;   // x / y comparison mode on?
+let _sort = { key: 'name', dir: 1 };
+let _openOrder = null;    // order key of the rider whose detail sheet is open
+let _editingField = null; // 'route' | 'jerseySize' | null — inline edit state in detail sheet
+let _assignOrder = null;  // order key of the rider whose number is being assigned (dialog open)
+
+// ── UI helpers ──────────────────────────────────────────────────────────────
+let _toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function setAuthStatus(msg, isError) {
+  const el = document.getElementById('auth-status');
+  el.textContent = msg || '';
+  el.classList.toggle('error', !!isError);
+}
+function openAuth() { document.getElementById('auth-overlay').classList.add('open'); }
+function closeAuth() { document.getElementById('auth-overlay').classList.remove('open'); }
+function show(id, on) { document.getElementById(id).style.display = on ? '' : 'none'; }
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function fmtDate(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d)) return esc(v);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+function fmtTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  if (isNaN(d)) return '';
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function signInWithGoogle() {
+  if (!fbAuth) return;
+  setAuthStatus('Opening Google sign-in…');
+  try {
+    await signInWithPopup(fbAuth, provider);
+    // onAuthStateChanged handles the rest
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+      setAuthStatus('');
+    } else {
+      console.error(e);
+      setAuthStatus('Sign-in failed: ' + (e.message || e.code), true);
+    }
+  }
+}
+async function signOutVolunteer() {
+  if (fbAuth) await fbSignOut(fbAuth);
+}
+
+// A usable Google account. Whether the account actually has access is decided by
+// its role in the /acl lists (see determineRole), not by email domain.
+function isAllowed(user) {
+  return !!(user && user.email && user.emailVerified);
+}
+
+// Determine the signed-in user's role from the /acl lists. Each user can read its
+// OWN entry under acl/superAdmins and acl/volunteers (rules grant own-entry reads),
+// so these one-shot get()s succeed for anyone signed in. Returns 'superadmin',
+// 'volunteer', or 'none'.
+async function determineRole() {
+  const key = aclKey(_user.email);
+  try {
+    const sa = await dbGet(dbRef(fb.db, `acl/superAdmins/${key}`));
+    if (sa.val() === true) return 'superadmin';
+    const vol = await dbGet(dbRef(fb.db, `acl/volunteers/${key}`));
+    if (vol.val() === true) return 'volunteer';
+  } catch (e) {
+    console.warn('role check failed', e);
+  }
+  return 'none';
+}
+
+// ── Data subscriptions (realtime) ─────────────────────────────────────────────
+let _subscribed = false;
+function subscribeData() {
+  if (_subscribed || !fb) return;
+  _subscribed = true;
+  onValue(dbRef(fb.db, `eventRoster/${EVENT_ID}`), snap => {
+    _roster = snap.val() || {};
+    render();
+  }, err => { console.error('roster read denied', err); toast('Could not load roster — access denied'); });
+
+  onValue(dbRef(fb.db, `checkins/${EVENT_ID}`), snap => {
+    _checkins = snap.val() || {};
+    render();
+  }, err => { console.error('checkins read denied', err); });
+
+  onValue(dbRef(fb.db, `jerseys/${EVENT_ID}`), snap => {
+    _jerseys = snap.val() || {};
+    render();
+  }, err => { console.error('jerseys read denied', err); });
+
+  onValue(dbRef(fb.db, `reststops/${EVENT_ID}`), snap => {
+    _reststops = snap.val() || {};
+    render();
+  }, err => { console.error('reststops read denied', err); });
+
+  onValue(dbRef(fb.db, `overrides/${EVENT_ID}`), snap => {
+    _overrides = snap.val() || {};
+    render();
+  }, err => { console.warn('overrides read denied', err); });
+
+  onValue(dbRef(fb.db, `jerseyInventory/${EVENT_ID}`), snap => {
+    _inventory = snap.val() || {};
+    renderInventoryForm();   // keep the super-admin form in sync with stored values
+    render();                // re-render breakdown so x / y reflects current stock
+  }, err => { console.warn('inventory read denied', err); });
+
+  onValue(dbRef(fb.db, `meta/${EVENT_ID}/lastSync`), snap => {
+    _lastSync = snap.val();
+    renderSyncNote();
+  }, () => {});
+}
+
+// Super-admin-only live feeds. IMPORTANT: only super-admins ever attach a listener
+// under restricted/*. A permanently permission-denied onValue on restricted/auditLog
+// interferes with a non-super-admin's OWN writes to that same path (logAudit), which
+// in turn disrupted their check-in/jersey writes from reflecting. Volunteers keep NO
+// active listener on restricted/*; they only fire-and-forget audit appends and read
+// emergency contacts on demand via get().
+let _adminSubscribed = false;
+function subscribeAdmin() {
+  if (_adminSubscribed || !fb) return;
+  _adminSubscribed = true;
+  const auditQuery = dbQuery(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), limitToLast(150));
+  onValue(auditQuery, s => renderAudit(s.val() || {}), e => console.warn('audit feed', e));
+  onValue(dbRef(fb.db, 'acl/volunteers'), s => renderVolunteers(s.val() || {}), e => console.warn('volunteers feed', e));
+}
+
+// ── Check-in actions ──────────────────────────────────────────────────────────
+function riderName(orderNumber) {
+  return (_roster[orderNumber] && (_roster[orderNumber].name || _roster[orderNumber].orderNumber)) || orderNumber;
+}
+// Append an audit entry. Fire-and-forget: never block or fail the primary action.
+function logAudit(action, target) {
+  if (!fb || !_user) return;
+  dbPush(dbRef(fb.db, `restricted/auditLog/${EVENT_ID}`), {
+    ts: serverTimestamp(), actor: _user.email, action, target: String(target)
+  }).catch(e => console.warn('audit log failed', e));
+}
+// Numbers assigned at check-in. Each rider gets a unique number we can search by.
+function assignedNumber(orderNumber) {
+  const c = _checkins[orderNumber];
+  return (c && Number.isFinite(c.number)) ? c.number : null;
+}
+// Who (if anyone other than `exceptOrder`) already holds this number? Returns name or null.
+function numberHolder(num, exceptOrder) {
+  for (const [on, c] of Object.entries(_checkins)) {
+    if (on === exceptOrder) continue;
+    if (c && Number.isFinite(c.number) && c.number === num) return riderName(on);
+  }
+  return null;
+}
+// Lowest unused number ≥ 1 (suggested default in the dialog).
+function nextFreeNumber() {
+  const used = new Set(Object.values(_checkins)
+    .map(c => (c && Number.isFinite(c.number)) ? c.number : null)
+    .filter(n => n != null));
+  let n = 1;
+  while (used.has(n)) n++;
+  return n;
+}
+
+// Open the assign-number dialog. Used both to check a rider in and to edit an
+// already-assigned number. The actual write happens in confirmAssign().
+function openAssign(orderNumber) {
+  if (!fb || !_user) return;
+  _assignOrder = orderNumber;
+  const existing = assignedNumber(orderNumber);
+  const already = !!_checkins[orderNumber] && _checkins[orderNumber].checkedIn;
+  document.getElementById('assign-sub').textContent = riderName(orderNumber);
+  document.getElementById('assign-confirm').textContent = already ? 'Save Number' : 'Check In';
+  const input = document.getElementById('assign-input');
+  input.value = existing != null ? existing : nextFreeNumber();
+  document.getElementById('assign-overlay').classList.add('open');
+  updateAssignWarning();
+  input.focus();
+  input.select();
+}
+function closeAssign() {
+  _assignOrder = null;
+  document.getElementById('assign-overlay').classList.remove('open');
+}
+function assignBgClick(e) { if (e.target.id === 'assign-overlay') closeAssign(); }
+// Parse the current input → positive integer, or null if invalid.
+function assignInputValue() {
+  const raw = (document.getElementById('assign-input').value || '').trim();
+  if (raw === '') return null;
+  const n = parseInt(raw, 10);
+  return (Number.isFinite(n) && n > 0 && String(n) === raw) ? n : null;
+}
+// Live feedback as the volunteer types: block invalid entries and, crucially, warn
+// (and disable the button) when the number is already given out, so it can't be duplicated.
+function updateAssignWarning() {
+  const warn = document.getElementById('assign-warn');
+  const btn = document.getElementById('assign-confirm');
+  const n = assignInputValue();
+  warn.classList.remove('ok');
+  if (n == null) {
+    warn.textContent = 'Enter a number greater than 0.';
+    btn.disabled = true;
+    return;
+  }
+  const holder = numberHolder(n, _assignOrder);
+  if (holder) {
+    warn.textContent = `⚠ Number ${n} is already assigned to ${holder}. Pick a different number.`;
+    btn.disabled = true;
+    return;
+  }
+  warn.textContent = `Number ${n} is available.`;
+  warn.classList.add('ok');
+  btn.disabled = false;
+}
+async function confirmAssign() {
+  if (!fb || !_user || _assignOrder == null) return;
+  const n = assignInputValue();
+  if (n == null) { updateAssignWarning(); return; }
+  if (numberHolder(n, _assignOrder)) { updateAssignWarning(); return; }   // never duplicate
+  const orderNumber = _assignOrder;
+  const wasCheckedIn = !!(_checkins[orderNumber] && _checkins[orderNumber].checkedIn);
+  try {
+    await dbSet(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`), {
+      checkedIn: true, by: _user.email, at: serverTimestamp(), number: n
+    });
+    logAudit(wasCheckedIn ? 'number_assigned' : 'checkin', `${riderName(orderNumber)} (#${n})`);
+    toast(wasCheckedIn ? `Number set to #${n}` : `Checked in as #${n}`);
+    closeAssign();
+  } catch (e) { console.error(e); toast('Check-in failed: ' + (e.message || e.code)); }
+}
+async function undoCheckIn(orderNumber) {
+  if (!fb || !_user) return;
+  // Un-checking-in deletes the whole record, which releases the assigned number for
+  // reuse — warn the volunteer about that before it happens (it's not symmetric with
+  // checking in, which assigns a number).
+  const num = assignedNumber(orderNumber);
+  const msg = num != null
+    ? `Undo check-in for ${riderName(orderNumber)}?\n\nTheir assigned number #${num} will be released and can be reassigned to someone else.`
+    : `Undo check-in for ${riderName(orderNumber)}?`;
+  if (!confirm(msg)) return;
+  try {
+    await dbRemove(dbRef(fb.db, `checkins/${EVENT_ID}/${orderNumber}`));
+    logAudit('checkin_undo', num != null ? `${riderName(orderNumber)} (#${num} released)` : riderName(orderNumber));
+    toast('Check-in undone');
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+async function pickUpJersey(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbSet(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`), {
+      pickedUp: true, by: _user.email, at: serverTimestamp()
+    });
+    logAudit('jersey', riderName(orderNumber));
+    toast('Jersey marked picked up');
+  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+}
+async function undoPickUp(orderNumber) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`));
+    logAudit('jersey_undo', riderName(orderNumber));
+    toast('Jersey pickup undone');
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+
+// ── Rest-stop check-ins ─────────────────────────────────────────────────────────
+// Each rest stop is an independent check-in, like check-in / check-out / jersey, but
+// there are five of them per rider, stored under /reststops/{eventId}/{order}/{stopId}.
+function restStop(stopId) { return REST_STOPS.find(s => s.id === String(stopId)) || null; }
+function restStopName(stopId) { const s = restStop(stopId); return s ? s.name : `Rest Stop ${stopId}`; }
+function restStopLabel(stopId) { const s = restStop(stopId); return s ? (s.location ? `${s.name} — ${s.location}` : s.name) : restStopName(stopId); }
+function restChecked(orderNumber, stopId) {
+  const r = _reststops[orderNumber];
+  return !!(r && r[stopId] && r[stopId].checkedIn);
+}
+function restRecord(orderNumber, stopId) {
+  const r = _reststops[orderNumber];
+  return (r && r[stopId]) || null;
+}
+// Find the rider whose assigned check-in number matches `num` (reverse of assignedNumber).
+function orderByNumber(num) {
+  for (const [on, c] of Object.entries(_checkins)) {
+    if (c && Number.isFinite(c.number) && c.number === num) return on;
+  }
+  return null;
+}
+async function checkInRestStop(orderNumber, stopId) {
+  if (!fb || !_user) return false;
+  try {
+    await dbSet(dbRef(fb.db, `reststops/${EVENT_ID}/${orderNumber}/${stopId}`), {
+      checkedIn: true, by: _user.email, at: serverTimestamp()
+    });
+    logAudit('reststop', `${riderName(orderNumber)} @ ${restStopName(stopId)}`);
+    toast(`Checked in at ${restStopName(stopId)}`);
+    return true;
+  } catch (e) { console.error(e); toast('Rest-stop check-in failed: ' + (e.message || e.code)); return false; }
+}
+async function undoRestStop(orderNumber, stopId) {
+  if (!fb || !_user) return;
+  try {
+    await dbRemove(dbRef(fb.db, `reststops/${EVENT_ID}/${orderNumber}/${stopId}`));
+    logAudit('reststop_undo', `${riderName(orderNumber)} @ ${restStopName(stopId)}`);
+    toast(`${restStopName(stopId)} check-in undone`);
+  } catch (e) { console.error(e); toast('Undo failed: ' + (e.message || e.code)); }
+}
+
+// ── "Check in to rest stop by number" widget (top of page) ──────────────────────
+// Volunteers stationed at a rest stop pick their stop once, then just type the rider's
+// assigned number and confirm. The selected stop is remembered per device.
+function initRestByNumber() {
+  const sel = document.getElementById('rest-stop-select');
+  if (!sel) return;
+  sel.innerHTML = REST_STOPS.map(s =>
+    `<option value="${esc(s.id)}">${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}</option>`).join('');
+  let saved = null;
+  try { saved = localStorage.getItem(REST_STOP_LS); } catch (e) {}
+  if (saved && REST_STOPS.some(s => s.id === saved)) sel.value = saved;
+}
+function onRestStopSelect() {
+  const sel = document.getElementById('rest-stop-select');
+  try { localStorage.setItem(REST_STOP_LS, sel.value); } catch (e) {}
+  // Clear any stale confirmation when the stop changes.
+  const res = document.getElementById('rest-bynum-result');
+  if (res) { res.className = 'rest-bynum-result'; res.textContent = ''; }
+}
+function restByNumResult(cls, html) {
+  const res = document.getElementById('rest-bynum-result');
+  if (!res) return;
+  res.className = 'rest-bynum-result ' + cls;
+  res.innerHTML = html;
+}
+async function checkInByNumber() {
+  if (!fb || !_user) return;
+  const stopId = document.getElementById('rest-stop-select').value;
+  const input = document.getElementById('rest-bynum-input');
+  const raw = (input.value || '').trim();
+  const n = parseInt(raw, 10);
+  if (!(Number.isFinite(n) && n > 0 && String(n) === raw)) {
+    restByNumResult('err', '⚠ Enter a valid number greater than 0.');
+    input.focus(); input.select();
+    return;
+  }
+  const order = orderByNumber(n);
+  if (!order) {
+    restByNumResult('err', `⚠ No rider is checked in with number <b>#${n}</b>. Double-check the number assigned at ride check-in.`);
+    input.focus(); input.select();
+    return;
+  }
+  // Adaptive: a rider only stops at the rest stops on their route.
+  const row = rosterRows().find(x => x.orderNumber === order);
+  if (row && !row.availableStops.some(s => s.id === stopId)) {
+    restByNumResult('err', `⚠ <b>${esc(riderName(order))}</b> (#${n}) is on the ${row.route ? esc(row.route) + ' ' : ''}route, which doesn't include <b>${esc(restStopName(stopId))}</b>.`);
+    input.focus(); input.select();
+    return;
+  }
+  if (restChecked(order, stopId)) {
+    restByNumResult('ok', `✓ <b>${esc(riderName(order))}</b> (#${n}) is already checked in at <b>${esc(restStopName(stopId))}</b>.`);
+    input.value = ''; input.focus();
+    return;
+  }
+  const ok = await checkInRestStop(order, stopId);
+  if (ok) {
+    restByNumResult('ok', `✓ Checked in <b>${esc(riderName(order))}</b> (#${n}) at <b>${esc(restStopName(stopId))}</b>.`);
+    input.value = ''; input.focus();
+  } else {
+    restByNumResult('err', `⚠ Could not check in #${n}. Please try again.`);
+  }
+}
+
+// ── Volunteer management (super-admins only) ────────────────────────────────────
+// Super-admins maintain the volunteer allowlist — i.e. who may see the dashboard
+// and emergency contacts. (The super-admin list itself is console-managed; rules
+// make acl/superAdmins read-only here.) Writes are gated by the security rules too.
+async function addVolunteer() {
+  if (!fb || !isSuperAdmin()) return;
+  const input = document.getElementById('manage-email');
+  const email = (input.value || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('Enter a valid email'); return; }
+  try {
+    await dbSet(dbRef(fb.db, `acl/volunteers/${aclKey(email)}`), true);
+    logAudit('volunteer_added', email);
+    input.value = '';
+    toast('Volunteer added');
+  } catch (e) { console.error(e); toast('Add failed: ' + (e.message || e.code)); }
+}
+async function removeVolunteer(email) {
+  if (!fb || !isSuperAdmin()) return;
+  try {
+    await dbRemove(dbRef(fb.db, `acl/volunteers/${aclKey(email)}`));
+    logAudit('volunteer_removed', email);
+    toast('Volunteer removed');
+  } catch (e) { console.error(e); toast('Remove failed: ' + (e.message || e.code)); }
+}
+// Render the volunteer allowlist (decode key ',' → '.'); each row removable.
+function renderVolunteers(obj) {
+  const body = document.getElementById('manage-list');
+  if (!body) return;
+  const emails = Object.keys(obj || {}).filter(k => obj[k] === true)
+    .map(k => k.replace(/,/g, '.')).sort();
+  if (!emails.length) { body.innerHTML = '<div class="manage-empty">No volunteers yet. Add one above.</div>'; return; }
+  body.innerHTML = emails.map(em => `<div class="manage-row">
+      <span class="manage-em">${esc(em)}</span>
+      <button class="manage-remove" title="Remove" onclick="removeVolunteer('${esc(em).replace(/'/g, "\\'")}')">✕</button>
+    </div>`).join('');
+}
+
+// ── Jersey inventory (super-admins only) ────────────────────────────────────────
+// Super-admins set per-size jersey stock (stored in Firebase). The comparison
+// toggle is per-user local state — each volunteer can flip it for their own view.
+function toggleInventory() {
+  _invEnabled = !_invEnabled;
+  const pill = document.getElementById('inv-toggle');
+  if (pill) pill.textContent = _invEnabled ? 'Hide inventory' : 'Show inventory';
+  render();
+}
+async function saveInventory() {
+  if (!fb || !isSuperAdmin()) return;
+  const sizes = {};
+  document.querySelectorAll('#inv-grid .inv-input').forEach(inp => {
+    const raw = (inp.value || '').trim();
+    if (raw === '') return;                 // blank ⇒ no stock recorded for this size
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n >= 0) sizes[inp.dataset.size] = n;
+  });
+  try {
+    await dbSet(dbRef(fb.db, `jerseyInventory/${EVENT_ID}/sizes`), Object.keys(sizes).length ? sizes : null);
+    logAudit('inventory_update', 'jersey inventory');
+    toast('Inventory saved');
+  } catch (e) { console.error(e); toast('Save failed: ' + (e.message || e.code)); }
+}
+// Populate the size-input grid from stored values. Skips re-rendering while the
+// super-admin is mid-edit, so a live sync never clobbers what they're typing.
+function renderInventoryForm() {
+  const grid = document.getElementById('inv-grid');
+  if (!grid) return;
+  if (grid.contains(document.activeElement)) return;
+  const sizes = (_inventory && _inventory.sizes) || {};
+  grid.innerHTML = SIZE_ORDER.map(sz => {
+    const v = Number.isFinite(sizes[sz]) ? sizes[sz] : '';
+    return `<label class="inv-cell">
+        <span class="inv-size">${esc(sz)}</span>
+        <input class="inv-input" type="number" min="0" step="1" inputmode="numeric"
+               data-size="${esc(sz)}" value="${v}">
+      </label>`;
+  }).join('');
+}
+
+// ── Reset data (super-admins only) ──────────────────────────────────────────────
+// Bulk-clears the selected day-of state for this event. Each target is opt-in and the
+// whole thing is gated behind typing RESET. Writes are per-record (the same paths each
+// volunteer already writes during check-in), so no extra rules are needed.
+const RESET_LABELS = {
+  numbers: 'check-in numbers', checkins: 'check-in status',
+  jerseys: 'jersey pickup status', reststops: 'rest-stop check-ins', overrides: 'override edits'
+};
+function selectedResetKinds() {
+  return [...document.querySelectorAll('.reset-opt')].filter(c => c.checked).map(c => c.dataset.kind);
+}
+function resetConfirmed() {
+  const el = document.getElementById('reset-confirm-input');
+  return !!el && el.value.trim() === 'RESET';
+}
+// Enable the button only when something is selected AND the volunteer typed RESET.
+function updateResetButton() {
+  const btn = document.getElementById('reset-btn');
+  if (btn) btn.disabled = !(selectedResetKinds().length && resetConfirmed());
+}
+// Show how many records each reset would clear, so the super-admin sees the blast radius.
+function renderResetCounts() {
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = `(${n})`; };
+  set('reset-cnt-numbers', Object.values(_checkins).filter(c => c && Number.isFinite(c.number)).length);
+  set('reset-cnt-checkins', Object.keys(_checkins).length);
+  set('reset-cnt-jerseys', Object.keys(_jerseys).length);
+  set('reset-cnt-reststops', Object.values(_reststops).reduce((n, m) => n + Object.keys(m || {}).length, 0));
+  set('reset-cnt-overrides', Object.keys(_overrides).length);
+}
+async function performReset() {
+  if (!fb || !isSuperAdmin()) return;
+  const kinds = selectedResetKinds();
+  if (!kinds.length || !resetConfirmed()) { updateResetButton(); return; }
+  const summary = kinds.map(k => '• ' + RESET_LABELS[k]).join('\n');
+  if (!confirm(`Permanently clear the following for event "${EVENT_ID}"?\n\n${summary}\n\nThis affects everyone and cannot be undone.`)) return;
+  // Clear each selected node by writing null to every existing record (one multi-path
+  // update per node). `suffix` lets us drop just the number child while leaving the
+  // check-in itself intact.
+  const wipe = (basePath, obj, suffix) => {
+    const updates = {};
+    Object.keys(obj || {}).forEach(order => { updates[suffix ? `${order}/${suffix}` : order] = null; });
+    return Object.keys(updates).length ? dbUpdate(dbRef(fb.db, basePath), updates) : null;
+  };
+  const tasks = [];
+  if (kinds.includes('checkins')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins));   // also drops numbers
+  else if (kinds.includes('numbers')) tasks.push(wipe(`checkins/${EVENT_ID}`, _checkins, 'number'));
+  if (kinds.includes('jerseys'))   tasks.push(wipe(`jerseys/${EVENT_ID}`, _jerseys));
+  if (kinds.includes('reststops')) tasks.push(wipe(`reststops/${EVENT_ID}`, _reststops));
+  if (kinds.includes('overrides')) tasks.push(wipe(`overrides/${EVENT_ID}`, _overrides));
+  try {
+    await Promise.all(tasks.filter(Boolean));
+    logAudit('reset', kinds.map(k => RESET_LABELS[k]).join(', '));
+    document.querySelectorAll('.reset-opt').forEach(c => { c.checked = false; });
+    const ci = document.getElementById('reset-confirm-input'); if (ci) ci.value = '';
+    updateResetButton();
+    toast('Reset complete');
+  } catch (e) { console.error(e); toast('Reset failed: ' + (e.message || e.code)); }
+}
+
+// ── Rendering ──────────────────────────────────────────────────────────────
+function rosterRows() {
+  return Object.entries(_roster).map(([orderNumber, r]) => {
+    const c = _checkins[orderNumber];
+    const j = _jerseys[orderNumber];
+    const ov = _overrides[orderNumber];
+    const route = (ov && ov.route != null) ? ov.route : (r.route || '');
+    const availableStops = stopsForRoute(route);
+    return {
+      orderNumber,
+      number: (c && Number.isFinite(c.number)) ? c.number : null,
+      name: r.name || '(no name)',
+      route,
+      jerseySize: (ov && ov.jerseySize != null) ? ov.jerseySize : (r.jerseySize || ''),
+      notes: (ov && ov.notes) ? ov.notes : '',
+      lineItemName: r.lineItemName || '',
+      createdAt: r.createdAt || '',
+      routeOverridden: !!(ov && ov.route != null),
+      jerseySizeOverridden: !!(ov && ov.jerseySize != null),
+      checked: !!(c && c.checkedIn),
+      checkedBy: c?.by || '',
+      checkedAt: c?.at || 0,
+      finished: restChecked(orderNumber, FINISH_STOP_ID),
+      picked: !!(j && j.pickedUp),
+      pickedBy: j?.by || '',
+      pickedAt: j?.at || 0,
+      reststops: _reststops[orderNumber] || {},
+      availableStops,
+      restCount: availableStops.filter(s => restChecked(orderNumber, s.id)).length,
+      restTotal: availableStops.length
+    };
+  });
+}
+
+function populateRouteFilter(rows) {
+  const sel = document.getElementById('route-filter');
+  const current = sel.value;
+  const routes = [...new Set(rows.map(r => r.route).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All routes</option>' +
+    routes.map(rt => `<option value="${esc(rt)}">${esc(rt)}</option>`).join('');
+  if (routes.includes(current)) sel.value = current;
+}
+
+function setSort(key) {
+  if (_sort.key === key) _sort.dir *= -1;
+  else _sort = { key, dir: 1 };
+  render();
+}
+function toggleHideChecked() {
+  _hideChecked = !_hideChecked;
+  if (_hideChecked) _hidePicked = false;   // only one hide-filter active at a time
+  syncFilterPills();
+  render();
+}
+function toggleHidePicked() {
+  _hidePicked = !_hidePicked;
+  if (_hidePicked) _hideChecked = false;
+  syncFilterPills();
+  render();
+}
+function syncFilterPills() {
+  const hc = document.getElementById('hide-checked');
+  const hp = document.getElementById('hide-picked');
+  hc.classList.toggle('on', _hideChecked);
+  hp.classList.toggle('on', _hidePicked);
+  hc.textContent = _hideChecked ? 'Show checked-in' : 'Hide checked-in';
+  hp.textContent = _hidePicked ? 'Show picked up' : 'Hide picked up';
+}
+
+function render() {
+  if (!_user || !isAllowed(_user)) return;
+  let rows = rosterRows();
+  populateRouteFilter(rows);
+
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const numQ = document.getElementById('search-number').value.trim();
+  const routeF = document.getElementById('route-filter').value;
+  if (q) rows = rows.filter(r =>
+    r.name.toLowerCase().includes(q) || (r.number != null && String(r.number) === q));
+  // Dedicated check-in number search: matches any rider whose assigned number contains the
+  // typed digits (riders without a number are excluded while this box has a value).
+  if (numQ) rows = rows.filter(r => r.number != null && String(r.number).includes(numQ));
+  if (routeF) rows = rows.filter(r => r.route === routeF);
+  if (_hideChecked) rows = rows.filter(r => !r.checked);
+  if (_hidePicked) rows = rows.filter(r => !r.picked);
+
+  const { key, dir } = _sort;
+  rows.sort((a, b) => {
+    let av = a[key], bv = b[key];
+    if (key === 'checked') { av = a.checked ? 1 : 0; bv = b.checked ? 1 : 0; }
+    if (key === 'picked') { av = a.picked ? 1 : 0; bv = b.picked ? 1 : 0; }
+    if (key === 'number') { av = a.number == null ? Infinity : a.number; bv = b.number == null ? Infinity : b.number; }
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return a.name.localeCompare(b.name);
+  });
+
+  const body = document.getElementById('roster-body');
+  body.innerHTML = rows.map(r => `
+    <tr class="${r.checked ? 'checked' : ''}" onclick="openDetail('${esc(r.orderNumber)}')">
+      <td class="name-cell">${esc(r.name)}${r.notes ? `<span class="note-dot" title="${esc(r.notes)}"></span>` : ''}</td>
+      <td>${r.number != null ? `<span class="num-tag">${r.number}</span>` : '—'}</td>
+      <td>${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}</td>
+      <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
+      <td class="col-item">${esc(r.lineItemName) || '—'}</td>
+      <td class="col-created">${fmtDate(r.createdAt)}</td>
+      <td>${r.picked
+        ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
+        : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
+      <td>${r.checked
+        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
+      ${REST_STOPS.map(s => {
+        const avail = r.availableStops.some(a => a.id === s.id);
+        if (!avail) return `<td class="col-rest"><span class="rest-na" title="Not on the ${esc(r.route) || 'selected'} route">–</span></td>`;
+        const on = restChecked(r.orderNumber, s.id);
+        const icon = s.id === FINISH_STOP_ID ? '🏁' : '🛑';
+        return `<td class="col-rest">${on
+          ? `<button class="icon-toggle on-rest" title="${esc(s.name)} — checked in by ${esc((restRecord(r.orderNumber, s.id)||{}).by || '')} — tap to undo" onclick="event.stopPropagation();undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">${icon}</button>`
+          : `<button class="icon-toggle" title="Tap to check in at ${esc(s.name)}" onclick="event.stopPropagation();checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">${icon}</button>`}</td>`;
+      }).join('')}
+    </tr>`).join('');
+
+  const allRows = rosterRows();
+  const total = allRows.length;
+  const checked = allRows.filter(r => r.checked).length;
+  const finished = allRows.filter(r => r.finished).length;
+  const picked = allRows.filter(r => r.picked).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-checked').textContent = checked;
+  document.getElementById('stat-finished').textContent = finished;
+  document.getElementById('stat-jerseys').textContent = picked;
+  renderRouteStats(allRows);
+  renderRestStats(allRows);
+  renderBreakdown(allRows);
+  renderResetCounts();
+
+  const empty = document.getElementById('empty-state');
+  const emptyMsg = document.getElementById('empty-msg');
+  if (rows.length === 0) {
+    empty.style.display = '';
+    emptyMsg.textContent = total === 0
+      ? 'No riders yet — the roster syncs from the registration spreadsheet every few minutes.'
+      : 'No riders match your filters.';
+  } else {
+    empty.style.display = 'none';
+  }
+
+  if (_openOrder) renderDetail();   // keep an open sheet in sync with live data
+}
+
+// ── Breakdown stats (by route, by jersey size) ────────────────────────────────
+const SIZE_ORDER = ['Men-XS', 'Men-S', 'Men-M', 'Men-L', 'Men-XL', 'Men-2XL', 'Women-XS', 'Women-S', 'Women-M', 'Women-L', 'Women-XL'];
+function groupCounts(rows, keyFn, order) {
+  const map = {};
+  rows.forEach(r => {
+    const k = keyFn(r) || '(none)';
+    if (!map[k]) map[k] = { total: 0, checked: 0, picked: 0 };
+    map[k].total++;
+    if (r.checked) map[k].checked++;
+    if (r.picked) map[k].picked++;
+  });
+  const keys = Object.keys(map);
+  keys.sort((a, b) => {
+    if (order) {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      if (ia !== -1 || ib !== -1) {
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      }
+    }
+    return a.localeCompare(b);
+  });
+  return keys.map(k => ({ key: k, ...map[k] }));
+}
+// One numeric cell. When inv is a finite number the cell shows "count / stock" and
+// is tinted red (over) / yellow (exactly at) stock; otherwise it's a plain count.
+function bdCell(count, inv) {
+  if (!Number.isFinite(inv)) return `<td class="bd-num">${count}</td>`;
+  const cls = count > inv ? ' inv-over' : (count === inv ? ' inv-equal' : '');
+  return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}</td>`;
+}
+function bdRowsHtml(groups, asRouteTag, withInv) {
+  const showInv = withInv && invEnabled();
+  const body = groups.map(g => `<tr>
+      <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
+      ${bdCell(g.total, showInv ? g.inv : undefined)}
+      ${bdCell(g.checked, showInv ? g.inv : undefined)}
+      ${bdCell(g.picked, showInv ? g.inv : undefined)}
+    </tr>`).join('');
+  const tot = groups.reduce((a, g) => ({
+    total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
+    inv: a.inv + (Number.isFinite(g.inv) ? g.inv : 0)
+  }), { total: 0, checked: 0, picked: 0, inv: 0 });
+  const totInv = showInv ? tot.inv : undefined;
+  const footer = groups.length ? `<tr class="bd-total">
+      <td>Total</td>${bdCell(tot.total, totInv)}${bdCell(tot.checked, totInv)}${bdCell(tot.picked, totInv)}
+    </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
+  return body + footer;
+}
+function renderBreakdown(rows) {
+  const groups = groupCounts(rows, r => r.jerseySize, SIZE_ORDER);
+  const sizes = (_inventory && _inventory.sizes) || {};
+  const hasInv = Object.keys(sizes).length > 0;
+  groups.forEach(g => { g.inv = sizes[g.key]; });   // attach per-size stock
+  document.getElementById('bd-size').innerHTML = bdRowsHtml(groups, false, true);
+  const head = document.getElementById('inv-breakdown-head');
+  const pill = document.getElementById('inv-toggle');
+  if (head) head.style.display = hasInv ? '' : 'none';
+  if (pill) {
+    pill.textContent = (_invEnabled && hasInv) ? 'Hide inventory' : 'Show inventory';
+    pill.classList.toggle('on', _invEnabled && hasInv);
+  }
+}
+// Compact, prominent per-route check-in progress (checked-in / total). Wraps on
+// mobile via auto-fit grid, so it never needs horizontal scrolling.
+function renderRouteStats(rows) {
+  const groups = groupCounts(rows, r => r.route);
+  const el = document.getElementById('route-stats');
+  if (!groups.length) {
+    el.innerHTML = '<div class="route-cell"><div class="rc-label">No riders yet</div></div>';
+    return;
+  }
+  el.innerHTML = groups.map(g => {
+    const value = _routeShowCheckins
+      ? `<span class="done">${g.checked}</span><span class="rc-total">/${g.total}</span>`
+      : `${g.total}`;
+    return `
+    <div class="route-cell">
+      <div class="rc-label" title="${esc(g.key)}">${esc(g.key)}</div>
+      <div class="rc-value">${value}</div>
+    </div>`;
+  }).join('');
+}
+// Rest-stop check-ins broken down by route: per route, how many riders have checked in
+// at each of that route's stops out of how many are possible (the riders on that route).
+// Stops that aren't on a route show "–". Everything derives from the live rows, so it
+// follows route edits — a rider re-routed live is counted under their NEW route, and only
+// that route's stops contribute to the possible totals (a check-in left over at a stop the
+// new route doesn't use simply stops being counted).
+function renderRestStats(rows) {
+  const head = document.getElementById('rest-bd-head');
+  const body = document.getElementById('rest-bd-body');
+  if (!head || !body) return;
+
+  head.innerHTML = `<tr>
+      <th>Route</th>
+      ${REST_STOPS.map(s => `<th title="${esc(s.name)}${s.location ? ' — ' + esc(s.location) : ''}">${esc(s.name)}</th>`).join('')}
+      <th>Total</th>
+    </tr>`;
+
+  // Group riders by their current (possibly-overridden) route.
+  const groups = {};
+  rows.forEach(r => { const k = r.route || '(none)'; (groups[k] || (groups[k] = [])).push(r); });
+  const routeKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  if (!routeKeys.length) {
+    body.innerHTML = `<tr><td colspan="${REST_STOPS.length + 2}" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>`;
+    return;
+  }
+
+  const cell = (checked, possible) => {
+    const done = possible > 0 && checked >= possible ? ' bd-done' : '';
+    return `<td class="bd-num${done}">${checked}&nbsp;/&nbsp;${possible}</td>`;
+  };
+
+  // Column + grand totals accumulate as we render each route row.
+  const colChecked = {}, colPossible = {};
+  REST_STOPS.forEach(s => { colChecked[s.id] = 0; colPossible[s.id] = 0; });
+  let grandChecked = 0, grandPossible = 0;
+
+  const rowsHtml = routeKeys.map(k => {
+    const group = groups[k];
+    const availIds = new Set(stopsForRoute(k).map(s => s.id));
+    // Totals are out of riders who checked in at the start of the ride, not all registered.
+    const started = group.filter(r => r.checked).length;
+    let rowChecked = 0, rowPossible = 0;
+    const cells = REST_STOPS.map(s => {
+      if (!availIds.has(s.id)) return `<td class="bd-num"><span class="rest-na">–</span></td>`;
+      const checked = group.filter(r => restChecked(r.orderNumber, s.id)).length;
+      const possible = started;
+      colChecked[s.id] += checked; colPossible[s.id] += possible;
+      rowChecked += checked; rowPossible += possible;
+      return cell(checked, possible);
+    }).join('');
+    grandChecked += rowChecked; grandPossible += rowPossible;
+    return `<tr>
+        <td>${k !== '(none)' ? `<span class="route-tag">${esc(k)}</span>` : esc(k)}</td>
+        ${cells}${cell(rowChecked, rowPossible)}
+      </tr>`;
+  }).join('');
+
+  const totalCells = REST_STOPS.map(s => cell(colChecked[s.id], colPossible[s.id])).join('');
+  body.innerHTML = rowsHtml + `<tr class="bd-total">
+      <td>Total</td>${totalCells}${cell(grandChecked, grandPossible)}
+    </tr>`;
+}
+function toggleRouteCheckins() {
+  _routeShowCheckins = !_routeShowCheckins;
+  const rt = document.getElementById('route-toggle');
+  rt.classList.toggle('on', _routeShowCheckins);
+  rt.textContent = _routeShowCheckins ? 'Hide check-ins' : 'Show check-ins';
+  document.getElementById('route-stats-label').textContent =
+    _routeShowCheckins ? 'Checked in by route' : 'Registrants by route';
+  renderRouteStats(rosterRows());
+}
+
+// ── Rider detail sheet ────────────────────────────────────────────────────────
+function openDetail(orderKey) {
+  _openOrder = orderKey;
+  _editingField = null;
+  renderDetail();
+  document.getElementById('detail-overlay').classList.add('open');
+}
+function closeDetail() {
+  _openOrder = null;
+  _editingField = null;
+  // Reset the disclosures so reopening any rider starts collapsed & unloaded.
+  delete document.getElementById('detail-contact').dataset.order;
+  delete document.getElementById('detail-emergency').dataset.order;
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+function detailBgClick(e) {
+  if (e.target.id === 'detail-overlay') closeDetail();
+}
+function renderDetail() {
+  const r = rosterRows().find(x => x.orderNumber === _openOrder);
+  if (!r) { closeDetail(); return; }   // rider no longer in roster (e.g. re-synced)
+
+  document.getElementById('detail-name').textContent = r.name;
+  document.getElementById('detail-statuses').innerHTML =
+    `<span class="detail-status ${r.checked ? 'in' : 'out'}">${r.checked ? `✅ Checked In${r.number != null ? ' · #' + r.number : ''}` : '◦ Not Checked In'}</span>` +
+    `<span class="detail-status ${r.finished ? 'checkedout' : 'out'}">${r.finished ? '🏁 Finished' : '◦ Not Finished'}</span>` +
+    `<span class="detail-status ${r.picked ? 'jersey' : 'out'}">${r.picked ? '👕 Jersey Picked Up' : '◦ Jersey Not Picked Up'}</span>` +
+    `<span class="detail-status ${r.restCount ? 'rest' : 'out'}">${r.restCount ? `🛑 Rest Stops ${r.restCount}/${r.restTotal}` : '◦ No Rest Stops'}</span>`;
+
+  const notes = [];
+  if (r.checked) notes.push(`Checked in by ${esc((r.checkedBy || '').split('@')[0])}${r.checkedAt ? ' at ' + fmtTime(r.checkedAt) : ''}`);
+  if (r.picked) notes.push(`Jersey by ${esc((r.pickedBy || '').split('@')[0])}${r.pickedAt ? ' at ' + fmtTime(r.pickedAt) : ''}`);
+
+  const allRoutes = [...new Set([
+    ...Object.values(_roster).map(rec => rec.route).filter(Boolean),
+    ...(r.route ? [r.route] : [])
+  ])].sort();
+
+  const routeVal = _editingField === 'route'
+    ? `<span class="field-edit-row">
+         <select class="field-edit-select" id="field-edit-select">
+           <option value="">— none —</option>
+           ${allRoutes.map(rt => `<option value="${esc(rt)}"${rt === r.route ? ' selected' : ''}>${esc(rt)}</option>`).join('')}
+         </select>
+         <button class="field-edit-confirm" onclick="saveFieldEdit('${esc(r.orderNumber)}','route')" title="Save">✓</button>
+         <button class="field-edit-cancel" onclick="cancelFieldEdit()" title="Cancel">✕</button>
+       </span>`
+    : `${r.route ? `<span class="route-tag">${esc(r.route)}</span>` : '—'}${r.routeOverridden ? ' <span class="override-badge">edited</span>' : ''}<button class="field-edit-btn" title="Edit route" onclick="startEditField('route')">✎</button>`;
+
+  const sizeVal = _editingField === 'jerseySize'
+    ? `<span class="field-edit-row">
+         <select class="field-edit-select" id="field-edit-select">
+           <option value="">— none —</option>
+           ${SIZE_ORDER.map(sz => `<option value="${esc(sz)}"${sz === r.jerseySize ? ' selected' : ''}>${esc(sz)}</option>`).join('')}
+         </select>
+         <button class="field-edit-confirm" onclick="saveFieldEdit('${esc(r.orderNumber)}','jerseySize')" title="Save">✓</button>
+         <button class="field-edit-cancel" onclick="cancelFieldEdit()" title="Cancel">✕</button>
+       </span>`
+    : `${esc(r.jerseySize) || '—'}${r.jerseySizeOverridden ? ' <span class="override-badge">edited</span>' : ''}<button class="field-edit-btn" title="Edit jersey size" onclick="startEditField('jerseySize')">✎</button>`;
+
+  const notesHtml = _editingField === 'notes'
+    ? `<div class="notes-section">
+         <textarea class="notes-textarea" id="field-edit-textarea" placeholder="Add a note about this rider…">${esc(r.notes || '')}</textarea>
+         <div class="notes-edit-actions">
+           <button class="field-edit-confirm" onclick="saveFieldEdit('${esc(r.orderNumber)}','notes')">Save note</button>
+           <button class="field-edit-cancel" onclick="cancelFieldEdit()">Cancel</button>
+         </div>
+       </div>`
+    : r.notes
+      ? `<div class="notes-section">
+           <div class="notes-header"><span class="notes-lbl">Note</span><button class="field-edit-btn" onclick="startEditField('notes')">✎</button></div>
+           <div class="notes-text">${esc(r.notes)}</div>
+         </div>`
+      : `<button class="notes-add-btn" onclick="startEditField('notes')">+ Add note</button>`;
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-grid">
+      <div class="dl">Number</div><div class="dv">${r.number != null
+        ? `<span class="num-tag">${r.number}</span><button class="field-edit-btn" title="Change number" onclick="openAssign('${esc(r.orderNumber)}')">✎</button>`
+        : (r.checked ? `— <button class="field-edit-btn" title="Assign number" onclick="openAssign('${esc(r.orderNumber)}')">✎</button>` : '<span style="color:var(--dimmer)">assigned at check-in</span>')}</div>
+      <div class="dl">Route</div><div class="dv">${routeVal}</div>
+      <div class="dl">Jersey Size</div><div class="dv">${sizeVal}</div>
+      <div class="dl">Registration</div><div class="dv">${esc(r.lineItemName) || '—'}</div>
+      <div class="dl">Registered</div><div class="dv">${fmtDate(r.createdAt)}</div>
+    </div>
+    ${notes.length ? `<div class="detail-checked-note">${notes.join('<br>')}</div>` : ''}
+    ${notesHtml}`;
+
+  const cBtn = document.getElementById('detail-action-checkin');
+  if (r.checked) {
+    cBtn.className = 'detail-action-btn btn-undo';
+    cBtn.textContent = 'Undo Check-In';
+    cBtn.onclick = () => undoCheckIn(r.orderNumber);
+  } else {
+    cBtn.className = 'detail-action-btn btn-green';
+    cBtn.textContent = '✓ Check In';
+    cBtn.onclick = () => openAssign(r.orderNumber);
+  }
+
+  const jBtn = document.getElementById('detail-action-jersey');
+  if (r.picked) {
+    jBtn.className = 'detail-action-btn btn-undo';
+    jBtn.textContent = 'Undo Jersey Pickup';
+    jBtn.onclick = () => undoPickUp(r.orderNumber);
+  } else {
+    jBtn.className = 'detail-action-btn btn-blue';
+    jBtn.textContent = '👕 Jersey Picked Up';
+    jBtn.onclick = () => pickUpJersey(r.orderNumber);
+  }
+
+  renderDetailRestStops(r);
+
+  // Rider phone + emergency contact: both are PII held in access-restricted nodes and
+  // every account with access (volunteers + super-admins) may reveal them; the reads are
+  // also rules-gated, so accounts without access can't fetch them even if forced. Each is
+  // a collapsible <details> that loads (and audits) once on first open and stays open.
+  // Rendering is idempotent — if it's already rendered for this same rider it is left
+  // untouched, so a background re-render (another volunteer's check-in, our own audit
+  // write) can't collapse a disclosure the user just opened.
+  renderDisclosure('detail-contact', r, hasAccess(), {
+    id: 'contact', variant: 'contact', summary: '📞 Rider phone',
+    reveal: () => revealPhone(r.orderNumber, r.name)
+  });
+  renderDisclosure('detail-emergency', r, hasAccess(), {
+    id: 'emergency', variant: 'emergency', summary: '🚑 Emergency contact',
+    reveal: () => revealEmergency(r.orderNumber, r.name)
+  });
+}
+
+// Build (once per rider) a collapsible, audit-on-open disclosure into the container `elId`.
+function renderDisclosure(elId, r, allowed, opts) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!allowed) { el.innerHTML = ''; delete el.dataset.order; return; }
+  if (el.dataset.order === r.orderNumber) return;   // already rendered for this rider
+  el.dataset.order = r.orderNumber;
+  el.innerHTML = `<details class="disclosure ${opts.variant}" id="${opts.id}-details">
+      <summary class="disclosure-summary">${opts.summary}</summary>
+      <div class="disclosure-body" id="${opts.id}-body"><div class="info-box muted">Open to load…</div></div>
+    </details>`;
+  let loaded = false;
+  document.getElementById(`${opts.id}-details`).addEventListener('toggle', function () {
+    if (this.open && !loaded) { loaded = true; opts.reveal(); }
+  });
+}
+
+// Render the rider's rest-stop check-in toggles in the detail sheet. Only the stops on
+// the rider's route are shown (see stopsForRoute). Each is an independent check-in (with
+// its own undo), mirroring how check-in/out and jersey work.
+function renderDetailRestStops(r) {
+  const el = document.getElementById('detail-reststops');
+  if (!el) return;
+  const rows = r.availableStops.map(s => {
+    const on = restChecked(r.orderNumber, s.id);
+    const rec = restRecord(r.orderNumber, s.id);
+    const meta = on && rec
+      ? `${esc((rec.by || '').split('@')[0])}${rec.at ? ' · ' + fmtTime(rec.at) : ''}`
+      : esc(s.location);
+    return `<button type="button" class="rest-row ${on ? 'on' : ''}"
+        onclick="${on ? `undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')` : `checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')`}">
+        <span class="rest-row-tick">${on ? '✓' : '+'}</span>
+        <span class="rest-row-text"><span class="rest-row-name">${esc(s.name)}</span><span class="rest-row-meta">${meta}</span></span>
+        <span class="rest-row-action">${on ? 'Undo' : 'Check in'}</span>
+      </button>`;
+  }).join('');
+  const note = r.restTotal < REST_STOPS.length
+    ? `<span class="rest-section-note">${r.route ? esc(r.route) + ' route' : 'this route'} · ${r.restTotal} stop${r.restTotal === 1 ? '' : 's'}</span>` : '';
+  el.innerHTML = `<div class="rest-section">
+      <div class="rest-section-head">Rest Stops <span class="rest-section-count">${r.restCount}/${r.restTotal}</span>${note}</div>
+      <div class="rest-rows">${rows}</div>
+    </div>`;
+}
+
+// Fetch + display a rider's emergency contact (privileged only), and audit the view.
+function telLink(phone) {
+  return phone ? `<a href="tel:${esc(String(phone).replace(/[^+\d]/g,''))}">${esc(phone)}</a>` : '—';
+}
+async function revealEmergency(orderNumber, name) {
+  const body = document.getElementById('emergency-body');
+  if (!body) return;
+  try {
+    const snap = await dbGet(dbRef(fb.db, `restricted/emergencyContacts/${EVENT_ID}/${orderNumber}`));
+    const c = snap.val();
+    logAudit('emergency_view', name);
+    if (!c || (!c.name && !c.phone)) {
+      body.innerHTML = '<div class="info-box muted">No emergency contact on file.</div>';
+      return;
+    }
+    body.innerHTML = `<div class="info-box">
+        <div class="ib-row"><span class="ib-label">Name</span><span>${esc(c.name) || '—'}</span></div>
+        <div class="ib-row"><span class="ib-label">Phone</span><span>${telLink(c.phone)}</span></div>
+      </div>`;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="info-box muted">Could not load (access denied).</div>';
+  }
+}
+async function revealPhone(orderNumber, name) {
+  const body = document.getElementById('contact-body');
+  if (!body) return;
+  try {
+    const snap = await dbGet(dbRef(fb.db, `restricted/riderPhones/${EVENT_ID}/${orderNumber}`));
+    const c = snap.val();
+    logAudit('phone_view', name);
+    if (!c || !c.phone) {
+      body.innerHTML = '<div class="info-box muted">No phone number on file.</div>';
+      return;
+    }
+    body.innerHTML = `<div class="info-box">
+        <div class="ib-row"><span class="ib-label">Phone</span><span>${telLink(c.phone)}</span></div>
+      </div>`;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="info-box muted">Could not load (access denied).</div>';
+  }
+}
+
+// ── Field override actions (route / jersey size) ──────────────────────────────
+function startEditField(field) {
+  _editingField = field;
+  renderDetail();
+}
+function cancelFieldEdit() {
+  _editingField = null;
+  renderDetail();
+}
+async function saveFieldEdit(orderNumber, field) {
+  if (!fb || !_user) return;
+  let newVal;
+  if (field === 'notes') {
+    const ta = document.getElementById('field-edit-textarea');
+    if (!ta) return;
+    newVal = ta.value.trim();
+  } else {
+    const sel = document.getElementById('field-edit-select');
+    if (!sel) return;
+    newVal = sel.value;
+  }
+  const r = rosterRows().find(x => x.orderNumber === orderNumber);
+  const oldVal = r ? (r[field] || '') : '';
+  if (newVal === oldVal) { _editingField = null; renderDetail(); return; }
+  try {
+    const existing = _overrides[orderNumber] || {};
+    const update = { by: _user.email, at: serverTimestamp() };
+    for (const f of ['route', 'jerseySize', 'notes']) {
+      if (f === field) { if (newVal !== '') update[f] = newVal; }
+      else if (existing[f] != null && existing[f] !== '') update[f] = existing[f];
+    }
+    await dbSet(dbRef(fb.db, `overrides/${EVENT_ID}/${orderNumber}`), update);
+    if (field === 'notes') {
+      logAudit('notes_edit', `${r ? r.name : orderNumber}: note ${newVal ? 'updated' : 'cleared'}`);
+    } else {
+      const label = field === 'route' ? 'route' : 'jersey size';
+      logAudit(field === 'route' ? 'route_override' : 'jersey_override',
+        `${r ? r.name : orderNumber}: ${label} "${oldVal || '(none)'}" → "${newVal || '(none)'}"`);
+    }
+    _editingField = null;
+    toast(field === 'notes' ? (newVal ? 'Note saved' : 'Note cleared') : `${field === 'route' ? 'Route' : 'Jersey size'} updated`);
+  } catch (e) { console.error(e); toast('Update failed: ' + (e.message || e.code)); }
+}
+
+// Render the audit-log panel (privileged only), newest entries first.
+const AUDIT_LABEL = {
+  checkin: 'checked in', checkin_undo: 'undid check-in',
+  number_assigned: 'assigned number',
+  jersey: 'jersey picked up', jersey_undo: 'undid jersey pickup',
+  reststop: 'rest-stop check-in', reststop_undo: 'undid rest-stop check-in',
+  emergency_view: 'viewed emergency contact', phone_view: 'viewed rider phone', rider_added: 'rider added',
+  volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
+  inventory_update: 'updated jersey inventory', reset: 'reset data',
+  route_override: 'updated route', jersey_override: 'updated jersey size',
+  notes_edit: 'updated note'
+};
+function renderAudit(obj) {
+  const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const body = document.getElementById('audit-body');
+  if (!entries.length) { body.innerHTML = '<div class="audit-empty">No activity yet.</div>'; return; }
+  body.innerHTML = entries.map(e => {
+    const who = (e.actor || '').split('@')[0] || e.actor || 'someone';
+    const when = e.ts ? new Date(e.ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const action = AUDIT_LABEL[e.action] || e.action;
+    return `<div class="audit-row">
+        <span class="audit-when">${esc(when)}</span>
+        <span class="audit-who">${esc(who)}</span>
+        <span class="audit-action">${esc(action)}</span>
+        <span class="audit-target">${esc(e.target || '')}</span>
+      </div>`;
+  }).join('');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (_assignOrder != null) closeAssign();
+  else if (_openOrder) closeDetail();
+});
+
+function renderSyncNote() {
+  const note = document.getElementById('sync-note');
+  if (!_lastSync) { note.style.display = 'none'; return; }
+  note.style.display = '';
+  note.textContent = `Roster last synced from spreadsheet: ${new Date(_lastSync).toLocaleString()}`;
+}
+
+// ── App shell wiring ──────────────────────────────────────────────────────────
+function hideAppSurfaces() {
+  show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
+  show('rest-bynum-card', false); show('rest-stats-head', false); show('rest-stats', false);
+  show('breakdown', false); show('filterbar', false); show('table-card', false);
+  show('sync-note', false); show('audit-card', false); show('manage-card', false);
+  show('inventory-card', false); show('inv-breakdown-head', false); show('reset-card', false);
+}
+function showSignedIn() {
+  closeAuth();
+  show('topbar', true); show('stats', true); show('route-stats-head', true); show('route-stats', true);
+  show('rest-bynum-card', true); show('rest-stats-head', true); show('rest-stats', true);
+  show('breakdown', true); show('filterbar', true); show('table-card', true);
+  initRestByNumber();
+  document.getElementById('user-badge').textContent = _user.email;
+  document.getElementById('event-subtitle').textContent =
+    EVENT_ID === 'default' ? 'Registered riders & day-of check-in' : `Event: ${EVENT_ID}`;
+  // Super-admins additionally see the activity log and the volunteer-management panel.
+  show('audit-card', isSuperAdmin());
+  show('manage-card', isSuperAdmin());
+  show('inventory-card', isSuperAdmin());
+  show('reset-card', isSuperAdmin());
+  document.getElementById('reset-event').textContent = EVENT_ID;
+  if (isSuperAdmin()) { subscribeAdmin(); renderInventoryForm(); }
+  subscribeData();
+  render();
+}
+function showSignedOut() {
+  hideAppSurfaces();
+  document.getElementById('locked-actions').style.display = 'none';
+  setAuthStatus('');
+  _role = 'none';
+  openAuth();
+}
+// Signed in with a verified Google account that isn't on any allowlist.
+function showNoAccess() {
+  hideAppSurfaces();
+  _role = 'none';
+  document.getElementById('locked-actions').style.display = '';
+  setAuthStatus(`${_user && _user.email ? _user.email : 'That account'} isn't authorized yet. Ask an OutCycling super-admin to add you, then sign in again.`, true);
+  openAuth();
+}
+
+if (!CONFIGURED) {
+  document.getElementById('setup-banner').style.display = 'block';
+} else if (fbAuth) {
+  onAuthStateChanged(fbAuth, async user => {
+    if (user && isAllowed(user)) {
+      _user = user;
+      setAuthStatus('Checking access…');
+      _role = await determineRole();
+      if (hasAccess()) showSignedIn();
+      else showNoAccess();
+    } else if (user) {
+      // Signed in with an unverified account — can't be authorized.
+      _user = null;
+      setAuthStatus(`${user.email || 'That account'} has no verified email. Use a Google account with a verified email.`, true);
+      fbSignOut(fbAuth);
+      showSignedOut();
+    } else {
+      _user = null;
+      showSignedOut();
+    }
+  });
+} else {
+  setAuthStatus('Could not initialize sign-in.', true);
+  openAuth();
+}
+
+Object.assign(window, {
+  signInWithGoogle, signOutVolunteer, undoCheckIn, pickUpJersey, undoPickUp,
+  openAssign, closeAssign, assignBgClick, updateAssignWarning, confirmAssign,
+  addVolunteer, removeVolunteer, toggleInventory, saveInventory,
+  updateResetButton, performReset,
+  render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
+  openDetail, closeDetail, detailBgClick,
+  startEditField, cancelFieldEdit, saveFieldEdit,
+  checkInRestStop, undoRestStop, onRestStopSelect, checkInByNumber
+});
+</script>
 </body>
 </html>
