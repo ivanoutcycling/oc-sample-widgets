@@ -751,16 +751,6 @@ function numberHolder(num, exceptOrder) {
   }
   return null;
 }
-// Lowest unused number ≥ 1 (suggested default in the dialog).
-function nextFreeNumber() {
-  const used = new Set(Object.values(_checkins)
-    .map(c => (c && Number.isFinite(c.number)) ? c.number : null)
-    .filter(n => n != null));
-  let n = 1;
-  while (used.has(n)) n++;
-  return n;
-}
-
 // Open the assign-number dialog. Used both to check a rider in and to edit an
 // already-assigned number. The actual write happens in confirmAssign().
 function openAssign(orderNumber) {
@@ -771,7 +761,9 @@ function openAssign(orderNumber) {
   document.getElementById('assign-sub').textContent = riderName(orderNumber);
   document.getElementById('assign-confirm').textContent = already ? 'Save Number' : 'Check In';
   const input = document.getElementById('assign-input');
-  input.value = existing != null ? existing : nextFreeNumber();
+  // Start empty for a fresh check-in — the volunteer types the number off the
+  // physical bib — but show the current number when editing an assignment.
+  input.value = existing != null ? existing : '';
   document.getElementById('assign-overlay').classList.add('open');
   updateAssignWarning();
   input.focus();
