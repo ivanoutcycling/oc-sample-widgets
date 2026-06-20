@@ -247,6 +247,14 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .dist-panel-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dimmer);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dist-panel-stats{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right;margin-top:5px}
 .dist-footer{display:flex;justify-content:flex-end;margin-top:10px}
+.dist-median-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.dist-median-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dimmer);font-weight:600;padding:4px 10px;text-align:center;border-bottom:1.5px solid var(--border)}
+.dist-median-table th:first-child{text-align:left}
+.dist-median-table td{padding:5px 10px;text-align:center;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11.5px}
+.dist-median-table td:first-child{text-align:left;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.dist-median-table tr:last-child td{border-bottom:none}
+.dist-median-val{color:var(--text)}
+.dist-median-nil{color:var(--dimmer)}
 @media(max-width:680px){.lock-card,.dist-outer{margin-left:16px;margin-right:16px}}
 .detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
 .detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
@@ -373,6 +381,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   <div class="dist-outer" id="dist-outer" style="display:none">
     <div class="dist-card">
       <div class="dist-head">Rest stop arrivals · 15-minute intervals</div>
+      <div id="dist-median-table"></div>
       <div class="dist-tabs" id="dist-stop-tabs"></div>
       <div class="dist-panels-wrap">
         <div class="dist-panels" id="dist-panels"></div>
@@ -878,6 +887,32 @@ function filterOutlierTimestamps(timestamps) {
   return timestamps.filter(t => Math.abs(t - median) <= THRESHOLD_MS);
 }
 
+function _medianTimestamp(stopId, routeFilter) {
+  const ts = _arrivalTimestamps(stopId, routeFilter, _distFilterOutliers);
+  if (!ts.length) return null;
+  const sorted = [...ts].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function buildMedianTableHtml(lockedStops, routesToShow) {
+  const multiRoute = routesToShow.length > 1 && routesToShow[0] !== '';
+  const cols = multiRoute ? routesToShow : [''];
+  const headerCells = multiRoute
+    ? cols.map(rt => `<th>${esc(rt)}</th>`).join('')
+    : '<th>Median arrival</th>';
+  const bodyRows = lockedStops.map(s => {
+    const cells = cols.map(rt => {
+      const med = _medianTimestamp(s.id, rt);
+      return med != null
+        ? `<td class="dist-median-val">${esc(fmtTime(med))}</td>`
+        : `<td class="dist-median-nil">—</td>`;
+    }).join('');
+    return `<tr><td>${esc(s.name)}</td>${cells}</tr>`;
+  }).join('');
+  return `<table class="dist-median-table"><thead><tr><th></th>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+}
+
 function buildRoutePanel(stopId, routeFilter, label) {
   const statsText = buildArrivalStats(stopId, routeFilter);
   const chartHtml = buildArrivalChartSvg(stopId, routeFilter);
@@ -907,6 +942,11 @@ function renderArrivalDistribution() {
 
   if (!_distStop || !lockedStops.some(s => s.id === _distStop)) _distStop = lockedStops[0].id;
 
+  const routesToShow = allRoutes.length > 1 ? allRoutes : [''];
+
+  const medianTableEl = document.getElementById('dist-median-table');
+  if (medianTableEl) medianTableEl.innerHTML = buildMedianTableHtml(lockedStops, routesToShow);
+
   const stopTabs = document.getElementById('dist-stop-tabs');
   if (stopTabs) {
     stopTabs.innerHTML = lockedStops.map(s =>
@@ -916,7 +956,6 @@ function renderArrivalDistribution() {
 
   const panelsEl = document.getElementById('dist-panels');
   if (panelsEl) {
-    const routesToShow = allRoutes.length > 1 ? allRoutes : [''];
     panelsEl.innerHTML = routesToShow
       .map(rt => buildRoutePanel(_distStop, rt, rt || 'All Routes'))
       .join('');
