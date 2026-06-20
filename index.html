@@ -644,6 +644,7 @@ let _assignOrder = null;  // order key of the rider whose number is being assign
 let _locks = {};          // checkpoint key → { locked, by, at } — from Firebase /locks/{event}
 let _distStop = null;     // selected stop id for the arrival distribution chart
 let _distRoute = '';      // route filter for the distribution chart ('' = all routes)
+let _distFilterOutliers = false; // whether to strip arrivals >1.5h from the median
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -863,6 +864,21 @@ function selectDistRoute(route) {
   _distRoute = route;
   renderArrivalDistribution();
 }
+function toggleDistOutliers() {
+  _distFilterOutliers = !_distFilterOutliers;
+  renderArrivalDistribution();
+}
+
+// Remove timestamps more than 1.5 hours from the median. Returns the original
+// array unchanged if there are fewer than 2 values (median undefined).
+function filterOutlierTimestamps(timestamps) {
+  if (timestamps.length < 2) return timestamps;
+  const sorted = [...timestamps].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const THRESHOLD_MS = 1.5 * 60 * 60 * 1000;
+  return timestamps.filter(t => Math.abs(t - median) <= THRESHOLD_MS);
+}
 
 function renderArrivalDistribution() {
   const headEl = document.getElementById('dist-section-head');
@@ -910,18 +926,28 @@ function renderArrivalDistribution() {
   const chartEl = document.getElementById('dist-chart');
   const statsEl = document.getElementById('dist-stats');
   if (chartEl) chartEl.innerHTML = buildArrivalChartSvg(_distStop, _distRoute);
-  if (statsEl) statsEl.textContent = buildArrivalStats(_distStop, _distRoute);
+  if (statsEl) {
+    const statsText = buildArrivalStats(_distStop, _distRoute);
+    const allTs = _arrivalTimestamps(_distStop, _distRoute, false);
+    const hasOutliers = filterOutlierTimestamps(allTs).length < allTs.length;
+    const showBtn = allTs.length > 0 && (hasOutliers || _distFilterOutliers);
+    const btnHtml = showBtn
+      ? `<button class="dist-tab${_distFilterOutliers ? ' stop-active' : ''}" onclick="toggleDistOutliers()" style="font-size:10px;padding:4px 10px">${_distFilterOutliers ? '✓ Outliers removed' : 'Remove outliers'}</button>`
+      : '';
+    statsEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">${btnHtml}<span>${esc(statsText)}</span></div>`;
+  }
 }
 
-function _arrivalTimestamps(stopId, routeFilter) {
+function _arrivalTimestamps(stopId, routeFilter, stripOutliers) {
   const rows = rosterRows();
-  return (routeFilter ? rows.filter(r => r.route === routeFilter) : rows)
+  const raw = (routeFilter ? rows.filter(r => r.route === routeFilter) : rows)
     .map(r => { const rec = restRecord(r.orderNumber, stopId); return rec && rec.at ? rec.at : null; })
     .filter(t => t && t > 0);
+  return stripOutliers ? filterOutlierTimestamps(raw) : raw;
 }
 
 function buildArrivalChartSvg(stopId, routeFilter) {
-  const timestamps = _arrivalTimestamps(stopId, routeFilter);
+  const timestamps = _arrivalTimestamps(stopId, routeFilter, _distFilterOutliers);
   if (!timestamps.length) {
     return `<div class="dist-empty">No arrivals recorded yet${routeFilter ? ' for this route' : ''}.</div>`;
   }
@@ -975,7 +1001,8 @@ function buildArrivalChartSvg(stopId, routeFilter) {
 }
 
 function buildArrivalStats(stopId, routeFilter) {
-  const timestamps = _arrivalTimestamps(stopId, routeFilter);
+  const all = _arrivalTimestamps(stopId, routeFilter, false);
+  const timestamps = _distFilterOutliers ? filterOutlierTimestamps(all) : all;
   if (!timestamps.length) return '';
   const BUCKET_MS = 15 * 60 * 1000;
   const startT = Math.floor(Math.min(...timestamps) / BUCKET_MS) * BUCKET_MS;
@@ -984,7 +1011,9 @@ function buildArrivalStats(stopId, routeFilter) {
     const t = startT + i * BUCKET_MS;
     return { t, count: timestamps.filter(ts => ts >= t && ts < t + BUCKET_MS).length };
   }).reduce((a, b) => b.count > a.count ? b : a);
-  return `${timestamps.length} arrival${timestamps.length !== 1 ? 's' : ''} · peak ${peak.count} @ ${fmtTime(peak.t)} · 15-min buckets`;
+  const hidden = all.length - timestamps.length;
+  const hiddenNote = hidden > 0 ? ` · ${hidden} outlier${hidden !== 1 ? 's' : ''} hidden` : '';
+  return `${timestamps.length} arrival${timestamps.length !== 1 ? 's' : ''} · peak ${peak.count} @ ${fmtTime(peak.t)} · 15-min buckets${hiddenNote}`;
 }
 
 // Numbers assigned at check-in. Each rider gets a unique number we can search by.
@@ -2078,7 +2107,7 @@ Object.assign(window, {
   openDetail, closeDetail, detailBgClick,
   startEditField, cancelFieldEdit, saveFieldEdit,
   checkInRestStop, undoRestStop, onRestStopSelect, checkInByNumber,
-  toggleLock, selectDistStop, selectDistRoute
+  toggleLock, selectDistStop, selectDistRoute, toggleDistOutliers
 });
 </script>
 </body>
