@@ -111,6 +111,20 @@
       }
     },
 
+    "locks": {
+      "$eventId": {
+        ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
+        "$checkpoint": {
+          ".write": "auth != null && auth.token.email_verified == true && root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true",
+          ".validate": "(!newData.exists()) || (newData.hasChildren(['locked', 'by']) && newData.child('locked').isBoolean() && newData.child('by').isString() && newData.child('by').val() == auth.token.email)",
+          "locked": { ".validate": "newData.isBoolean()" },
+          "by":     { ".validate": "newData.isString() && newData.val() == auth.token.email" },
+          "at":     { ".validate": "newData.isNumber() || newData.val() == now" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "jerseyInventory": {
       "$eventId": {
         ".read": "auth != null && auth.token.email_verified == true && (root.child('acl/volunteers/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true || root.child('acl/superAdmins/' + auth.token.email.toLowerCase().replace('.', ',')).val() == true)",
