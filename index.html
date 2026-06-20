@@ -240,10 +240,13 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .dist-tab.stop-active{background:#7c3aed;border-color:#7c3aed;color:#fff}
 .dist-tab.route-active{background:var(--accent);border-color:var(--accent);color:#fff}
 .dist-sep{height:1px;background:var(--border);margin:6px 0 12px}
-.dist-empty{color:var(--muted);font-size:12px;padding:20px 0;text-align:center}
-.dist-chart-wrap{overflow-x:auto}
-.dist-chart-inner{min-width:320px}
-.dist-stats{font-size:10.5px;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace;text-align:right}
+.dist-empty{color:var(--muted);font-size:12px;padding:16px 0;text-align:center}
+.dist-panels-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.dist-panels{display:flex;gap:10px}
+.dist-panel{flex:1 1 0;min-width:260px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.dist-panel-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dimmer);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dist-panel-stats{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right;margin-top:5px}
+.dist-footer{display:flex;justify-content:flex-end;margin-top:10px}
 @media(max-width:680px){.lock-card,.dist-outer{margin-left:16px;margin-right:16px}}
 .detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
 .detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
@@ -371,10 +374,10 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <div class="dist-card">
       <div class="dist-head">Rest stop arrivals · 15-minute intervals</div>
       <div class="dist-tabs" id="dist-stop-tabs"></div>
-      <div class="dist-sep" id="dist-route-sep"></div>
-      <div class="dist-tabs" id="dist-route-tabs"></div>
-      <div class="dist-chart-wrap"><div class="dist-chart-inner" id="dist-chart"></div></div>
-      <div class="dist-stats" id="dist-stats"></div>
+      <div class="dist-panels-wrap">
+        <div class="dist-panels" id="dist-panels"></div>
+      </div>
+      <div class="dist-footer" id="dist-footer"></div>
     </div>
   </div>
 
@@ -643,8 +646,7 @@ let _editingField = null; // 'route' | 'jerseySize' | null — inline edit state
 let _assignOrder = null;  // order key of the rider whose number is being assigned (dialog open)
 let _locks = {};          // checkpoint key → { locked, by, at } — from Firebase /locks/{event}
 let _distStop = null;     // selected stop id for the arrival distribution chart
-let _distRoute = '';      // route filter for the distribution chart ('' = all routes)
-let _distFilterOutliers = false; // whether to strip arrivals >1.5h from the median
+let _distFilterOutliers = true; // whether to strip arrivals >1.5h from the median
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -860,10 +862,6 @@ function selectDistStop(stopId) {
   _distStop = stopId;
   renderArrivalDistribution();
 }
-function selectDistRoute(route) {
-  _distRoute = route;
-  renderArrivalDistribution();
-}
 function toggleDistOutliers() {
   _distFilterOutliers = !_distFilterOutliers;
   renderArrivalDistribution();
@@ -878,6 +876,16 @@ function filterOutlierTimestamps(timestamps) {
   const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   const THRESHOLD_MS = 1.5 * 60 * 60 * 1000;
   return timestamps.filter(t => Math.abs(t - median) <= THRESHOLD_MS);
+}
+
+function buildRoutePanel(stopId, routeFilter, label) {
+  const statsText = buildArrivalStats(stopId, routeFilter);
+  const chartHtml = buildArrivalChartSvg(stopId, routeFilter);
+  return `<div class="dist-panel">
+    <div class="dist-panel-label">${esc(label)}</div>
+    ${chartHtml}
+    ${statsText ? `<div class="dist-panel-stats">${esc(statsText)}</div>` : ''}
+  </div>`;
 }
 
 function renderArrivalDistribution() {
@@ -906,35 +914,22 @@ function renderArrivalDistribution() {
     ).join('');
   }
 
-  const sepEl = document.getElementById('dist-route-sep');
-  const routeTabs = document.getElementById('dist-route-tabs');
-  if (routeTabs) {
-    if (allRoutes.length > 1) {
-      if (sepEl) sepEl.style.display = '';
-      routeTabs.style.display = '';
-      routeTabs.innerHTML =
-        `<button class="dist-tab${!_distRoute ? ' route-active' : ''}" onclick="selectDistRoute('')">All Routes</button>` +
-        allRoutes.map(rt =>
-          `<button class="dist-tab${_distRoute === rt ? ' route-active' : ''}" onclick="selectDistRoute('${esc(rt)}')">${esc(rt)}</button>`
-        ).join('');
-    } else {
-      if (sepEl) sepEl.style.display = 'none';
-      routeTabs.style.display = 'none';
-    }
+  const panelsEl = document.getElementById('dist-panels');
+  if (panelsEl) {
+    const routesToShow = allRoutes.length > 1 ? allRoutes : [''];
+    panelsEl.innerHTML = routesToShow
+      .map(rt => buildRoutePanel(_distStop, rt, rt || 'All Routes'))
+      .join('');
   }
 
-  const chartEl = document.getElementById('dist-chart');
-  const statsEl = document.getElementById('dist-stats');
-  if (chartEl) chartEl.innerHTML = buildArrivalChartSvg(_distStop, _distRoute);
-  if (statsEl) {
-    const statsText = buildArrivalStats(_distStop, _distRoute);
-    const allTs = _arrivalTimestamps(_distStop, _distRoute, false);
+  const footerEl = document.getElementById('dist-footer');
+  if (footerEl) {
+    const allTs = _arrivalTimestamps(_distStop, '', false);
     const hasOutliers = filterOutlierTimestamps(allTs).length < allTs.length;
     const showBtn = allTs.length > 0 && (hasOutliers || _distFilterOutliers);
-    const btnHtml = showBtn
+    footerEl.innerHTML = showBtn
       ? `<button class="dist-tab${_distFilterOutliers ? ' stop-active' : ''}" onclick="toggleDistOutliers()" style="font-size:10px;padding:4px 10px">${_distFilterOutliers ? '✓ Outliers removed' : 'Remove outliers'}</button>`
       : '';
-    statsEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">${btnHtml}<span>${esc(statsText)}</span></div>`;
   }
 }
 
@@ -966,7 +961,7 @@ function buildArrivalChartSvg(stopId, routeFilter) {
   const yTicks = [];
   for (let v = 0; v <= maxTick; v += tickStep) yTicks.push(v);
 
-  const W = 560, H = 180, ML = 28, MR = 8, MT = 14, MB = 36;
+  const W = 560, H = 180, ML = 36, MR = 8, MT = 14, MB = 38;
   const cW = W - ML - MR, cH = H - MT - MB;
   const n = buckets.length;
   const slotW = cW / n;
@@ -976,7 +971,7 @@ function buildArrivalChartSvg(stopId, routeFilter) {
 
   const grid = yTicks.map(v =>
     `<line x1="${ML}" y1="${yS(v).toFixed(1)}" x2="${W - MR}" y2="${yS(v).toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>` +
-    `<text x="${ML - 4}" y="${(yS(v) + 3.5).toFixed(1)}" text-anchor="end" font-size="9" font-family="monospace" fill="#9ca3af">${v}</text>`
+    `<text x="${ML - 4}" y="${(yS(v) + 4).toFixed(1)}" text-anchor="end" font-size="12" font-family="monospace" fill="#9ca3af">${v}</text>`
   ).join('');
 
   const bars = buckets.map((b, i) => {
@@ -985,12 +980,12 @@ function buildArrivalChartSvg(stopId, routeFilter) {
     const bx = (ML + i * slotW + (slotW - barW) / 2).toFixed(1);
     const by = yS(b.count).toFixed(1);
     return `<rect x="${bx}" y="${by}" width="${barW.toFixed(1)}" height="${bh}" fill="#7c3aed" rx="2" opacity="0.88"/>` +
-      `<text x="${xC(i).toFixed(1)}" y="${(yS(b.count) - 3).toFixed(1)}" text-anchor="middle" font-size="9" font-family="monospace" fill="#6d28d9">${b.count}</text>`;
+      `<text x="${xC(i).toFixed(1)}" y="${(yS(b.count) - 3).toFixed(1)}" text-anchor="middle" font-size="11" font-family="monospace" fill="#6d28d9">${b.count}</text>`;
   }).join('');
 
-  const step = Math.max(1, Math.ceil(n / 8));
+  const step = Math.max(1, Math.ceil(n / 6));
   const xlabels = buckets.map((b, i) => i % step === 0
-    ? `<text x="${xC(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8.5" font-family="monospace" fill="#9ca3af">${b.label}</text>`
+    ? `<text x="${xC(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="11" font-family="monospace" fill="#9ca3af">${b.label}</text>`
     : ''
   ).join('');
 
@@ -2107,7 +2102,7 @@ Object.assign(window, {
   openDetail, closeDetail, detailBgClick,
   startEditField, cancelFieldEdit, saveFieldEdit,
   checkInRestStop, undoRestStop, onRestStopSelect, checkInByNumber,
-  toggleLock, selectDistStop, selectDistRoute, toggleDistOutliers
+  toggleLock, selectDistStop, toggleDistOutliers
 });
 </script>
 </body>
