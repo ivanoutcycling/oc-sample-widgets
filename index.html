@@ -218,6 +218,44 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
   .audit-when{grid-column:1 / -1}
   .audit-target{grid-column:1 / -1}
 }
+/* ── Lock controls (super-admin) ──────────────────────────────────────────── */
+.lock-card{margin:0 32px 16px}
+.lock-hint{color:var(--dimmer);font-size:11px;padding:0 4px 10px;line-height:1.4}
+.lock-row{display:flex;align-items:center;gap:10px;padding:8px 4px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,0.04);flex-wrap:wrap}
+.lock-row:last-child{border-bottom:none}
+.lock-label{flex:1;font-weight:500;min-width:100px}
+.lock-meta{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+.lock-badge{display:inline-flex;align-items:center;gap:3px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.3px;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(220,38,38,0.1);color:#b91c1c;border:1px solid rgba(220,38,38,0.25)}
+.lock-badge.open{background:rgba(0,168,74,0.1);color:#08923f;border-color:rgba(0,168,74,0.25)}
+.icon-toggle:disabled{opacity:0.55;cursor:not-allowed}
+.icon-toggle:disabled:hover{border-color:var(--border);box-shadow:none;color:var(--dimmer)}
+.detail-action-btn:disabled{opacity:0.55;cursor:not-allowed}
+/* ── Arrival distribution chart ───────────────────────────────────────────── */
+.dist-outer{margin:0 32px 16px}
+.dist-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-x:hidden}
+.dist-head{font-family:'Unbounded',sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:14px}
+.dist-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.dist-tab{font-size:11px;font-weight:600;padding:5px 11px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;line-height:1.2}
+.dist-tab:hover{color:var(--text);border-color:rgba(0,0,0,0.2)}
+.dist-tab.stop-active{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.dist-tab.route-active{background:var(--accent);border-color:var(--accent);color:#fff}
+.dist-sep{height:1px;background:var(--border);margin:6px 0 12px}
+.dist-empty{color:var(--muted);font-size:12px;padding:16px 0;text-align:center}
+.dist-panels-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.dist-panels{display:flex;gap:10px}
+.dist-panel{flex:1 1 0;min-width:260px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.dist-panel-label{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dimmer);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dist-panel-stats{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right;margin-top:5px}
+.dist-footer{display:flex;justify-content:flex-end;margin-top:10px}
+.dist-median-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.dist-median-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dimmer);font-weight:600;padding:4px 10px;text-align:center;border-bottom:1.5px solid var(--border)}
+.dist-median-table th:first-child{text-align:left}
+.dist-median-table td{padding:5px 10px;text-align:center;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11.5px}
+.dist-median-table td:first-child{text-align:left;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.dist-median-table tr:last-child td{border-bottom:none}
+.dist-median-val{color:var(--text)}
+.dist-median-nil{color:var(--dimmer)}
+@media(max-width:680px){.lock-card,.dist-outer{margin-left:16px;margin-right:16px}}
 .detail-grid{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;align-items:center;margin-bottom:16px}
 .detail-grid .dl{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
 .detail-grid .dv{font-size:13.5px;color:var(--text);font-weight:500}
@@ -336,6 +374,22 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- Arrival time distribution: visible to all roles when any rest stop is locked -->
+  <div class="section-head" id="dist-section-head" style="display:none">
+    <span class="section-label">Arrival Time Distribution</span>
+  </div>
+  <div class="dist-outer" id="dist-outer" style="display:none">
+    <div class="dist-card">
+      <div class="dist-head">Rest stop arrivals · 15-minute intervals</div>
+      <div id="dist-median-table"></div>
+      <div class="dist-tabs" id="dist-stop-tabs"></div>
+      <div class="dist-panels-wrap">
+        <div class="dist-panels" id="dist-panels"></div>
+      </div>
+      <div class="dist-footer" id="dist-footer"></div>
+    </div>
+  </div>
+
   <div class="section-head" id="inv-breakdown-head" style="display:none">
     <span class="section-label">By jersey size</span>
     <span class="toggle-pill" id="inv-toggle" onclick="toggleInventory()">Hide inventory</span>
@@ -344,7 +398,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <details class="bd-card">
       <summary class="bd-title">By Jersey Size</summary>
       <table class="bd-table">
-        <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Checked&nbsp;In</th><th>Picked&nbsp;Up</th></tr></thead>
+        <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Picked&nbsp;Up</th></tr></thead>
         <tbody id="bd-size"></tbody>
       </table>
     </details>
@@ -421,6 +475,13 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
       the comparison on/off from the breakdown card.</div>
     <div class="inv-grid" id="inv-grid"></div>
     <div class="inv-actions"><button class="btn" onclick="saveInventory()">Save inventory</button></div>
+  </details>
+
+  <!-- Lock controls: super-admins only. Freezes check-in data at each checkpoint. -->
+  <details class="bd-card lock-card" id="lock-card" style="display:none">
+    <summary class="bd-title">🔒 Lock Controls</summary>
+    <div class="lock-hint">Lock a checkpoint to prevent all volunteers and admins from making or undoing check-ins at that point. When a rest stop is locked, an arrival-time distribution chart appears on the dashboard. Unlock at any time to re-enable editing.</div>
+    <div id="lock-controls-body"></div>
   </details>
 
   <!-- Reset data: super-admins only. Bulk-clears the selected day-of state for this event.
@@ -592,6 +653,9 @@ let _sort = { key: 'name', dir: 1 };
 let _openOrder = null;    // order key of the rider whose detail sheet is open
 let _editingField = null; // 'route' | 'jerseySize' | null — inline edit state in detail sheet
 let _assignOrder = null;  // order key of the rider whose number is being assigned (dialog open)
+let _locks = {};          // checkpoint key → { locked, by, at } — from Firebase /locks/{event}
+let _distStop = null;     // selected stop id for the arrival distribution chart
+let _distFilterOutliers = true; // whether to strip arrivals >1.5h from the median
 
 // ── UI helpers ──────────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -710,6 +774,11 @@ function subscribeData() {
     _lastSync = snap.val();
     renderSyncNote();
   }, () => {});
+
+  onValue(dbRef(fb.db, `locks/${EVENT_ID}`), snap => {
+    _locks = snap.val() || {};
+    render();
+  }, err => { console.warn('locks read', err); });
 }
 
 // Super-admin-only live feeds. IMPORTANT: only super-admins ever attach a listener
@@ -738,6 +807,249 @@ function logAudit(action, target) {
     ts: serverTimestamp(), actor: _user.email, action, target: String(target)
   }).catch(e => console.warn('audit log failed', e));
 }
+// ── Locks ─────────────────────────────────────────────────────────────────────
+// Each checkpoint (start check-in, each rest stop, jersey pickup) can be locked by a
+// super-admin. When locked, no volunteer or admin can make or undo check-ins at that
+// point. Lock state lives at /locks/{eventId}/{checkpoint}.
+function restStopLockKey(stopId) { return 'reststop_' + stopId; }
+function isLocked(checkpoint) { const l = _locks[checkpoint]; return !!(l && l.locked); }
+function isCheckinLocked() { return isLocked('checkins'); }
+function isJerseyLocked() { return isLocked('jerseys'); }
+function isRestStopLocked(stopId) { return isLocked(restStopLockKey(stopId)); }
+function anyRestStopLocked() { return REST_STOPS.some(s => isRestStopLocked(s.id)); }
+
+const LOCK_CHECKPOINTS = [
+  { key: 'checkins', label: 'Start Check-In' },
+  ...REST_STOPS.map(s => ({ key: 'reststop_' + s.id, label: s.name })),
+  { key: 'jerseys', label: 'Jersey Pickup' }
+];
+
+async function toggleLock(checkpoint) {
+  if (!fb || !isSuperAdmin()) return;
+  const locked = isLocked(checkpoint);
+  const label = (LOCK_CHECKPOINTS.find(c => c.key === checkpoint) || {}).label || checkpoint;
+  if (!locked && !confirm(`Lock "${label}"?\n\nNo one (including you) will be able to make or undo check-ins at this checkpoint until it is unlocked.`)) return;
+  try {
+    if (!locked) {
+      await dbSet(dbRef(fb.db, `locks/${EVENT_ID}/${checkpoint}`), {
+        locked: true, by: _user.email, at: serverTimestamp()
+      });
+      logAudit('lock', label);
+      toast(`${label} locked`);
+    } else {
+      await dbRemove(dbRef(fb.db, `locks/${EVENT_ID}/${checkpoint}`));
+      logAudit('unlock', label);
+      toast(`${label} unlocked`);
+    }
+  } catch (e) { console.error(e); toast('Failed: ' + (e.message || e.code)); }
+}
+
+function renderLockControls() {
+  const body = document.getElementById('lock-controls-body');
+  if (!body) return;
+  body.innerHTML = LOCK_CHECKPOINTS.map(cp => {
+    const locked = isLocked(cp.key);
+    const l = _locks[cp.key];
+    const meta = locked && l
+      ? `${esc((l.by || '').split('@')[0])}${l.at ? ' · ' + fmtTime(l.at) : ''}`
+      : '';
+    return `<div class="lock-row">
+        <span class="lock-label">${esc(cp.label)}</span>
+        ${meta ? `<span class="lock-meta">${meta}</span>` : ''}
+        <span class="lock-badge${locked ? '' : ' open'}">${locked ? '🔒 Locked' : '🔓 Open'}</span>
+        <button class="btn${locked ? ' btn-undo' : ' btn-orange'}"
+          onclick="toggleLock('${esc(cp.key)}')">${locked ? 'Unlock' : 'Lock'}</button>
+      </div>`;
+  }).join('');
+}
+
+// ── Arrival time distribution chart ───────────────────────────────────────────
+// Shown on the dashboard (to all roles) when any rest stop is locked. Displays a
+// 15-minute-bucket histogram of arrival timestamps at the selected locked stop,
+// filterable by route.
+function selectDistStop(stopId) {
+  _distStop = stopId;
+  renderArrivalDistribution();
+}
+function toggleDistOutliers() {
+  _distFilterOutliers = !_distFilterOutliers;
+  renderArrivalDistribution();
+}
+
+// Remove timestamps more than 1.5 hours from the median. Returns the original
+// array unchanged if there are fewer than 2 values (median undefined).
+function filterOutlierTimestamps(timestamps) {
+  if (timestamps.length < 2) return timestamps;
+  const sorted = [...timestamps].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const THRESHOLD_MS = 1.5 * 60 * 60 * 1000;
+  return timestamps.filter(t => Math.abs(t - median) <= THRESHOLD_MS);
+}
+
+function _medianTimestamp(stopId, routeFilter) {
+  const ts = _arrivalTimestamps(stopId, routeFilter, _distFilterOutliers);
+  if (!ts.length) return null;
+  const sorted = [...ts].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function buildMedianTableHtml(lockedStops, routesToShow) {
+  const multiRoute = routesToShow.length > 1 && routesToShow[0] !== '';
+  const cols = multiRoute ? routesToShow : [''];
+  const headerCells = multiRoute
+    ? cols.map(rt => `<th>${esc(rt)}</th>`).join('')
+    : '<th>Median arrival</th>';
+  const bodyRows = lockedStops.map(s => {
+    const cells = cols.map(rt => {
+      const med = _medianTimestamp(s.id, rt);
+      return med != null
+        ? `<td class="dist-median-val">${esc(fmtTime(med))}</td>`
+        : `<td class="dist-median-nil">—</td>`;
+    }).join('');
+    return `<tr><td>${esc(s.name)}</td>${cells}</tr>`;
+  }).join('');
+  return `<table class="dist-median-table"><thead><tr><th></th>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+}
+
+function buildRoutePanel(stopId, routeFilter, label) {
+  const statsText = buildArrivalStats(stopId, routeFilter);
+  const chartHtml = buildArrivalChartSvg(stopId, routeFilter);
+  return `<div class="dist-panel">
+    <div class="dist-panel-label">${esc(label)}</div>
+    ${chartHtml}
+    ${statsText ? `<div class="dist-panel-stats">${esc(statsText)}</div>` : ''}
+  </div>`;
+}
+
+function renderArrivalDistribution() {
+  const headEl = document.getElementById('dist-section-head');
+  const outerEl = document.getElementById('dist-outer');
+  if (!headEl || !outerEl) return;
+  if (!anyRestStopLocked()) {
+    headEl.style.display = 'none';
+    outerEl.style.display = 'none';
+    return;
+  }
+  headEl.style.display = '';
+  outerEl.style.display = '';
+
+  const rows = rosterRows();
+  const allRoutes = [...new Set(rows.map(r => r.route).filter(Boolean))].sort();
+  const lockedStops = REST_STOPS.filter(s => isRestStopLocked(s.id));
+  if (!lockedStops.length) { headEl.style.display = 'none'; outerEl.style.display = 'none'; return; }
+
+  if (!_distStop || !lockedStops.some(s => s.id === _distStop)) _distStop = lockedStops[0].id;
+
+  const routesToShow = allRoutes.length > 1 ? allRoutes : [''];
+
+  const medianTableEl = document.getElementById('dist-median-table');
+  if (medianTableEl) medianTableEl.innerHTML = buildMedianTableHtml(lockedStops, routesToShow);
+
+  const stopTabs = document.getElementById('dist-stop-tabs');
+  if (stopTabs) {
+    stopTabs.innerHTML = lockedStops.map(s =>
+      `<button class="dist-tab${_distStop === s.id ? ' stop-active' : ''}" onclick="selectDistStop('${esc(s.id)}')">${esc(s.name)}</button>`
+    ).join('');
+  }
+
+  const panelsEl = document.getElementById('dist-panels');
+  if (panelsEl) {
+    panelsEl.innerHTML = routesToShow
+      .map(rt => buildRoutePanel(_distStop, rt, rt || 'All Routes'))
+      .join('');
+  }
+
+  const footerEl = document.getElementById('dist-footer');
+  if (footerEl) {
+    const allTs = _arrivalTimestamps(_distStop, '', false);
+    const hasOutliers = filterOutlierTimestamps(allTs).length < allTs.length;
+    const showBtn = allTs.length > 0 && (hasOutliers || _distFilterOutliers);
+    footerEl.innerHTML = showBtn
+      ? `<button class="dist-tab${_distFilterOutliers ? ' stop-active' : ''}" onclick="toggleDistOutliers()" style="font-size:10px;padding:4px 10px">${_distFilterOutliers ? '✓ Outliers removed' : 'Remove outliers'}</button>`
+      : '';
+  }
+}
+
+function _arrivalTimestamps(stopId, routeFilter, stripOutliers) {
+  const rows = rosterRows();
+  const raw = (routeFilter ? rows.filter(r => r.route === routeFilter) : rows)
+    .map(r => { const rec = restRecord(r.orderNumber, stopId); return rec && rec.at ? rec.at : null; })
+    .filter(t => t && t > 0);
+  return stripOutliers ? filterOutlierTimestamps(raw) : raw;
+}
+
+function buildArrivalChartSvg(stopId, routeFilter) {
+  const timestamps = _arrivalTimestamps(stopId, routeFilter, _distFilterOutliers);
+  if (!timestamps.length) {
+    return `<div class="dist-empty">No arrivals recorded yet${routeFilter ? ' for this route' : ''}.</div>`;
+  }
+  const BUCKET_MS = 15 * 60 * 1000;
+  const minT = Math.min(...timestamps);
+  const maxT = Math.max(...timestamps);
+  const startT = Math.floor(minT / BUCKET_MS) * BUCKET_MS;
+  const numBuckets = Math.ceil((maxT - startT) / BUCKET_MS) + 1;
+  const buckets = Array.from({ length: numBuckets }, (_, i) => {
+    const t = startT + i * BUCKET_MS;
+    return { t, label: fmtTime(t), count: timestamps.filter(ts => ts >= t && ts < t + BUCKET_MS).length };
+  });
+  const maxCount = Math.max(...buckets.map(b => b.count), 1);
+  const maxTick = maxCount <= 5 ? maxCount : Math.ceil(maxCount / 5) * 5;
+  const tickStep = Math.max(1, Math.ceil(maxTick / Math.min(maxTick, 5)));
+  const yTicks = [];
+  for (let v = 0; v <= maxTick; v += tickStep) yTicks.push(v);
+
+  const W = 560, H = 180, ML = 36, MR = 8, MT = 14, MB = 38;
+  const cW = W - ML - MR, cH = H - MT - MB;
+  const n = buckets.length;
+  const slotW = cW / n;
+  const barW = Math.max(3, slotW * 0.72);
+  const yS = v => MT + cH - (cH * v / maxTick);
+  const xC = i => ML + (i + 0.5) * slotW;
+
+  const grid = yTicks.map(v =>
+    `<line x1="${ML}" y1="${yS(v).toFixed(1)}" x2="${W - MR}" y2="${yS(v).toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>` +
+    `<text x="${ML - 4}" y="${(yS(v) + 4).toFixed(1)}" text-anchor="end" font-size="12" font-family="monospace" fill="#9ca3af">${v}</text>`
+  ).join('');
+
+  const bars = buckets.map((b, i) => {
+    if (b.count === 0) return '';
+    const bh = (cH * b.count / maxTick).toFixed(1);
+    const bx = (ML + i * slotW + (slotW - barW) / 2).toFixed(1);
+    const by = yS(b.count).toFixed(1);
+    return `<rect x="${bx}" y="${by}" width="${barW.toFixed(1)}" height="${bh}" fill="#7c3aed" rx="2" opacity="0.88"/>` +
+      `<text x="${xC(i).toFixed(1)}" y="${(yS(b.count) - 3).toFixed(1)}" text-anchor="middle" font-size="11" font-family="monospace" fill="#6d28d9">${b.count}</text>`;
+  }).join('');
+
+  const step = Math.max(1, Math.ceil(n / 6));
+  const xlabels = buckets.map((b, i) => i % step === 0
+    ? `<text x="${xC(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="11" font-family="monospace" fill="#9ca3af">${b.label}</text>`
+    : ''
+  ).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${bars}${xlabels}` +
+    `<line x1="${ML}" y1="${MT}" x2="${ML}" y2="${MT + cH}" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>` +
+    `<line x1="${ML}" y1="${MT + cH}" x2="${W - MR}" y2="${MT + cH}" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>` +
+    `</svg>`;
+}
+
+function buildArrivalStats(stopId, routeFilter) {
+  const all = _arrivalTimestamps(stopId, routeFilter, false);
+  const timestamps = _distFilterOutliers ? filterOutlierTimestamps(all) : all;
+  if (!timestamps.length) return '';
+  const BUCKET_MS = 15 * 60 * 1000;
+  const startT = Math.floor(Math.min(...timestamps) / BUCKET_MS) * BUCKET_MS;
+  const n = Math.ceil((Math.max(...timestamps) - startT) / BUCKET_MS) + 1;
+  const peak = Array.from({ length: n }, (_, i) => {
+    const t = startT + i * BUCKET_MS;
+    return { t, count: timestamps.filter(ts => ts >= t && ts < t + BUCKET_MS).length };
+  }).reduce((a, b) => b.count > a.count ? b : a);
+  const hidden = all.length - timestamps.length;
+  const hiddenNote = hidden > 0 ? ` · ${hidden} outlier${hidden !== 1 ? 's' : ''} hidden` : '';
+  return `${timestamps.length} arrival${timestamps.length !== 1 ? 's' : ''} · peak ${peak.count} @ ${fmtTime(peak.t)} · 15-min buckets${hiddenNote}`;
+}
+
 // Numbers assigned at check-in. Each rider gets a unique number we can search by.
 function assignedNumber(orderNumber) {
   const c = _checkins[orderNumber];
@@ -755,6 +1067,7 @@ function numberHolder(num, exceptOrder) {
 // already-assigned number. The actual write happens in confirmAssign().
 function openAssign(orderNumber) {
   if (!fb || !_user) return;
+  if (isCheckinLocked()) { toast('Check-in is locked'); return; }
   _assignOrder = orderNumber;
   const existing = assignedNumber(orderNumber);
   const already = !!_checkins[orderNumber] && _checkins[orderNumber].checkedIn;
@@ -805,6 +1118,7 @@ function updateAssignWarning() {
 }
 async function confirmAssign() {
   if (!fb || !_user || _assignOrder == null) return;
+  if (isCheckinLocked()) { toast('Check-in is locked'); closeAssign(); return; }
   const n = assignInputValue();
   if (n == null) { updateAssignWarning(); return; }
   if (numberHolder(n, _assignOrder)) { updateAssignWarning(); return; }   // never duplicate
@@ -821,6 +1135,7 @@ async function confirmAssign() {
 }
 async function undoCheckIn(orderNumber) {
   if (!fb || !_user) return;
+  if (isCheckinLocked()) { toast('Check-in is locked'); return; }
   // Un-checking-in deletes the whole record, which releases the assigned number for
   // reuse — warn the volunteer about that before it happens (it's not symmetric with
   // checking in, which assigns a number).
@@ -837,6 +1152,7 @@ async function undoCheckIn(orderNumber) {
 }
 async function pickUpJersey(orderNumber) {
   if (!fb || !_user) return;
+  if (isJerseyLocked()) { toast('Jersey pickup is locked'); return; }
   try {
     await dbSet(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`), {
       pickedUp: true, by: _user.email, at: serverTimestamp()
@@ -847,6 +1163,7 @@ async function pickUpJersey(orderNumber) {
 }
 async function undoPickUp(orderNumber) {
   if (!fb || !_user) return;
+  if (isJerseyLocked()) { toast('Jersey pickup is locked'); return; }
   try {
     await dbRemove(dbRef(fb.db, `jerseys/${EVENT_ID}/${orderNumber}`));
     logAudit('jersey_undo', riderName(orderNumber));
@@ -877,6 +1194,7 @@ function orderByNumber(num) {
 }
 async function checkInRestStop(orderNumber, stopId) {
   if (!fb || !_user) return false;
+  if (isRestStopLocked(stopId)) { toast(`${restStopName(stopId)} is locked`); return false; }
   try {
     await dbSet(dbRef(fb.db, `reststops/${EVENT_ID}/${orderNumber}/${stopId}`), {
       checkedIn: true, by: _user.email, at: serverTimestamp()
@@ -888,6 +1206,7 @@ async function checkInRestStop(orderNumber, stopId) {
 }
 async function undoRestStop(orderNumber, stopId) {
   if (!fb || !_user) return;
+  if (isRestStopLocked(stopId)) { toast(`${restStopName(stopId)} is locked`); return; }
   try {
     await dbRemove(dbRef(fb.db, `reststops/${EVENT_ID}/${orderNumber}/${stopId}`));
     logAudit('reststop_undo', `${riderName(orderNumber)} @ ${restStopName(stopId)}`);
@@ -923,6 +1242,10 @@ function restByNumResult(cls, html) {
 async function checkInByNumber() {
   if (!fb || !_user) return;
   const stopId = document.getElementById('rest-stop-select').value;
+  if (isRestStopLocked(stopId)) {
+    restByNumResult('err', `⚠ ${esc(restStopName(stopId))} is locked — check-ins are frozen.`);
+    return;
+  }
   const input = document.getElementById('rest-bynum-input');
   const raw = (input.value || '').trim();
   const n = parseInt(raw, 10);
@@ -1203,17 +1526,23 @@ function render() {
       <td class="jersey-tag">${esc(r.jerseySize) || '—'}</td>
       <td class="col-item">${esc(r.lineItemName) || '—'}</td>
       <td class="col-created">${fmtDate(r.createdAt)}</td>
-      <td>${r.picked
-        ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
-        : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
-      <td>${r.checked
-        ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
-        : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
+      <td>${isJerseyLocked()
+        ? `<button class="icon-toggle${r.picked ? ' on-blue' : ''}" disabled title="🔒 Jersey pickup locked">👕</button>`
+        : r.picked
+          ? `<button class="icon-toggle on-blue" title="Jersey picked up by ${esc(r.pickedBy)} — tap to undo" onclick="event.stopPropagation();undoPickUp('${esc(r.orderNumber)}')">👕</button>`
+          : `<button class="icon-toggle" title="Tap to mark jersey picked up" onclick="event.stopPropagation();pickUpJersey('${esc(r.orderNumber)}')">👕</button>`}</td>
+      <td>${isCheckinLocked()
+        ? `<button class="icon-toggle${r.checked ? ' on-green' : ''}" disabled title="🔒 Check-in locked">✓</button>`
+        : r.checked
+          ? `<button class="icon-toggle on-green" title="Checked in${r.number != null ? ' as #' + r.number : ''} by ${esc(r.checkedBy)} — tap to undo" onclick="event.stopPropagation();undoCheckIn('${esc(r.orderNumber)}')">✓</button>`
+          : `<button class="icon-toggle" title="Tap to check in &amp; assign a number" onclick="event.stopPropagation();openAssign('${esc(r.orderNumber)}')">✓</button>`}</td>
       ${REST_STOPS.map(s => {
         const avail = r.availableStops.some(a => a.id === s.id);
         if (!avail) return `<td class="col-rest"><span class="rest-na" title="Not on the ${esc(r.route) || 'selected'} route">–</span></td>`;
         const on = restChecked(r.orderNumber, s.id);
+        const sLocked = isRestStopLocked(s.id);
         const icon = s.id === FINISH_STOP_ID ? '🏁' : '🛑';
+        if (sLocked) return `<td class="col-rest"><button class="icon-toggle${on ? ' on-rest' : ''}" disabled title="🔒 ${esc(s.name)} locked">${icon}</button></td>`;
         return `<td class="col-rest">${on
           ? `<button class="icon-toggle on-rest" title="${esc(s.name)} — checked in by ${esc((restRecord(r.orderNumber, s.id)||{}).by || '')} — tap to undo" onclick="event.stopPropagation();undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">${icon}</button>`
           : `<button class="icon-toggle" title="Tap to check in at ${esc(s.name)}" onclick="event.stopPropagation();checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')">${icon}</button>`}</td>`;
@@ -1245,6 +1574,9 @@ function render() {
     empty.style.display = 'none';
   }
 
+  show('rest-bynum-card', !anyRestStopLocked());
+  if (isSuperAdmin()) renderLockControls();
+  renderArrivalDistribution();
   if (_openOrder) renderDetail();   // keep an open sheet in sync with live data
 }
 
@@ -1275,18 +1607,23 @@ function groupCounts(rows, keyFn, order) {
 }
 // One numeric cell. When inv is a finite number the cell shows "count / stock" and
 // is tinted red (over) / yellow (exactly at) stock; otherwise it's a plain count.
-function bdCell(count, inv) {
+function bdCell(count, inv, showDiff) {
   if (!Number.isFinite(inv)) return `<td class="bd-num">${count}</td>`;
   const cls = count > inv ? ' inv-over' : (count === inv ? ' inv-equal' : '');
-  return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}</td>`;
+  let diff = '';
+  if (showDiff) {
+    const d = inv - count;
+    if (d > 0) diff = ` <span style="color:var(--muted)">(${d} remaining)</span>`;
+    else if (d < 0) diff = ` <span style="color:#dc2626">(${Math.abs(d)} short)</span>`;
+  }
+  return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}${diff}</td>`;
 }
 function bdRowsHtml(groups, asRouteTag, withInv) {
   const showInv = withInv && invEnabled();
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
-      ${bdCell(g.total, showInv ? g.inv : undefined)}
-      ${bdCell(g.checked, showInv ? g.inv : undefined)}
-      ${bdCell(g.picked, showInv ? g.inv : undefined)}
+      ${bdCell(g.total, showInv ? g.inv : undefined, showInv)}
+      ${bdCell(g.picked, showInv ? g.inv : undefined, showInv)}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
     total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
@@ -1294,8 +1631,8 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   }), { total: 0, checked: 0, picked: 0, inv: 0 });
   const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td>${bdCell(tot.total, totInv)}${bdCell(tot.checked, totInv)}${bdCell(tot.picked, totInv)}
-    </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
+      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, totInv, showInv)}
+    </tr>` : '<tr><td colspan="3" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
 function renderBreakdown(rows) {
@@ -1494,24 +1831,36 @@ function renderDetail() {
     ${notesHtml}`;
 
   const cBtn = document.getElementById('detail-action-checkin');
-  if (r.checked) {
+  if (isCheckinLocked()) {
+    cBtn.className = 'detail-action-btn';
+    cBtn.textContent = '🔒 Check-In Locked';
+    cBtn.disabled = true; cBtn.onclick = null;
+  } else if (r.checked) {
     cBtn.className = 'detail-action-btn btn-undo';
     cBtn.textContent = 'Undo Check-In';
+    cBtn.disabled = false;
     cBtn.onclick = () => undoCheckIn(r.orderNumber);
   } else {
     cBtn.className = 'detail-action-btn btn-green';
     cBtn.textContent = '✓ Check In';
+    cBtn.disabled = false;
     cBtn.onclick = () => openAssign(r.orderNumber);
   }
 
   const jBtn = document.getElementById('detail-action-jersey');
-  if (r.picked) {
+  if (isJerseyLocked()) {
+    jBtn.className = 'detail-action-btn';
+    jBtn.textContent = '🔒 Jersey Pickup Locked';
+    jBtn.disabled = true; jBtn.onclick = null;
+  } else if (r.picked) {
     jBtn.className = 'detail-action-btn btn-undo';
     jBtn.textContent = 'Undo Jersey Pickup';
+    jBtn.disabled = false;
     jBtn.onclick = () => undoPickUp(r.orderNumber);
   } else {
     jBtn.className = 'detail-action-btn btn-blue';
     jBtn.textContent = '👕 Jersey Picked Up';
+    jBtn.disabled = false;
     jBtn.onclick = () => pickUpJersey(r.orderNumber);
   }
 
@@ -1560,9 +1909,17 @@ function renderDetailRestStops(r) {
   const rows = r.availableStops.map(s => {
     const on = restChecked(r.orderNumber, s.id);
     const rec = restRecord(r.orderNumber, s.id);
+    const sLocked = isRestStopLocked(s.id);
     const meta = on && rec
       ? `${esc((rec.by || '').split('@')[0])}${rec.at ? ' · ' + fmtTime(rec.at) : ''}`
       : esc(s.location);
+    if (sLocked) {
+      return `<div class="rest-row${on ? ' on' : ''}" style="cursor:not-allowed;opacity:0.65">
+          <span class="rest-row-tick">${on ? '✓' : '+'}</span>
+          <span class="rest-row-text"><span class="rest-row-name">${esc(s.name)}</span><span class="rest-row-meta">${meta}</span></span>
+          <span class="rest-row-action" style="color:var(--muted)">🔒</span>
+        </div>`;
+    }
     return `<button type="button" class="rest-row ${on ? 'on' : ''}"
         onclick="${on ? `undoRestStop('${esc(r.orderNumber)}','${esc(s.id)}')` : `checkInRestStop('${esc(r.orderNumber)}','${esc(s.id)}')`}">
         <span class="rest-row-tick">${on ? '✓' : '+'}</span>
@@ -1676,7 +2033,8 @@ const AUDIT_LABEL = {
   volunteer_added: 'added volunteer', volunteer_removed: 'removed volunteer',
   inventory_update: 'updated jersey inventory', reset: 'reset data',
   route_override: 'updated route', jersey_override: 'updated jersey size',
-  notes_edit: 'updated note'
+  notes_edit: 'updated note',
+  lock: 'locked checkpoint', unlock: 'unlocked checkpoint'
 };
 function renderAudit(obj) {
   const entries = Object.values(obj || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -1712,9 +2070,11 @@ function renderSyncNote() {
 function hideAppSurfaces() {
   show('topbar', false); show('stats', false); show('route-stats-head', false); show('route-stats', false);
   show('rest-bynum-card', false); show('rest-stats-head', false); show('rest-stats', false);
+  show('dist-section-head', false); show('dist-outer', false);
   show('breakdown', false); show('filterbar', false); show('table-card', false);
   show('sync-note', false); show('audit-card', false); show('manage-card', false);
-  show('inventory-card', false); show('inv-breakdown-head', false); show('reset-card', false);
+  show('inventory-card', false); show('inv-breakdown-head', false);
+  show('lock-card', false); show('reset-card', false);
 }
 function showSignedIn() {
   closeAuth();
@@ -1729,6 +2089,7 @@ function showSignedIn() {
   show('audit-card', isSuperAdmin());
   show('manage-card', isSuperAdmin());
   show('inventory-card', isSuperAdmin());
+  show('lock-card', isSuperAdmin());
   show('reset-card', isSuperAdmin());
   document.getElementById('reset-event').textContent = EVENT_ID;
   if (isSuperAdmin()) { subscribeAdmin(); renderInventoryForm(); }
@@ -1785,7 +2146,8 @@ Object.assign(window, {
   render, setSort, toggleHideChecked, toggleHidePicked, toggleRouteCheckins,
   openDetail, closeDetail, detailBgClick,
   startEditField, cancelFieldEdit, saveFieldEdit,
-  checkInRestStop, undoRestStop, onRestStopSelect, checkInByNumber
+  checkInRestStop, undoRestStop, onRestStopSelect, checkInByNumber,
+  toggleLock, selectDistStop, toggleDistOutliers
 });
 </script>
 </body>
