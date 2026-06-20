@@ -1574,6 +1574,7 @@ function render() {
     empty.style.display = 'none';
   }
 
+  show('rest-bynum-card', !anyRestStopLocked());
   if (isSuperAdmin()) renderLockControls();
   renderArrivalDistribution();
   if (_openOrder) renderDetail();   // keep an open sheet in sync with live data
