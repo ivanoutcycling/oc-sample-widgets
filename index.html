@@ -1622,7 +1622,7 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   const showInv = withInv && invEnabled();
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
-      ${bdCell(g.total, showInv ? g.inv : undefined)}
+      ${bdCell(g.total, showInv ? g.inv : undefined, showInv)}
       ${bdCell(g.picked, showInv ? g.inv : undefined, showInv)}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
@@ -1631,7 +1631,7 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   }), { total: 0, checked: 0, picked: 0, inv: 0 });
   const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td>${bdCell(tot.total, totInv)}${bdCell(tot.picked, totInv, showInv)}
+      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, totInv, showInv)}
     </tr>` : '<tr><td colspan="3" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
