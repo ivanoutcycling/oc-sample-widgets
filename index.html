@@ -399,7 +399,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <details class="bd-card">
       <summary class="bd-title">By Jersey Size</summary>
       <table class="bd-table">
-        <thead><tr><th>Size</th><th>Signed&nbsp;Up<span class="th-hint">of stock</span></th><th>Picked&nbsp;Up<span class="th-hint">of signed&nbsp;up</span></th></tr></thead>
+        <thead><tr><th>Size</th><th>Signed&nbsp;Up<span class="th-hint">of stock</span></th><th>Picked&nbsp;Up<span class="th-hint">of signed&nbsp;up</span></th><th>To&nbsp;Order<span class="th-hint">to mail of left</span></th></tr></thead>
         <tbody id="bd-size"></tbody>
       </table>
     </details>
@@ -1619,12 +1619,26 @@ function bdCell(count, inv, showDiff, diffLabel) {
   }
   return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}${diff}</td>`;
 }
+// "To Order" cell: jerseys still to mail (col 2 diff) over jerseys left in inventory
+// (col 1 diff). When the mailing backlog exceeds remaining stock the shortfall must
+// be ordered; otherwise stock covers it and nothing needs ordering. Blank when the
+// remaining stock is unknown (inventory hidden or no stock recorded for the size).
+function bdOrderCell(toMail, remaining) {
+  if (!Number.isFinite(remaining)) return `<td class="bd-num"></td>`;
+  const toOrder = toMail - remaining;
+  const cls = toOrder > 0 ? ' inv-over' : '';
+  const note = toOrder > 0
+    ? ` <span style="color:#dc2626">(${toOrder} to order)</span>`
+    : ` <span style="color:var(--muted)">(none to order)</span>`;
+  return `<td class="bd-num${cls}">${toMail}&nbsp;/&nbsp;${remaining}${note}</td>`;
+}
 function bdRowsHtml(groups, asRouteTag, withInv) {
   const showInv = withInv && invEnabled();
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
       ${bdCell(g.total, showInv ? g.inv : undefined, showInv)}
       ${bdCell(g.picked, g.total, true, 'to mail')}
+      ${bdOrderCell(g.total - g.picked, showInv ? g.inv - g.total : undefined)}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
     total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
@@ -1632,8 +1646,8 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   }), { total: 0, checked: 0, picked: 0, inv: 0 });
   const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, tot.total, true, 'to mail')}
-    </tr>` : '<tr><td colspan="3" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
+      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, tot.total, true, 'to mail')}${bdOrderCell(tot.total - tot.picked, showInv ? tot.inv - tot.total : undefined)}
+    </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
 function renderBreakdown(rows) {
