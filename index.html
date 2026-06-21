@@ -69,6 +69,7 @@ details.bd-card[open]>summary.bd-title{margin-bottom:12px}
 details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
 .bd-table{width:100%;border-collapse:collapse}
 .bd-table th{font-family:'Unbounded',sans-serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:var(--dimmer);padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.th-hint{display:block;font-family:inherit;font-size:6px;letter-spacing:.5px;text-transform:uppercase;opacity:0.6;font-weight:normal}
 .bd-table th:first-child{text-align:left}
 .bd-table td{padding:7px 8px;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.04)}
 .bd-num{text-align:right;font-family:'DM Mono',monospace;font-weight:500}
@@ -398,7 +399,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <details class="bd-card">
       <summary class="bd-title">By Jersey Size</summary>
       <table class="bd-table">
-        <thead><tr><th>Size</th><th>Signed&nbsp;Up</th><th>Picked&nbsp;Up</th></tr></thead>
+        <thead><tr><th>Size</th><th>Signed&nbsp;Up<span class="th-hint">of stock</span></th><th>Picked&nbsp;Up<span class="th-hint">of signed&nbsp;up</span></th></tr></thead>
         <tbody id="bd-size"></tbody>
       </table>
     </details>
@@ -1623,7 +1624,7 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
       ${bdCell(g.total, showInv ? g.inv : undefined, showInv)}
-      ${bdCell(g.picked, showInv ? g.inv : undefined, showInv)}
+      ${bdCell(g.picked, g.total, false)}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
     total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
@@ -1631,7 +1632,7 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   }), { total: 0, checked: 0, picked: 0, inv: 0 });
   const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, totInv, showInv)}
+      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, tot.total, false)}
     </tr>` : '<tr><td colspan="3" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
