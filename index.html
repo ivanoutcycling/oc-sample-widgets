@@ -399,7 +399,7 @@ details.bd-card[open]>summary.bd-title::after{transform:rotate(90deg)}
     <details class="bd-card">
       <summary class="bd-title">By Jersey Size</summary>
       <table class="bd-table">
-        <thead><tr><th>Size</th><th>Signed&nbsp;Up<span class="th-hint">of stock</span></th><th>Picked&nbsp;Up<span class="th-hint">of signed&nbsp;up</span></th><th>To&nbsp;Order<span class="th-hint">to mail of left</span></th></tr></thead>
+        <thead><tr><th>Size</th><th>Inventory</th><th>Picked&nbsp;Up</th><th>Left<span class="th-hint">in stock</span></th><th>Signed&nbsp;Up</th><th>To&nbsp;Mail<span class="th-hint">not picked up</span></th><th>To&nbsp;Order<span class="th-hint">extra needed</span></th></tr></thead>
         <tbody id="bd-size"></tbody>
       </table>
     </details>
@@ -1606,48 +1606,38 @@ function groupCounts(rows, keyFn, order) {
   });
   return keys.map(k => ({ key: k, ...map[k] }));
 }
-// One numeric cell. When inv is a finite number the cell shows "count / stock" and
-// is tinted red (over) / yellow (exactly at) stock; otherwise it's a plain count.
-function bdCell(count, inv, showDiff, diffLabel) {
-  if (!Number.isFinite(inv)) return `<td class="bd-num">${count}</td>`;
-  const cls = count > inv ? ' inv-over' : (count === inv ? ' inv-equal' : '');
-  let diff = '';
-  if (showDiff) {
-    const d = inv - count;
-    if (d > 0) diff = ` <span style="color:var(--muted)">(${d} ${diffLabel || 'remaining'})</span>`;
-    else if (d < 0) diff = ` <span style="color:#dc2626">(${Math.abs(d)} short)</span>`;
-  }
-  return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}${diff}</td>`;
-}
-// "To Order" cell: jerseys still to mail (col 2 diff) over jerseys left in inventory
-// (col 1 diff). When the mailing backlog exceeds remaining stock the shortfall must
-// be ordered; otherwise stock covers it and nothing needs ordering. Blank when the
-// remaining stock is unknown (inventory hidden or no stock recorded for the size).
-function bdOrderCell(toMail, remaining) {
-  if (!Number.isFinite(remaining)) return `<td class="bd-num"></td>`;
-  const toOrder = toMail - remaining;
-  const cls = toOrder > 0 ? ' inv-over' : '';
-  const note = toOrder > 0
-    ? ` <span style="color:#dc2626">(${toOrder} to order)</span>`
-    : ` <span style="color:var(--muted)">(none to order)</span>`;
-  return `<td class="bd-num${cls}">${toMail}&nbsp;/&nbsp;${remaining}${note}</td>`;
+// One numeric cell showing a single value. Renders an em dash when the value
+// isn't a finite number (e.g. inventory-derived columns when no stock is
+// recorded for the size, or inventory is hidden). extraCls adds a tint class.
+function bdNum(val, extraCls) {
+  if (!Number.isFinite(val)) return `<td class="bd-num">—</td>`;
+  return `<td class="bd-num${extraCls || ''}">${val}</td>`;
 }
 function bdRowsHtml(groups, asRouteTag, withInv) {
   const showInv = withInv && invEnabled();
+  // Each column holds a single number:
+  //   Inventory | Picked Up | Left in Stock | Signed Up | To Mail | To Order
+  // Left in Stock = inventory − picked up. To Mail = signed up − picked up.
+  // To Order = extra needed once remaining stock can't cover what's still to mail.
+  function cells(inv, picked, signed) {
+    const hasInv = Number.isFinite(inv);
+    const left = hasInv ? inv - picked : undefined;
+    const toMail = signed - picked;
+    const toOrder = hasInv ? Math.max(0, toMail - left) : undefined;
+    return bdNum(inv) + bdNum(picked) + bdNum(left) + bdNum(signed) + bdNum(toMail)
+      + bdNum(toOrder, toOrder > 0 ? ' inv-over' : '');
+  }
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
-      ${bdCell(g.total, showInv ? g.inv : undefined, showInv)}
-      ${bdCell(g.picked, g.total, true, 'to mail')}
-      ${bdOrderCell(g.total - g.picked, showInv ? g.inv - g.total : undefined)}
+      ${cells(showInv ? g.inv : undefined, g.picked, g.total)}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
     total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
     inv: a.inv + (Number.isFinite(g.inv) ? g.inv : 0)
   }), { total: 0, checked: 0, picked: 0, inv: 0 });
-  const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, tot.total, true, 'to mail')}${bdOrderCell(tot.total - tot.picked, showInv ? tot.inv - tot.total : undefined)}
-    </tr>` : '<tr><td colspan="4" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
+      <td>Total</td>${cells(showInv ? tot.inv : undefined, tot.picked, tot.total)}
+    </tr>` : '<tr><td colspan="7" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
 function renderBreakdown(rows) {
