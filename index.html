@@ -1608,13 +1608,13 @@ function groupCounts(rows, keyFn, order) {
 }
 // One numeric cell. When inv is a finite number the cell shows "count / stock" and
 // is tinted red (over) / yellow (exactly at) stock; otherwise it's a plain count.
-function bdCell(count, inv, showDiff) {
+function bdCell(count, inv, showDiff, diffLabel) {
   if (!Number.isFinite(inv)) return `<td class="bd-num">${count}</td>`;
   const cls = count > inv ? ' inv-over' : (count === inv ? ' inv-equal' : '');
   let diff = '';
   if (showDiff) {
     const d = inv - count;
-    if (d > 0) diff = ` <span style="color:var(--muted)">(${d} remaining)</span>`;
+    if (d > 0) diff = ` <span style="color:var(--muted)">(${d} ${diffLabel || 'remaining'})</span>`;
     else if (d < 0) diff = ` <span style="color:#dc2626">(${Math.abs(d)} short)</span>`;
   }
   return `<td class="bd-num${cls}">${count}&nbsp;/&nbsp;${inv}${diff}</td>`;
@@ -1624,7 +1624,7 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   const body = groups.map(g => `<tr>
       <td>${asRouteTag && g.key !== '(none)' ? `<span class="route-tag">${esc(g.key)}</span>` : esc(g.key)}</td>
       ${bdCell(g.total, showInv ? g.inv : undefined, showInv)}
-      ${bdCell(g.picked, g.total, false)}
+      ${bdCell(g.picked, g.total, true, 'to mail')}
     </tr>`).join('');
   const tot = groups.reduce((a, g) => ({
     total: a.total + g.total, checked: a.checked + g.checked, picked: a.picked + g.picked,
@@ -1632,7 +1632,7 @@ function bdRowsHtml(groups, asRouteTag, withInv) {
   }), { total: 0, checked: 0, picked: 0, inv: 0 });
   const totInv = showInv ? tot.inv : undefined;
   const footer = groups.length ? `<tr class="bd-total">
-      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, tot.total, false)}
+      <td>Total</td>${bdCell(tot.total, totInv, showInv)}${bdCell(tot.picked, tot.total, true, 'to mail')}
     </tr>` : '<tr><td colspan="3" style="color:var(--dimmer);padding:10px 8px">No riders yet</td></tr>';
   return body + footer;
 }
