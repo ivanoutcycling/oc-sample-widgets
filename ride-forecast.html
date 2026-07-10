@@ -55,7 +55,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
 .meta-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);font-family:'Unbounded',sans-serif}
 .meta-value{font-size:13px;font-weight:600;color:var(--text)}
 .chart-title{font-family:'Unbounded',sans-serif;font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:12px}
-.chart-wrap{position:relative;height:200px}
+.chart-wrap{position:relative;height:230px}
 .map-wrap{border-radius:14px;overflow:hidden;border:1px solid var(--border);height:380px;margin:0 32px 16px}
 #forecast-map{width:100%;height:100%}
 .summary-row{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--border);margin-top:8px}
@@ -617,74 +617,100 @@ function destroyCharts() {
   _charts = {};
 }
 
-const X_SCALE = {
-  ticks: { font: { family: 'DM Mono', size: 9 }, color: 'rgba(17,17,40,0.45)', maxRotation: 0, maxTicksLimit: 12 },
-  grid: { color: 'rgba(0,0,0,0.05)' }
-};
-const Y_SCALE = {
-  ticks: { font: { family: 'DM Mono', size: 9 }, color: 'rgba(17,17,40,0.45)' },
-  grid: { color: 'rgba(0,0,0,0.06)' }
-};
-const CHART_OPTS = {
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { mode: 'index', intersect: false },
-  plugins: {
-    legend: { position: 'top', labels: { boxWidth: 12, font: { family: 'Inter', size: 10 }, padding: 12 } },
-    tooltip: { bodyFont: { family: 'DM Mono', size: 11 }, titleFont: { family: 'Inter', size: 10 } }
-  }
-};
+function hexToRgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
 
-function mkDataset(label, data, color, rgba, opts = {}) {
-  return { label, data, borderColor: color, backgroundColor: rgba, fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, ...opts };
+// Vertical fade under each line so overlapping series stay readable.
+function areaFill(hex, top = 0.22) {
+  return c => {
+    const area = c.chart.chartArea;
+    if (!area) return hexToRgba(hex, top);
+    const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, hexToRgba(hex, top));
+    g.addColorStop(1, hexToRgba(hex, 0.02));
+    return g;
+  };
+}
+
+function mkDataset(label, data, color, opts = {}) {
+  return {
+    label, data, borderColor: color, backgroundColor: areaFill(color),
+    fill: true, cubicInterpolationMode: 'monotone', borderWidth: 2,
+    pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: color,
+    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 1.5,
+    ...opts
+  };
+}
+
+// Shared chart definitions for the on-screen view (F=1) and the image
+// export, which re-renders them offscreen with slightly larger fonts.
+function buildChartConfigs(pts, F = 1) {
+  const labels = pts.map(p => fmtHHMM(p.timestamp));
+  const tickFont = { family: 'DM Mono', size: Math.round(9.5 * F) };
+  const X = {
+    ticks: { font: tickFont, color: 'rgba(17,17,40,0.45)', maxRotation: 0, maxTicksLimit: 9, padding: 6 },
+    grid: { color: 'rgba(17,17,40,0.04)', drawTicks: false },
+    border: { display: false }
+  };
+  const Y = {
+    ticks: { font: tickFont, color: 'rgba(17,17,40,0.45)', padding: 8, maxTicksLimit: 6 },
+    grid: { color: 'rgba(17,17,40,0.06)', drawTicks: false },
+    border: { display: false }
+  };
+  const OPTS = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          usePointStyle: true, pointStyle: 'circle', boxWidth: 7 * F, boxHeight: 7 * F,
+          padding: Math.round(14 * F), font: { family: 'Inter', size: Math.round(10.5 * F), weight: '500' },
+          color: 'rgba(17,17,40,0.6)'
+        }
+      },
+      tooltip: {
+        bodyFont: { family: 'DM Mono', size: 11 }, titleFont: { family: 'Inter', size: 10 },
+        backgroundColor: 'rgba(17,17,40,0.9)', cornerRadius: 8, padding: 10
+      }
+    }
+  };
+  const elevFt = pts.map(p => mToFt(p.ele_m));
+  return [
+    { key: 'temp', h: 250, config: { type: 'line', data: { labels, datasets: [
+        mkDataset('Temperature (°F)', pts.map(p=>p.temp_f),       '#3B82F6'),
+        mkDataset('Feels Like (°F)',  pts.map(p=>p.feels_like_f), '#f97316', { backgroundColor: areaFill('#f97316', 0.12) })
+      ]}, options: { ...OPTS, scales: { x: X, y: Y } } } },
+    { key: 'precip', h: 250, config: { type: 'line', data: { labels, datasets: [
+        mkDataset('Precip Prob (%)', pts.map(p=>p.precip_prob), '#3B82F6', { yAxisID: 'yPct' }),
+        mkDataset('Cloud Cover (%)', pts.map(p=>p.cloud_cover), '#94a3b8', { yAxisID: 'yPct', borderWidth: 1.5, backgroundColor: areaFill('#94a3b8', 0.14) }),
+        mkDataset('Precip (in/hr)',  pts.map(p=>p.precip_in),   '#0ea5e9', { yAxisID: 'yIn' })
+      ]}, options: { ...OPTS, scales: {
+        x: X,
+        yPct: { ...Y, position: 'left',  min: 0, max: 100 },
+        yIn:  { ...Y, position: 'right', min: 0, suggestedMax: 0.5,
+                grid: { drawOnChartArea: false, drawTicks: false },
+                ticks: { ...Y.ticks, callback: v => v > 0 ? v.toFixed(2) + '"' : '0"' } }
+      } } } },
+    { key: 'wind', h: 250, config: { type: 'line', data: { labels, datasets: [
+        mkDataset('Wind (mph)',  pts.map(p=>p.wind_mph),      '#3B82F6'),
+        mkDataset('Gusts (mph)', pts.map(p=>p.wind_gust_mph), '#f97316', { borderDash: [5, 4], backgroundColor: areaFill('#f97316', 0.1) })
+      ]}, options: { ...OPTS, scales: { x: X, y: { ...Y, min: 0 } } } } },
+    { key: 'elev', h: 180, config: { type: 'line', data: { labels, datasets: [
+        mkDataset('Elevation (ft)', elevFt, '#f97316', { borderWidth: 1.5, backgroundColor: areaFill('#f97316', 0.28) })
+      ]}, options: { ...OPTS, scales: { x: X, y: { ...Y, min: Math.max(0, Math.min(...elevFt) - 200) } } } } }
+  ];
 }
 
 async function renderCharts(pts) {
   await _chartReady;
   destroyCharts();
-  const labels = pts.map(p => fmtHHMM(p.timestamp));
-
-  _charts.temp = new Chart(document.getElementById('chart-temp').getContext('2d'), {
-    type: 'line',
-    data: { labels, datasets: [
-      mkDataset('Temperature (°F)', pts.map(p=>p.temp_f),       '#3B82F6', 'rgba(59,130,246,0.12)'),
-      mkDataset('Feels Like (°F)',  pts.map(p=>p.feels_like_f), '#f97316', 'rgba(249,115,22,0.08)')
-    ]},
-    options: { ...CHART_OPTS, scales: { x: X_SCALE, y: Y_SCALE } }
-  });
-
-  _charts.precip = new Chart(document.getElementById('chart-precip').getContext('2d'), {
-    type: 'line',
-    data: { labels, datasets: [
-      mkDataset('Precip Prob (%)',  pts.map(p=>p.precip_prob),  '#3B82F6', 'rgba(59,130,246,0.12)', { yAxisID:'yPct' }),
-      mkDataset('Cloud Cover (%)', pts.map(p=>p.cloud_cover),   '#94a3b8', 'rgba(148,163,184,0.1)', { yAxisID:'yPct', borderWidth:1.5 }),
-      mkDataset('Precip (in/hr)',  pts.map(p=>p.precip_in),     '#0ea5e9', 'rgba(14,165,233,0.15)', { yAxisID:'yIn' })
-    ]},
-    options: { ...CHART_OPTS, scales: {
-      x:    X_SCALE,
-      yPct: { ...Y_SCALE, position:'left',  min:0, max:100 },
-      yIn:  { ...Y_SCALE, position:'right', min:0, suggestedMax:0.5, grid:{ drawOnChartArea:false },
-              ticks:{ ...Y_SCALE.ticks, callback: v => v > 0 ? v.toFixed(2)+'"' : '0"' } }
-    }}
-  });
-
-  _charts.wind = new Chart(document.getElementById('chart-wind').getContext('2d'), {
-    type: 'line',
-    data: { labels, datasets: [
-      mkDataset('Wind (mph)',  pts.map(p=>p.wind_mph),      '#3B82F6', 'rgba(59,130,246,0.12)'),
-      mkDataset('Gusts (mph)', pts.map(p=>p.wind_gust_mph), '#f97316', 'rgba(249,115,22,0.08)', { borderDash:[4,3] })
-    ]},
-    options: { ...CHART_OPTS, scales: { x: X_SCALE, y: { ...Y_SCALE, min: 0 } } }
-  });
-
-  const elevFt = pts.map(p => mToFt(p.ele_m));
-  _charts.elev = new Chart(document.getElementById('chart-elev').getContext('2d'), {
-    type: 'line',
-    data: { labels, datasets: [
-      mkDataset('Elevation (ft)', elevFt, '#f97316', 'rgba(249,115,22,0.15)', { pointRadius:0, borderWidth:1.5 })
-    ]},
-    options: { ...CHART_OPTS, scales: { x: X_SCALE, y: { ...Y_SCALE, min: Math.max(0, Math.min(...elevFt) - 200) } } }
-  });
+  for (const def of buildChartConfigs(pts)) {
+    _charts[def.key] = new Chart(document.getElementById('chart-' + def.key).getContext('2d'), def.config);
+  }
 }
 
 // ── Map rendering ──
@@ -851,7 +877,8 @@ async function captureLeafletMap(outW, outH, dpr = 1) {
 }
 
 // ── Summary footer ──
-function renderSummary(pts, waypoints) {
+// Shared by the DOM summary row and the canvas image export.
+function buildSummaryItems(pts, waypoints) {
   const totalDist = waypoints[waypoints.length - 1].dist_m;
   let elevGain;
   if (_elevGainM !== null) {
@@ -867,14 +894,17 @@ function renderSummary(pts, waypoints) {
   const avgTemp = pts.reduce((a, p) => a + p.temp_f, 0) / pts.length;
   const maxWind = Math.max(...pts.map(p => p.wind_mph));
 
-  const items = [
+  return [
     { label:'Distance',  value: mToMi(totalDist),                 unit:'mi' },
     { label:'Elev Gain', value: mToFt(elevGain).toLocaleString(),  unit:'ft' },
     { label:'Duration',  value: `${Math.floor(durationMin/60)}h ${Math.round(durationMin%60)}m`, unit:'' },
-    { label:'Avg Temp',  value: Math.round(avgTemp),               unit:'°F' },
-    { label:'Max Wind',  value: Math.round(maxWind),               unit:'mph' }
+    { label:'Avg Temp',  value: String(Math.round(avgTemp)),       unit:'°F' },
+    { label:'Max Wind',  value: String(Math.round(maxWind)),       unit:'mph' }
   ];
-  document.getElementById('summary-row').innerHTML = items.map(it =>
+}
+
+function renderSummary(pts, waypoints) {
+  document.getElementById('summary-row').innerHTML = buildSummaryItems(pts, waypoints).map(it =>
     `<div class="summary-item">
       <div class="summary-label">${it.label}</div>
       <div class="summary-value">${it.value}<span class="summary-unit"> ${it.unit}</span></div>
@@ -985,8 +1015,9 @@ function renderFeelSummary(pts) {
 }
 
 // ── Canvas image export ──
-// Draws the feel panel + 3 weather charts onto an offscreen canvas and saves as PNG.
-// No external library needed: Chart.js canvases are copied with drawImage().
+// Renders a fixed-width, high-DPI report: banner, conditions, ride stats,
+// all four charts re-rendered offscreen at export size (crisp regardless of
+// window width), route map, and attribution footer.
 function rrect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -997,28 +1028,85 @@ function rrect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Small-caps section title used inside export cards.
+function exTitle(ctx, text, x, y) {
+  ctx.save();
+  ctx.font = '600 10px Unbounded, sans-serif';
+  try { ctx.letterSpacing = '2.5px'; } catch(_) {}
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(17,17,40,0.4)';
+  ctx.fillText(text.toUpperCase(), x, y);
+  ctx.restore();
+}
+
+// White rounded card with a soft shadow and hairline border.
+function exCard(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(17,17,40,0.07)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = '#ffffff';
+  rrect(ctx, x, y, w, h, 14);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(17,17,40,0.07)';
+  ctx.lineWidth = 1;
+  rrect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 14);
+  ctx.stroke();
+}
+
+// Re-renders the charts into hidden fixed-size canvases so the export is
+// identical on every screen and always sharp at the target pixel ratio.
+function createExportCharts(defs, width, dpr) {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;opacity:0;pointer-events:none';
+  document.body.appendChild(host);
+  const canvases = {}, charts = [];
+  for (const d of defs) {
+    const cv = document.createElement('canvas');
+    cv.width = width;
+    cv.height = d.h;
+    host.appendChild(cv);
+    charts.push(new Chart(cv.getContext('2d'), {
+      ...d.config,
+      options: { ...d.config.options, responsive: false, animation: false, devicePixelRatio: dpr, events: [] }
+    }));
+    canvases[d.key] = cv;
+  }
+  return { canvases, destroy() { charts.forEach(c => c.destroy()); host.remove(); } };
+}
+
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
 async function exportWeatherImage() {
   if (!_forecastPoints) { toast('No forecast to export'); return; }
   const btn = document.getElementById('export-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
+  let exCharts = null;
   try {
-    await document.fonts.ready;
+    await Promise.all([document.fonts.ready, _chartReady]);
 
-    const DPR      = Math.min(window.devicePixelRatio || 1, 2);
-    const PAD      = 28;
-    // Use the chart's actual rendered size so drawImage is 1:1 and never blurry.
-    const chartEl  = document.getElementById('chart-temp');
-    const IW       = chartEl?.offsetWidth  || 744;
-    const CHART_H  = chartEl?.offsetHeight || 200;
-    const W        = IW + PAD * 2;
-    const FEEL_H   = 104;
-    const MAP_H    = 200;
-    const HDR_H    = 64;
-    const LBL_H    = 20;
-    const GAP      = 14;
-    const FOOT_H   = 28;
-    const H = PAD + HDR_H + GAP + FEEL_H + GAP + LBL_H + MAP_H + GAP +
-              (LBL_H + CHART_H + GAP) * 3 + FOOT_H + PAD;
+    const DPR = 2, W = 1080, PADX = 30, GAP = 18, CARD_PAD = 22, TITLE_H = 26;
+    const IW = W - PADX * 2;          // card width
+    const CW = IW - CARD_PAD * 2;     // content width inside cards
+    const INK = '#111128';
+
+    // Measure the on-screen map up front (its aspect ratio is preserved in
+    // the export) so total canvas height is known before drawing.
+    const mapRect = document.getElementById('forecast-map')?.getBoundingClientRect();
+    const hasMap = !!(_leafletMap && mapRect?.width && mapRect?.height);
+    const mapH = hasMap ? Math.min(Math.round(CW * mapRect.height / mapRect.width), 520) : 0;
+
+    const chartDefs = buildChartConfigs(_forecastPoints, 1.2);
+    const chartTitles = { temp: 'Temperature', precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
+    const summaryItems = _waypoints ? buildSummaryItems(_forecastPoints, _waypoints) : null;
+
+    const BANNER_H = 96, FEEL_H = 122, STATS_H = 92, FOOT_H = 46;
+    let H = BANNER_H + 24 + FEEL_H + GAP;
+    if (summaryItems) H += STATS_H + GAP;
+    for (const d of chartDefs) H += CARD_PAD + TITLE_H + d.h + CARD_PAD + GAP;
+    if (hasMap) H += CARD_PAD + TITLE_H + mapH + CARD_PAD + GAP;
+    H += FOOT_H;
 
     const canvas = document.createElement('canvas');
     canvas.width  = W * DPR;
@@ -1026,141 +1114,161 @@ async function exportWeatherImage() {
     const ctx = canvas.getContext('2d');
     ctx.scale(DPR, DPR);
 
-    // Outer background
-    ctx.fillStyle = '#f0f0f6';
+    // Page background
+    ctx.fillStyle = '#eef0f6';
     ctx.fillRect(0, 0, W, H);
 
-    // White card
-    ctx.fillStyle = '#ffffff';
-    rrect(ctx, PAD / 2, PAD / 2, W - PAD, H - PAD, 14);
-    ctx.fill();
+    // ── Banner ──
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#2563eb');
+    grad.addColorStop(1, '#3B82F6');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, BANNER_H);
 
-    let y = PAD;
-
-    // ── Header ──
     const label     = (_sessionMeta?.label) || 'Ride Forecast';
     const startDate = _sessionMeta?.startDate || _forecastPoints[0]?.timestamp?.slice(0,10) || '';
     const startTime = _sessionMeta?.startTime || '';
     const speedMph  = _sessionMeta?.speedMph  || '';
-    const metaStr   = [startDate, startTime, speedMph ? speedMph + ' mph' : ''].filter(Boolean).join(' · ');
+    const metaStr   = [startDate, startTime, speedMph ? speedMph + ' mph avg' : ''].filter(Boolean).join('  ·  ');
 
-    ctx.fillStyle = '#3B82F6';
-    ctx.fillRect(PAD, y + 4, 3, 38);
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.font = '600 9px Unbounded, sans-serif';
+    try { ctx.letterSpacing = '4px'; } catch(_) {}
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.fillText('RIDE FORECAST', W / 2, 30);
+    ctx.restore();
+    ctx.font = '700 24px Unbounded, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, W / 2, 61);
+    ctx.font = '500 12.5px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText(metaStr, W / 2, 82);
 
-    ctx.fillStyle = '#111128';
-    ctx.font = 'bold 19px Unbounded, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(label, PAD + 14, y + 26);
+    let y = BANNER_H + 24;
 
-    ctx.fillStyle = 'rgba(17,17,40,0.42)';
-    ctx.font = '11px Inter, sans-serif';
-    ctx.fillText(metaStr, PAD + 14, y + 48);
-
-    y += HDR_H + GAP;
-
-    // ── Feel panel ──
-    ctx.fillStyle = '#f7f7fb';
-    rrect(ctx, PAD, y, IW, FEEL_H, 10);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-    ctx.lineWidth = 1;
-    rrect(ctx, PAD, y, IW, FEEL_H, 10);
-    ctx.stroke();
-
+    // ── Conditions (feel) card ──
+    exCard(ctx, PADX, y, IW, FEEL_H);
     const colW = IW / 3;
     buildFeelItems(_forecastPoints).forEach((item, i) => {
       if (i > 0) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.strokeStyle = 'rgba(17,17,40,0.07)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(PAD + i * colW, y + 12);
-        ctx.lineTo(PAD + i * colW, y + FEEL_H - 12);
+        ctx.moveTo(PADX + i * colW, y + 20);
+        ctx.lineTo(PADX + i * colW, y + FEEL_H - 20);
         ctx.stroke();
       }
-      const cx = PAD + i * colW + colW / 2;
-
-      ctx.font = '26px serif';
+      const cx = PADX + i * colW + colW / 2;
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#111128';
-      ctx.fillText(item.emoji, cx, y + 30);
 
-      ctx.font = '600 8px Unbounded, sans-serif';
-      ctx.fillStyle = 'rgba(17,17,40,0.35)';
-      ctx.fillText(item.label.toUpperCase(), cx, y + 50);
+      ctx.font = '32px ' + EMOJI_FONT;
+      ctx.fillStyle = INK;
+      ctx.fillText(item.emoji, cx, y + 42);
 
-      ctx.font = '600 13px Inter, sans-serif';
-      ctx.fillStyle = '#111128';
-      ctx.fillText(item.value, cx, y + 68);
+      ctx.save();
+      ctx.font = '600 8.5px Unbounded, sans-serif';
+      try { ctx.letterSpacing = '2px'; } catch(_) {}
+      ctx.fillStyle = 'rgba(17,17,40,0.38)';
+      ctx.fillText(item.label.toUpperCase(), cx, y + 66);
+      ctx.restore();
 
-      ctx.font = '10px Inter, sans-serif';
+      ctx.font = '600 15px Inter, sans-serif';
+      ctx.fillStyle = INK;
+      ctx.fillText(item.value, cx, y + 88);
+
+      ctx.font = '11px Inter, sans-serif';
       ctx.fillStyle = 'rgba(17,17,40,0.5)';
-      // Truncate description if too wide for column
       let desc = item.desc;
-      while (ctx.measureText(desc).width > colW - 16 && desc.length > 10) desc = desc.slice(0, -4) + '…';
-      ctx.fillText(desc, cx, y + 84);
+      while (ctx.measureText(desc).width > colW - 28 && desc.length > 10) desc = desc.slice(0, -4) + '…';
+      ctx.fillText(desc, cx, y + 107);
     });
-
     y += FEEL_H + GAP;
 
-    // ── Map ──
-    ctx.font = '600 7.5px Unbounded, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(17,17,40,0.35)';
-    ctx.fillText('ROUTE & WIND', PAD, y + 13);
-    y += LBL_H;
+    // ── Ride stats card ──
+    if (summaryItems) {
+      exCard(ctx, PADX, y, IW, STATS_H);
+      const sw = IW / summaryItems.length;
+      summaryItems.forEach((it, i) => {
+        if (i > 0) {
+          ctx.strokeStyle = 'rgba(17,17,40,0.07)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(PADX + i * sw, y + 18);
+          ctx.lineTo(PADX + i * sw, y + STATS_H - 18);
+          ctx.stroke();
+        }
+        const cx = PADX + i * sw + sw / 2;
+        ctx.textAlign = 'center';
+        ctx.save();
+        ctx.font = '600 8.5px Unbounded, sans-serif';
+        try { ctx.letterSpacing = '2px'; } catch(_) {}
+        ctx.fillStyle = 'rgba(17,17,40,0.38)';
+        ctx.fillText(it.label.toUpperCase(), cx, y + 34);
+        ctx.restore();
 
-    const mapBitmap = await captureLeafletMap(IW, MAP_H, DPR);
-    ctx.save();
-    rrect(ctx, PAD, y, IW, MAP_H, 8);
-    ctx.clip();
-    if (mapBitmap) {
-      ctx.drawImage(mapBitmap, PAD, y, IW, MAP_H);
-    } else {
-      ctx.fillStyle = '#e8e4df';
-      ctx.fillRect(PAD, y, IW, MAP_H);
+        const vFont = '500 20px "DM Mono", monospace';
+        const uFont = '11px Inter, sans-serif';
+        ctx.font = vFont;
+        const vw = ctx.measureText(it.value).width;
+        ctx.font = uFont;
+        const uw = it.unit ? ctx.measureText(' ' + it.unit).width : 0;
+        const tx = cx - (vw + uw) / 2;
+        ctx.textAlign = 'left';
+        ctx.font = vFont;
+        ctx.fillStyle = INK;
+        ctx.fillText(it.value, tx, y + 64);
+        if (it.unit) {
+          ctx.font = uFont;
+          ctx.fillStyle = 'rgba(17,17,40,0.5)';
+          ctx.fillText(' ' + it.unit, tx + vw, y + 64);
+        }
+      });
+      y += STATS_H + GAP;
     }
-    ctx.restore();
-    y += MAP_H + GAP;
 
-    // ── Three weather charts ──
-    // Disable tooltips and synchronously redraw before copying canvas pixels.
-    // update('none') goes through the RAF animation loop and won't fire before
-    // drawImage; draw() is synchronous and bypasses the animation system.
-    for (const c of Object.values(_charts)) {
-      if (!c) continue;
-      if (c.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = false;
-      c.draw();
+    // ── Charts, re-rendered offscreen at export size ──
+    exCharts = createExportCharts(chartDefs, CW, DPR);
+    for (const d of chartDefs) {
+      const cardH = CARD_PAD + TITLE_H + d.h + CARD_PAD;
+      exCard(ctx, PADX, y, IW, cardH);
+      exTitle(ctx, chartTitles[d.key], PADX + CARD_PAD, y + CARD_PAD + 8);
+      ctx.drawImage(exCharts.canvases[d.key], PADX + CARD_PAD, y + CARD_PAD + TITLE_H, CW, d.h);
+      y += cardH + GAP;
     }
-    try {
-    for (const { id, title } of [
-      { id: 'chart-temp',   title: 'TEMPERATURE' },
-      { id: 'chart-precip', title: 'PRECIPITATION & CLOUD COVER' },
-      { id: 'chart-wind',   title: 'WIND' },
-    ]) {
-      ctx.font = '600 7.5px Unbounded, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = 'rgba(17,17,40,0.35)';
-      ctx.fillText(title, PAD, y + 13);
-      y += LBL_H;
 
-      const src = document.getElementById(id);
-      if (src?.width) ctx.drawImage(src, PAD, y, IW, CHART_H);
-
-      y += CHART_H + GAP;
-    }
-    } finally {
-      for (const c of Object.values(_charts)) {
-        if (!c) continue;
-        if (c.options?.plugins?.tooltip) c.options.plugins.tooltip.enabled = true;
-        c.draw();
+    // ── Map card ──
+    if (hasMap) {
+      const cardH = CARD_PAD + TITLE_H + mapH + CARD_PAD;
+      exCard(ctx, PADX, y, IW, cardH);
+      exTitle(ctx, 'Route & Wind', PADX + CARD_PAD, y + CARD_PAD + 8);
+      const mapY = y + CARD_PAD + TITLE_H;
+      const mapBitmap = await captureLeafletMap(CW, mapH, DPR);
+      ctx.save();
+      rrect(ctx, PADX + CARD_PAD, mapY, CW, mapH, 10);
+      ctx.clip();
+      if (mapBitmap) {
+        ctx.drawImage(mapBitmap, PADX + CARD_PAD, mapY, CW, mapH);
+      } else {
+        ctx.fillStyle = '#e8e4df';
+        ctx.fillRect(PADX + CARD_PAD, mapY, CW, mapH);
       }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(17,17,40,0.1)';
+      ctx.lineWidth = 1;
+      rrect(ctx, PADX + CARD_PAD + 0.5, mapY + 0.5, CW - 1, mapH - 1, 10);
+      ctx.stroke();
+      y += cardH + GAP;
     }
 
     // ── Footer ──
-    ctx.font = '10px Inter, sans-serif';
+    const fetched = _forecastGeneratedAt
+      ? 'Forecast fetched ' + new Date(_forecastGeneratedAt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) + ' · '
+      : '';
+    ctx.font = '11px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(17,17,40,0.3)';
-    ctx.fillText('Weather data by Open-Meteo.com', W / 2, y + 16);
+    ctx.fillStyle = 'rgba(17,17,40,0.35)';
+    ctx.fillText(fetched + 'Weather data by Open-Meteo.com', W / 2, y + 18);
 
     const filename = label.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-forecast.png';
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -1181,6 +1289,7 @@ async function exportWeatherImage() {
   } catch(e) {
     alert('Export failed: ' + e.message);
   } finally {
+    exCharts?.destroy();
     if (btn) { btn.disabled = false; btn.textContent = 'Export image'; }
   }
 }
