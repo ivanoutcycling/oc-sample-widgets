@@ -748,130 +748,129 @@ function renderMap(pts, waypoints) {
   _leafletMap.fitBounds(L.latLngBounds(latlngs), { padding:[20,20] });
 }
 
-// Captures the Leaflet map (tiles + route SVG + wind arrows) onto an offscreen canvas.
-// Tiles must be loaded with crossOrigin:'anonymous' (set on the tile layer above).
-async function captureLeafletMap(outW, outH, dpr = 1) {
-  const mapEl = document.getElementById('forecast-map');
-  if (!mapEl || !_leafletMap || !_forecastPoints) return null;
-  const mapRect = mapEl.getBoundingClientRect();
-  if (!mapRect.width || !mapRect.height) return null;
+// ── Export map renderer ──
+// The on-screen Leaflet viewport depends on window size (tiny and zoomed-out
+// on phones), so the export renders its own map: tiles fetched directly at a
+// zoom chosen to fit the route into the export dimensions.
+
+// Route bounding box in Web Mercator world coordinates (0..1), padded.
+function routeWorldBounds(wpts) {
+  let minX = 1, maxX = 0, minY = 1, maxY = 0;
+  for (const w of wpts) {
+    const x = (w.lng + 180) / 360;
+    const s = Math.sin(w.lat * Math.PI / 180);
+    const y = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const padX = (maxX - minX) * 0.08 + 1e-7;
+  const padY = (maxY - minY) * 0.08 + 1e-7;
+  return { minX: minX - padX, maxX: maxX + padX, minY: minY - padY, maxY: maxY + padY };
+}
+
+async function renderRouteMap(width, height, dpr) {
+  if (!_waypoints || _waypoints.length < 2) return null;
+  const b = routeWorldBounds(_waypoints);
+  let z = 17;
+  while (z > 2 && ((b.maxX - b.minX) * 256 * 2 ** z > width || (b.maxY - b.minY) * 256 * 2 ** z > height)) z--;
+  const scale = 256 * 2 ** z;
+  const originX = (b.minX + b.maxX) / 2 * scale - width / 2;
+  const originY = (b.minY + b.maxY) / 2 * scale - height / 2;
+  const toPx = (lat, lng) => {
+    const s = Math.sin(lat * Math.PI / 180);
+    return {
+      x: (lng + 180) / 360 * scale - originX,
+      y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * scale - originY
+    };
+  };
 
   const canvas = document.createElement('canvas');
-  canvas.width  = outW * dpr;
-  canvas.height = outH * dpr;
+  canvas.width  = width * dpr;
+  canvas.height = height * dpr;
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const sx = outW / mapRect.width;
-  const sy = outH / mapRect.height;
-
-  // CARTO Voyager land colour as background fallback
+  // CARTO Voyager land colour as fallback for missing tiles
   ctx.fillStyle = '#f5f0eb';
-  ctx.fillRect(0, 0, outW, outH);
+  ctx.fillRect(0, 0, width, height);
 
-  // 1. Map tiles
-  for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
-    if (!tile.complete || !tile.naturalWidth) continue;
-    const r = tile.getBoundingClientRect();
-    try {
-      ctx.drawImage(tile,
-        (r.left - mapRect.left) * sx, (r.top - mapRect.top) * sy,
-        r.width * sx, r.height * sy);
-    } catch(_) {}
-  }
-
-  // Build tile index and Web Mercator helpers (shared by route polyline and wind arrows).
-  const tileZoom = (() => {
-    const src = mapEl.querySelector('img.leaflet-tile')?.src || '';
-    const m = src.match(/\/(\d+)\/\d+\/\d+/);
-    return m ? parseInt(m[1], 10) : Math.round(_leafletMap.getZoom());
-  })();
-
-  const tileIndex = new Map();
-  for (const tile of mapEl.querySelectorAll('img.leaflet-tile')) {
-    if (!tile.complete || !tile.naturalWidth) continue;
-    const m = tile.src.match(/\/(\d+)\/(\d+)\/(\d+)/);
-    if (!m || parseInt(m[1], 10) !== tileZoom) continue;
-    tileIndex.set(`${m[2]},${m[3]}`, tile.getBoundingClientRect());
-  }
-
-  function latlngToTilePos(lat, lng, z) {
-    const n = Math.pow(2, z);
-    const tx = (lng + 180) / 360 * n;
-    const sinLat = Math.sin(lat * Math.PI / 180);
-    const ty = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * n;
-    const tileX = Math.floor(tx), tileY = Math.floor(ty);
-    return { tileX, tileY, fracX: tx - tileX, fracY: ty - tileY };
-  }
-
-  function latlngToCanvas(lat, lng) {
-    const { tileX, tileY, fracX, fracY } = latlngToTilePos(lat, lng, tileZoom);
-    const tr = tileIndex.get(`${tileX},${tileY}`);
-    if (!tr) return null;
-    return {
-      x: (tr.left + fracX * tr.width  - mapRect.left) * sx,
-      y: (tr.top  + fracY * tr.height - mapRect.top)  * sy,
-    };
-  }
-
-  // 2. Route polyline + start/finish markers drawn via tile-coordinate math so the
-  // route aligns with tiles regardless of Leaflet's CSS pan transforms.
-  if (_waypoints && _waypoints.length > 1) {
-    ctx.save();
-    ctx.strokeStyle = '#f97316';
-    ctx.lineWidth = 3;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.globalAlpha = 0.85;
-    ctx.beginPath();
-    let penDown = false;
-    for (const wp of _waypoints) {
-      const pos = latlngToCanvas(wp.lat, wp.lng);
-      if (!pos) { penDown = false; continue; }
-      if (!penDown) { ctx.moveTo(pos.x, pos.y); penDown = true; }
-      else { ctx.lineTo(pos.x, pos.y); }
+  const retina = dpr >= 2 ? '@2x' : '';
+  const n = 2 ** z;
+  const loads = [];
+  for (let tx = Math.floor(originX / 256); tx * 256 < originX + width; tx++) {
+    for (let ty = Math.max(0, Math.floor(originY / 256)); ty * 256 < originY + height && ty < n; ty++) {
+      const wrapX = ((tx % n) + n) % n;
+      const url = `https://${'abcd'[(wrapX + ty) % 4]}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${wrapX}/${ty}${retina}.png`;
+      loads.push(new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const done = ok => { clearTimeout(timer); resolve(ok && img.naturalWidth ? { img, tx, ty } : null); };
+        const timer = setTimeout(() => done(false), 8000);
+        img.onload = () => done(true);
+        img.onerror = () => done(false);
+        img.src = url;
+      }));
     }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    // Start (green) and end (red) circle markers
-    const startPos = latlngToCanvas(_waypoints[0].lat, _waypoints[0].lng);
-    const endPos   = latlngToCanvas(_waypoints[_waypoints.length - 1].lat, _waypoints[_waypoints.length - 1].lng);
-    for (const [pos, fill] of [[startPos, '#22c55e'], [endPos, '#ef4444']]) {
-      if (!pos) continue;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = fill;
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-    ctx.restore();
+  }
+  for (const t of await Promise.all(loads)) {
+    if (t) { try { ctx.drawImage(t.img, t.tx * 256 - originX, t.ty * 256 - originY, 256, 256); } catch(_) {} }
   }
 
-  // 3. Wind arrows
-  for (const pt of _forecastPoints) {
-    const pos = latlngToCanvas(pt.lat, pt.lng);
-    if (!pos) continue;
-    const { x: cx, y: cy } = pos;
+  // Route polyline
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 3.5;
+  ctx.lineJoin = ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  _waypoints.forEach((w, i) => {
+    const p = toPx(w.lat, w.lng);
+    if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y);
+  });
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Wind arrows
+  for (const pt of _forecastPoints || []) {
+    const p = toPx(pt.lat, pt.lng);
     const spd = pt.wind_mph || 0;
     const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
-    const rad = (((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180;
-    const s = 0.7;
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(rad);
+    ctx.translate(p.x, p.y);
+    ctx.rotate((((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180);
     ctx.beginPath();
-    ctx.moveTo(0, -8*s); ctx.lineTo(4*s, 7*s); ctx.lineTo(0, 3*s); ctx.lineTo(-4*s, 7*s);
+    ctx.moveTo(0, -9); ctx.lineTo(4.5, 8); ctx.lineTo(0, 3.5); ctx.lineTo(-4.5, 8);
     ctx.closePath();
     ctx.fillStyle = clr;
     ctx.fill();
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.4;
     ctx.lineJoin = 'round';
     ctx.stroke();
     ctx.restore();
   }
+
+  // Start / finish markers
+  for (const [w, fill] of [[_waypoints[0], '#22c55e'], [_waypoints[_waypoints.length - 1], '#ef4444']]) {
+    const p = toPx(w.lat, w.lng);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Attribution
+  ctx.font = '9px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  const attr = '© OpenStreetMap © CARTO';
+  const tw = ctx.measureText(attr).width;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillRect(width - tw - 12, height - 18, tw + 12, 18);
+  ctx.fillStyle = 'rgba(17,17,40,0.55)';
+  ctx.fillText(attr, width - tw - 6, height - 6);
 
   return canvas;
 }
@@ -1091,11 +1090,14 @@ async function exportWeatherImage() {
     const CW = IW - CARD_PAD * 2;     // content width inside cards
     const INK = '#111128';
 
-    // Measure the on-screen map up front (its aspect ratio is preserved in
-    // the export) so total canvas height is known before drawing.
-    const mapRect = document.getElementById('forecast-map')?.getBoundingClientRect();
-    const hasMap = !!(_leafletMap && mapRect?.width && mapRect?.height);
-    const mapH = hasMap ? Math.min(Math.round(CW * mapRect.height / mapRect.width), 520) : 0;
+    // Map size follows the route's own aspect ratio (in Web Mercator), so the
+    // export looks identical on every device regardless of the on-screen map.
+    const hasMap = !!(_waypoints && _waypoints.length > 1);
+    let mapH = 0;
+    if (hasMap) {
+      const b = routeWorldBounds(_waypoints);
+      mapH = Math.max(300, Math.min(560, Math.round(CW * (b.maxY - b.minY) / (b.maxX - b.minX))));
+    }
 
     const chartDefs = buildChartConfigs(_forecastPoints, 1.2);
     const chartTitles = { temp: 'Temperature', precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
@@ -1243,7 +1245,7 @@ async function exportWeatherImage() {
       exCard(ctx, PADX, y, IW, cardH);
       exTitle(ctx, 'Route & Wind', PADX + CARD_PAD, y + CARD_PAD + 8);
       const mapY = y + CARD_PAD + TITLE_H;
-      const mapBitmap = await captureLeafletMap(CW, mapH, DPR);
+      const mapBitmap = await renderRouteMap(CW, mapH, DPR);
       ctx.save();
       rrect(ctx, PADX + CARD_PAD, mapY, CW, mapH, 10);
       ctx.clip();
