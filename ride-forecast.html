@@ -674,6 +674,9 @@ function buildChartConfigs(pts, F = 1, dark = false) {
     grid: { color: 'rgba(17,17,40,0.06)', drawTicks: false },
     border: { display: false }
   };
+  // Legend text/spacing scales a bit more gently than the axis text so a
+  // 3-series legend (precip chart) still fits on one line at large F.
+  const LF = dark ? F * 0.8 : F;
   const OPTS = {
     responsive: true,
     maintainAspectRatio: false,
@@ -682,8 +685,8 @@ function buildChartConfigs(pts, F = 1, dark = false) {
       legend: {
         position: 'bottom',
         labels: {
-          usePointStyle: true, pointStyle: 'circle', boxWidth: 7 * F, boxHeight: 7 * F,
-          padding: Math.round(14 * F), font: { family: 'Inter', size: Math.round(10.5 * F), weight: dark ? '600' : '500' },
+          usePointStyle: true, pointStyle: 'circle', boxWidth: 7 * LF, boxHeight: 7 * LF,
+          padding: Math.round(10 * LF), font: { family: 'Inter', size: Math.round(10.5 * LF), weight: dark ? '600' : '500' },
           color: dark ? '#111128' : 'rgba(17,17,40,0.6)'
         }
       },
@@ -838,7 +841,7 @@ async function renderRouteMap(width, height, dpr) {
 
   // Route polyline
   ctx.strokeStyle = PALETTE.orange;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5.5;
   ctx.lineJoin = ctx.lineCap = 'round';
   ctx.globalAlpha = 0.9;
   ctx.beginPath();
@@ -858,12 +861,12 @@ async function renderRouteMap(width, height, dpr) {
     ctx.translate(p.x, p.y);
     ctx.rotate((((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180);
     ctx.beginPath();
-    ctx.moveTo(0, -13); ctx.lineTo(6.5, 11.5); ctx.lineTo(0, 5); ctx.lineTo(-6.5, 11.5);
+    ctx.moveTo(0, -18); ctx.lineTo(9, 16); ctx.lineTo(0, 7); ctx.lineTo(-9, 16);
     ctx.closePath();
     ctx.fillStyle = clr;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.75;
     ctx.lineJoin = 'round';
     ctx.stroke();
     ctx.restore();
@@ -873,23 +876,23 @@ async function renderRouteMap(width, height, dpr) {
   for (const [w, fill] of [[_waypoints[0], PALETTE.green], [_waypoints[_waypoints.length - 1], PALETTE.red]]) {
     const p = toPx(w.lat, w.lng);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
     ctx.fillStyle = fill;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3.3;
     ctx.stroke();
   }
 
   // Attribution
-  ctx.font = '12px Inter, sans-serif';
+  ctx.font = '15px Inter, sans-serif';
   ctx.textAlign = 'left';
   const attr = '© OpenStreetMap © CARTO';
   const tw = ctx.measureText(attr).width;
   ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  ctx.fillRect(width - tw - 18, height - 24, tw + 18, 24);
+  ctx.fillRect(width - tw - 22, height - 30, tw + 22, 30);
   ctx.fillStyle = 'rgba(17,17,40,0.7)';
-  ctx.fillText(attr, width - tw - 9, height - 9);
+  ctx.fillText(attr, width - tw - 11, height - 11);
 
   return canvas;
 }
@@ -1049,8 +1052,8 @@ function rrect(ctx, x, y, w, h, r) {
 // Small-caps section title used inside export cards.
 function exTitle(ctx, text, x, y) {
   ctx.save();
-  ctx.font = '600 16.5px Unbounded, sans-serif';
-  try { ctx.letterSpacing = '2px'; } catch(_) {}
+  ctx.font = '600 25px Unbounded, sans-serif';
+  try { ctx.letterSpacing = '1.5px'; } catch(_) {}
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(17,17,40,0.85)';
   ctx.fillText(text.toUpperCase(), x, y);
@@ -1062,10 +1065,10 @@ function exTitle(ctx, text, x, y) {
 function exStatLine(ctx, x, y, items, maxW) {
   ctx.textAlign = 'left';
   const segments = it => [
-    { font: k => `${16.5 * k}px Inter, sans-serif`,       color: 'rgba(17,17,40,0.66)', text: it.label + '  ' },
-    { font: k => `700 ${19 * k}px Inter, sans-serif`,     color: '#111128',             text: it.value + (it.unit ? ' ' + it.unit : '') }
+    { font: k => `${22 * k}px Inter, sans-serif`,         color: 'rgba(17,17,40,0.66)', text: it.label + '  ' },
+    { font: k => `700 ${26 * k}px Inter, sans-serif`,     color: '#111128',             text: it.value + (it.unit ? ' ' + it.unit : '') }
   ];
-  const sep = { font: k => `${16.5 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.5)', text: '   ·   ' };
+  const sep = { font: k => `${22 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.5)', text: '   ·   ' };
   const parts = items.flatMap((it, i) => i ? [sep, ...segments(it)] : segments(it));
   const widthAt = k => parts.reduce((w, p) => { ctx.font = p.font(k); return w + ctx.measureText(p.text).width; }, 0);
   let k = 1;
@@ -1129,22 +1132,22 @@ async function exportWeatherImage() {
   try {
     await Promise.all([document.fonts.ready, _chartReady]);
 
-    const DPR = 2, W = 1440, PADX = 30, GAP = 18, CARD_PAD = 22, TITLE_H = 30;
+    const DPR = 2, W = 1720, PADX = 34, GAP = 20, CARD_PAD = 26, TITLE_H = 46;
     const IW = W - PADX * 2;              // full-width card
     const COL_W = (IW - GAP) / 2;         // card width in the two-column grid
     const CCW = COL_W - CARD_PAD * 2;     // content width inside a column card
     const INK = '#111128';
     const hasMap = !!(_waypoints && _waypoints.length > 1);
 
-    const chartDefs = buildChartConfigs(_forecastPoints, 1.85, true)
-      .map(d => ({ ...d, h: d.key === 'elev' ? 195 : 295 }));
+    const chartDefs = buildChartConfigs(_forecastPoints, 2.6, true)
+      .map(d => ({ ...d, h: d.key === 'elev' ? 260 : 380 }));
     const chartTitles = { temp: 'Temperature', precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
     const summaryItems = _waypoints ? buildSummaryItems(_forecastPoints, _waypoints) : null;
     const defOf = k => chartDefs.find(d => d.key === k);
 
     // Compact two-column grid: temp | precip, then map | wind + elevation,
     // with the ride stats inline under the elevation chart.
-    const HEADER_H = 178, FEEL_H = 156, FOOT_H = 52, STATS_H = summaryItems ? 58 : 0;
+    const HEADER_H = 236, FEEL_H = 216, FOOT_H = 64, STATS_H = summaryItems ? 76 : 0;
     const cardH = k => CARD_PAD + TITLE_H + defOf(k).h + CARD_PAD;
     const rightColH = cardH('wind') + GAP + cardH('elev') + STATS_H;
     const mapCardH = rightColH;
@@ -1175,20 +1178,20 @@ async function exportWeatherImage() {
 
     ctx.textAlign = 'left';
     ctx.fillStyle = PALETTE.blue;
-    rrect(ctx, PADX, 30, IW, 4, 2);
+    rrect(ctx, PADX, 34, IW, 5, 2.5);
     ctx.fill();
     ctx.save();
-    ctx.font = '600 14px Unbounded, sans-serif';
-    try { ctx.letterSpacing = '5px'; } catch(_) {}
+    ctx.font = '600 18px Unbounded, sans-serif';
+    try { ctx.letterSpacing = '6px'; } catch(_) {}
     ctx.fillStyle = PALETTE.blueText;
-    ctx.fillText('RIDE FORECAST', PADX + 1, 70);
+    ctx.fillText('RIDE FORECAST', PADX + 1, 86);
     ctx.restore();
-    ctx.font = '900 43px Unbounded, sans-serif';
+    ctx.font = '900 62px Unbounded, sans-serif';
     ctx.fillStyle = INK;
-    ctx.fillText(label, PADX, 120);
-    ctx.font = '500 18px Inter, sans-serif';
+    ctx.fillText(label, PADX, 164);
+    ctx.font = '500 24px Inter, sans-serif';
     ctx.fillStyle = 'rgba(17,17,40,0.68)';
-    ctx.fillText(metaStr, PADX, 152);
+    ctx.fillText(metaStr, PADX, 204);
 
     let y = HEADER_H;
 
@@ -1200,33 +1203,33 @@ async function exportWeatherImage() {
         ctx.strokeStyle = 'rgba(17,17,40,0.07)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(PADX + i * colW, y + 20);
-        ctx.lineTo(PADX + i * colW, y + FEEL_H - 20);
+        ctx.moveTo(PADX + i * colW, y + 26);
+        ctx.lineTo(PADX + i * colW, y + FEEL_H - 26);
         ctx.stroke();
       }
       const cx = PADX + i * colW + colW / 2;
       ctx.textAlign = 'center';
 
-      ctx.font = '45px ' + EMOJI_FONT;
+      ctx.font = '64px ' + EMOJI_FONT;
       ctx.fillStyle = INK;
-      ctx.fillText(item.emoji, cx, y + 54);
+      ctx.fillText(item.emoji, cx, y + 76);
 
       ctx.save();
-      ctx.font = '600 13px Unbounded, sans-serif';
+      ctx.font = '600 17px Unbounded, sans-serif';
       try { ctx.letterSpacing = '2px'; } catch(_) {}
       ctx.fillStyle = 'rgba(17,17,40,0.68)';
-      ctx.fillText(item.label.toUpperCase(), cx, y + 86);
+      ctx.fillText(item.label.toUpperCase(), cx, y + 118);
       ctx.restore();
 
-      ctx.font = '700 23px Inter, sans-serif';
+      ctx.font = '700 32px Inter, sans-serif';
       ctx.fillStyle = INK;
-      ctx.fillText(item.value, cx, y + 114);
+      ctx.fillText(item.value, cx, y + 158);
 
-      ctx.font = '16.5px Inter, sans-serif';
+      ctx.font = '21px Inter, sans-serif';
       ctx.fillStyle = 'rgba(17,17,40,0.72)';
       let desc = item.desc;
-      while (ctx.measureText(desc).width > colW - 28 && desc.length > 10) desc = desc.slice(0, -4) + '…';
-      ctx.fillText(desc, cx, y + 138);
+      while (ctx.measureText(desc).width > colW - 32 && desc.length > 10) desc = desc.slice(0, -4) + '…';
+      ctx.fillText(desc, cx, y + 190);
     });
     y += FEEL_H + GAP;
 
@@ -1237,7 +1240,7 @@ async function exportWeatherImage() {
     const drawChartCard = (x, cy, key) => {
       const h = cardH(key) + (key === 'elev' ? STATS_H : 0);
       exCard(ctx, x, cy, COL_W, h);
-      exTitle(ctx, chartTitles[key], x + CARD_PAD, cy + CARD_PAD + 10);
+      exTitle(ctx, chartTitles[key], x + CARD_PAD, cy + CARD_PAD + 20);
       ctx.drawImage(exCharts.canvases[key], x + CARD_PAD, cy + CARD_PAD + TITLE_H, CCW, defOf(key).h);
       return cy + h + GAP;
     };
@@ -1250,12 +1253,12 @@ async function exportWeatherImage() {
     const elevY = drawChartCard(rightX, row2Y, 'wind');
     drawChartCard(rightX, elevY, 'elev');
     if (summaryItems) {
-      exStatLine(ctx, rightX + CARD_PAD, elevY + CARD_PAD + TITLE_H + defOf('elev').h + 30, summaryItems, CCW);
+      exStatLine(ctx, rightX + CARD_PAD, elevY + CARD_PAD + TITLE_H + defOf('elev').h + 42, summaryItems, CCW);
     }
 
     // Row 2 left: route map, sized to match the right-hand column
     exCard(ctx, leftX, row2Y, COL_W, mapCardH);
-    exTitle(ctx, 'Route & Wind', leftX + CARD_PAD, row2Y + CARD_PAD + 10);
+    exTitle(ctx, 'Route & Wind', leftX + CARD_PAD, row2Y + CARD_PAD + 20);
     const mapY = row2Y + CARD_PAD + TITLE_H;
     const mapBitmap = hasMap ? await renderRouteMap(CCW, mapH, DPR) : null;
     ctx.save();
@@ -1279,10 +1282,10 @@ async function exportWeatherImage() {
     const fetched = _forecastGeneratedAt
       ? 'Forecast fetched ' + new Date(_forecastGeneratedAt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) + ' · '
       : '';
-    ctx.font = '15.5px Inter, sans-serif';
+    ctx.font = '19px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(17,17,40,0.64)';
-    ctx.fillText(fetched + 'Weather data by Open-Meteo.com', W / 2, y + 20);
+    ctx.fillText(fetched + 'Weather data by Open-Meteo.com', W / 2, y + 26);
 
     const filename = label.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-forecast.png';
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
