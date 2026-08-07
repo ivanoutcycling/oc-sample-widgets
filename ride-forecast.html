@@ -349,6 +349,19 @@ const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';
 const RWGPS_BASE = 'https://ridewithgps.com/routes';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
+// Shared series/map palette. Chosen so every color meets WCAG contrast where
+// it functions as text or a legend/graphical indicator (≥3:1 against its
+// background, ≥4.5:1 for the small blue "eyebrow" label which is real text)
+// while staying visually close to the original brand blue/orange.
+const PALETTE = {
+  blue:      '#3B82F6',  // chart lines/points — decorative, ≥3:1 on white
+  blueText:  '#2563eb',  // small blue text (eyebrow) — ≥4.5:1 on the page bg
+  orange:    '#ea580c',  // chart lines/points + route line — ≥3:1 on white/map
+  grayLine:  '#64748b',  // cloud-cover line — was too pale to read at a glance
+  green:     '#15803d',  // start marker / light wind — ≥4.5:1 on map tiles
+  red:       '#dc2626',  // finish marker / strong wind — ≥4.5:1 on map tiles
+};
+
 // ── Tiny helpers ──
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -683,12 +696,12 @@ function buildChartConfigs(pts, F = 1, dark = false) {
   const elevFt = pts.map(p => mToFt(p.ele_m));
   return [
     { key: 'temp', h: 250, config: { type: 'line', data: { labels, datasets: [
-        mkDataset('Temperature (°F)', pts.map(p=>p.temp_f),       '#3B82F6'),
-        mkDataset('Feels Like (°F)',  pts.map(p=>p.feels_like_f), '#f97316', { backgroundColor: areaFill('#f97316', 0.12) })
+        mkDataset('Temperature (°F)', pts.map(p=>p.temp_f),       PALETTE.blue),
+        mkDataset('Feels Like (°F)',  pts.map(p=>p.feels_like_f), PALETTE.orange, { backgroundColor: areaFill(PALETTE.orange, 0.12) })
       ]}, options: { ...OPTS, scales: { x: X, y: Y } } } },
     { key: 'precip', h: 250, config: { type: 'line', data: { labels, datasets: [
-        mkDataset('Precip Prob (%)', pts.map(p=>p.precip_prob), '#3B82F6', { yAxisID: 'yPct' }),
-        mkDataset('Cloud Cover (%)', pts.map(p=>p.cloud_cover), '#94a3b8', { yAxisID: 'yPct', borderWidth: 1.5, backgroundColor: areaFill('#94a3b8', 0.14) }),
+        mkDataset('Precip Prob (%)', pts.map(p=>p.precip_prob), PALETTE.blue, { yAxisID: 'yPct' }),
+        mkDataset('Cloud Cover (%)', pts.map(p=>p.cloud_cover), PALETTE.grayLine, { yAxisID: 'yPct', borderWidth: 1.5, backgroundColor: areaFill(PALETTE.grayLine, 0.14) }),
         mkDataset('Precip (in/hr)',  pts.map(p=>p.precip_in),   '#0ea5e9', { yAxisID: 'yIn' })
       ]}, options: { ...OPTS, scales: {
         x: X,
@@ -698,11 +711,11 @@ function buildChartConfigs(pts, F = 1, dark = false) {
                 ticks: { ...Y.ticks, callback: v => v > 0 ? v.toFixed(2) + '"' : '0"' } }
       } } } },
     { key: 'wind', h: 250, config: { type: 'line', data: { labels, datasets: [
-        mkDataset('Wind (mph)',  pts.map(p=>p.wind_mph),      '#3B82F6'),
-        mkDataset('Gusts (mph)', pts.map(p=>p.wind_gust_mph), '#f97316', { borderDash: [5, 4], backgroundColor: areaFill('#f97316', 0.1) })
+        mkDataset('Wind (mph)',  pts.map(p=>p.wind_mph),      PALETTE.blue),
+        mkDataset('Gusts (mph)', pts.map(p=>p.wind_gust_mph), PALETTE.orange, { borderDash: [5, 4], backgroundColor: areaFill(PALETTE.orange, 0.1) })
       ]}, options: { ...OPTS, scales: { x: X, y: { ...Y, min: 0 } } } } },
     { key: 'elev', h: 180, config: { type: 'line', data: { labels, datasets: [
-        mkDataset('Elevation (ft)', elevFt, '#f97316', { borderWidth: 1.5, backgroundColor: areaFill('#f97316', 0.28) })
+        mkDataset('Elevation (ft)', elevFt, PALETTE.orange, { borderWidth: 1.5, backgroundColor: areaFill(PALETTE.orange, 0.28) })
       ]}, options: { ...OPTS, scales: { x: X, y: { ...Y, min: Math.max(0, Math.min(...elevFt) - 200) } } } } }
   ];
 }
@@ -726,18 +739,18 @@ function renderMap(pts, waypoints) {
   }).addTo(_leafletMap);
 
   const latlngs = waypoints.map(w => [w.lat, w.lng]);
-  L.polyline(latlngs, { color: '#f97316', weight: 3, opacity: 0.85 }).addTo(_leafletMap);
+  L.polyline(latlngs, { color: PALETTE.orange, weight: 3, opacity: 0.85 }).addTo(_leafletMap);
 
-  L.circleMarker(latlngs[0], { radius:7, color:'#fff', weight:2, fillColor:'#22c55e', fillOpacity:1 })
+  L.circleMarker(latlngs[0], { radius:7, color:'#fff', weight:2, fillColor:PALETTE.green, fillOpacity:1 })
     .bindTooltip('Start').addTo(_leafletMap);
-  L.circleMarker(latlngs[latlngs.length - 1], { radius:7, color:'#fff', weight:2, fillColor:'#ef4444', fillOpacity:1 })
+  L.circleMarker(latlngs[latlngs.length - 1], { radius:7, color:'#fff', weight:2, fillColor:PALETTE.red, fillOpacity:1 })
     .bindTooltip('Finish').addTo(_leafletMap);
 
   // Wind arrows: met convention is "direction wind comes FROM"; rotate 180° to show where it pushes.
   for (const pt of pts) {
     const angle = (pt.wind_dir_deg + 180) % 360;
     const spd = pt.wind_mph;
-    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const clr = spd < 6 ? PALETTE.grayLine : spd < 13 ? PALETTE.green : spd < 20 ? PALETTE.orange : PALETTE.red;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${angle}deg);display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))">
       <polygon points="10,2 14,17 10,13 6,17" fill="${clr}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
     </svg>`;
@@ -824,7 +837,7 @@ async function renderRouteMap(width, height, dpr) {
   }
 
   // Route polyline
-  ctx.strokeStyle = '#f97316';
+  ctx.strokeStyle = PALETTE.orange;
   ctx.lineWidth = 4;
   ctx.lineJoin = ctx.lineCap = 'round';
   ctx.globalAlpha = 0.9;
@@ -840,7 +853,7 @@ async function renderRouteMap(width, height, dpr) {
   for (const pt of _forecastPoints || []) {
     const p = toPx(pt.lat, pt.lng);
     const spd = pt.wind_mph || 0;
-    const clr = spd < 6 ? '#64748b' : spd < 13 ? '#22c55e' : spd < 20 ? '#f97316' : '#ef4444';
+    const clr = spd < 6 ? PALETTE.grayLine : spd < 13 ? PALETTE.green : spd < 20 ? PALETTE.orange : PALETTE.red;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate((((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180);
@@ -857,7 +870,7 @@ async function renderRouteMap(width, height, dpr) {
   }
 
   // Start / finish markers
-  for (const [w, fill] of [[_waypoints[0], '#22c55e'], [_waypoints[_waypoints.length - 1], '#ef4444']]) {
+  for (const [w, fill] of [[_waypoints[0], PALETTE.green], [_waypoints[_waypoints.length - 1], PALETTE.red]]) {
     const p = toPx(w.lat, w.lng);
     ctx.beginPath();
     ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
@@ -1052,7 +1065,7 @@ function exStatLine(ctx, x, y, items, maxW) {
     { font: k => `${15 * k}px Inter, sans-serif`,         color: 'rgba(17,17,40,0.66)', text: it.label + '  ' },
     { font: k => `700 ${17 * k}px Inter, sans-serif`,     color: '#111128',             text: it.value + (it.unit ? ' ' + it.unit : '') }
   ];
-  const sep = { font: k => `${15 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.4)', text: '   ·   ' };
+  const sep = { font: k => `${15 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.5)', text: '   ·   ' };
   const parts = items.flatMap((it, i) => i ? [sep, ...segments(it)] : segments(it));
   const widthAt = k => parts.reduce((w, p) => { ctx.font = p.font(k); return w + ctx.measureText(p.text).width; }, 0);
   let k = 1;
@@ -1161,13 +1174,13 @@ async function exportWeatherImage() {
     const metaStr = [when, speedMph ? speedMph + ' mph avg' : ''].filter(Boolean).join('   ·   ');
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#3B82F6';
+    ctx.fillStyle = PALETTE.blue;
     rrect(ctx, PADX, 28, IW, 4, 2);
     ctx.fill();
     ctx.save();
     ctx.font = '600 12px Unbounded, sans-serif';
     try { ctx.letterSpacing = '5px'; } catch(_) {}
-    ctx.fillStyle = '#3B82F6';
+    ctx.fillStyle = PALETTE.blueText;
     ctx.fillText('RIDE FORECAST', PADX + 1, 64);
     ctx.restore();
     ctx.font = '900 38px Unbounded, sans-serif';
@@ -1201,7 +1214,7 @@ async function exportWeatherImage() {
       ctx.save();
       ctx.font = '600 11.5px Unbounded, sans-serif';
       try { ctx.letterSpacing = '2px'; } catch(_) {}
-      ctx.fillStyle = 'rgba(17,17,40,0.55)';
+      ctx.fillStyle = 'rgba(17,17,40,0.68)';
       ctx.fillText(item.label.toUpperCase(), cx, y + 78);
       ctx.restore();
 
@@ -1268,7 +1281,7 @@ async function exportWeatherImage() {
       : '';
     ctx.font = '14px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(17,17,40,0.55)';
+    ctx.fillStyle = 'rgba(17,17,40,0.64)';
     ctx.fillText(fetched + 'Weather data by Open-Meteo.com', W / 2, y + 18);
 
     const filename = label.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-forecast.png';
