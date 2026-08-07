@@ -1038,6 +1038,29 @@ function exTitle(ctx, text, x, y) {
   ctx.restore();
 }
 
+// Inline "Label value · Label value" ride-stat line under the elevation chart.
+function exStatLine(ctx, x, y, items) {
+  ctx.textAlign = 'left';
+  let cx = x;
+  items.forEach((it, i) => {
+    if (i) {
+      ctx.font = '13px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(17,17,40,0.3)';
+      ctx.fillText('   ·   ', cx, y);
+      cx += ctx.measureText('   ·   ').width;
+    }
+    ctx.font = '12px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(17,17,40,0.5)';
+    ctx.fillText(it.label + '  ', cx, y);
+    cx += ctx.measureText(it.label + '  ').width;
+    ctx.font = '600 13px Inter, sans-serif';
+    ctx.fillStyle = '#111128';
+    const val = it.value + (it.unit ? ' ' + it.unit : '');
+    ctx.fillText(val, cx, y);
+    cx += ctx.measureText(val).width;
+  });
+}
+
 // White rounded card with a soft shadow and hairline border.
 function exCard(ctx, x, y, w, h) {
   ctx.save();
@@ -1085,30 +1108,27 @@ async function exportWeatherImage() {
   try {
     await Promise.all([document.fonts.ready, _chartReady]);
 
-    const DPR = 2, W = 1080, PADX = 30, GAP = 18, CARD_PAD = 22, TITLE_H = 26;
-    const IW = W - PADX * 2;          // card width
-    const CW = IW - CARD_PAD * 2;     // content width inside cards
+    const DPR = 2, W = 1440, PADX = 30, GAP = 18, CARD_PAD = 22, TITLE_H = 26;
+    const IW = W - PADX * 2;              // full-width card
+    const COL_W = (IW - GAP) / 2;         // card width in the two-column grid
+    const CCW = COL_W - CARD_PAD * 2;     // content width inside a column card
     const INK = '#111128';
-
-    // Map size follows the route's own aspect ratio (in Web Mercator), so the
-    // export looks identical on every device regardless of the on-screen map.
     const hasMap = !!(_waypoints && _waypoints.length > 1);
-    let mapH = 0;
-    if (hasMap) {
-      const b = routeWorldBounds(_waypoints);
-      mapH = Math.max(300, Math.min(560, Math.round(CW * (b.maxY - b.minY) / (b.maxX - b.minX))));
-    }
 
-    const chartDefs = buildChartConfigs(_forecastPoints, 1.2);
+    const chartDefs = buildChartConfigs(_forecastPoints, 1.2)
+      .map(d => ({ ...d, h: d.key === 'elev' ? 150 : 250 }));
     const chartTitles = { temp: 'Temperature', precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
     const summaryItems = _waypoints ? buildSummaryItems(_forecastPoints, _waypoints) : null;
+    const defOf = k => chartDefs.find(d => d.key === k);
 
-    const BANNER_H = 96, FEEL_H = 122, STATS_H = 92, FOOT_H = 46;
-    let H = BANNER_H + 24 + FEEL_H + GAP;
-    if (summaryItems) H += STATS_H + GAP;
-    for (const d of chartDefs) H += CARD_PAD + TITLE_H + d.h + CARD_PAD + GAP;
-    if (hasMap) H += CARD_PAD + TITLE_H + mapH + CARD_PAD + GAP;
-    H += FOOT_H;
+    // Compact two-column grid: temp | precip, then map | wind + elevation,
+    // with the ride stats inline under the elevation chart.
+    const BANNER_H = 96, FEEL_H = 122, FOOT_H = 46, STATS_H = summaryItems ? 46 : 0;
+    const cardH = k => CARD_PAD + TITLE_H + defOf(k).h + CARD_PAD;
+    const rightColH = cardH('wind') + GAP + cardH('elev') + STATS_H;
+    const mapCardH = rightColH;
+    const mapH = mapCardH - CARD_PAD * 2 - TITLE_H;
+    const H = BANNER_H + 24 + FEEL_H + GAP + cardH('temp') + GAP + rightColH + GAP + FOOT_H;
 
     const canvas = document.createElement('canvas');
     canvas.width  = W * DPR;
@@ -1187,81 +1207,50 @@ async function exportWeatherImage() {
     });
     y += FEEL_H + GAP;
 
-    // ── Ride stats card ──
+    // ── Two-column grid ──
+    exCharts = createExportCharts(chartDefs, CCW, DPR);
+    const leftX = PADX, rightX = PADX + COL_W + GAP;
+
+    const drawChartCard = (x, cy, key) => {
+      const h = cardH(key) + (key === 'elev' ? STATS_H : 0);
+      exCard(ctx, x, cy, COL_W, h);
+      exTitle(ctx, chartTitles[key], x + CARD_PAD, cy + CARD_PAD + 8);
+      ctx.drawImage(exCharts.canvases[key], x + CARD_PAD, cy + CARD_PAD + TITLE_H, CCW, defOf(key).h);
+      return cy + h + GAP;
+    };
+
+    // Row 1: temperature | precipitation
+    drawChartCard(leftX, y, 'temp');
+    const row2Y = drawChartCard(rightX, y, 'precip');
+
+    // Row 2 right: wind, then elevation with the ride stats under the chart
+    const elevY = drawChartCard(rightX, row2Y, 'wind');
+    drawChartCard(rightX, elevY, 'elev');
     if (summaryItems) {
-      exCard(ctx, PADX, y, IW, STATS_H);
-      const sw = IW / summaryItems.length;
-      summaryItems.forEach((it, i) => {
-        if (i > 0) {
-          ctx.strokeStyle = 'rgba(17,17,40,0.07)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(PADX + i * sw, y + 18);
-          ctx.lineTo(PADX + i * sw, y + STATS_H - 18);
-          ctx.stroke();
-        }
-        const cx = PADX + i * sw + sw / 2;
-        ctx.textAlign = 'center';
-        ctx.save();
-        ctx.font = '600 8.5px Unbounded, sans-serif';
-        try { ctx.letterSpacing = '2px'; } catch(_) {}
-        ctx.fillStyle = 'rgba(17,17,40,0.38)';
-        ctx.fillText(it.label.toUpperCase(), cx, y + 34);
-        ctx.restore();
-
-        const vFont = '500 20px "DM Mono", monospace';
-        const uFont = '11px Inter, sans-serif';
-        ctx.font = vFont;
-        const vw = ctx.measureText(it.value).width;
-        ctx.font = uFont;
-        const uw = it.unit ? ctx.measureText(' ' + it.unit).width : 0;
-        const tx = cx - (vw + uw) / 2;
-        ctx.textAlign = 'left';
-        ctx.font = vFont;
-        ctx.fillStyle = INK;
-        ctx.fillText(it.value, tx, y + 64);
-        if (it.unit) {
-          ctx.font = uFont;
-          ctx.fillStyle = 'rgba(17,17,40,0.5)';
-          ctx.fillText(' ' + it.unit, tx + vw, y + 64);
-        }
-      });
-      y += STATS_H + GAP;
+      exStatLine(ctx, rightX + CARD_PAD, elevY + CARD_PAD + TITLE_H + defOf('elev').h + 24, summaryItems);
     }
 
-    // ── Charts, re-rendered offscreen at export size ──
-    exCharts = createExportCharts(chartDefs, CW, DPR);
-    for (const d of chartDefs) {
-      const cardH = CARD_PAD + TITLE_H + d.h + CARD_PAD;
-      exCard(ctx, PADX, y, IW, cardH);
-      exTitle(ctx, chartTitles[d.key], PADX + CARD_PAD, y + CARD_PAD + 8);
-      ctx.drawImage(exCharts.canvases[d.key], PADX + CARD_PAD, y + CARD_PAD + TITLE_H, CW, d.h);
-      y += cardH + GAP;
+    // Row 2 left: route map, sized to match the right-hand column
+    exCard(ctx, leftX, row2Y, COL_W, mapCardH);
+    exTitle(ctx, 'Route & Wind', leftX + CARD_PAD, row2Y + CARD_PAD + 8);
+    const mapY = row2Y + CARD_PAD + TITLE_H;
+    const mapBitmap = hasMap ? await renderRouteMap(CCW, mapH, DPR) : null;
+    ctx.save();
+    rrect(ctx, leftX + CARD_PAD, mapY, CCW, mapH, 10);
+    ctx.clip();
+    if (mapBitmap) {
+      ctx.drawImage(mapBitmap, leftX + CARD_PAD, mapY, CCW, mapH);
+    } else {
+      ctx.fillStyle = '#e8e4df';
+      ctx.fillRect(leftX + CARD_PAD, mapY, CCW, mapH);
     }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(17,17,40,0.1)';
+    ctx.lineWidth = 1;
+    rrect(ctx, leftX + CARD_PAD + 0.5, mapY + 0.5, CCW - 1, mapH - 1, 10);
+    ctx.stroke();
 
-    // ── Map card ──
-    if (hasMap) {
-      const cardH = CARD_PAD + TITLE_H + mapH + CARD_PAD;
-      exCard(ctx, PADX, y, IW, cardH);
-      exTitle(ctx, 'Route & Wind', PADX + CARD_PAD, y + CARD_PAD + 8);
-      const mapY = y + CARD_PAD + TITLE_H;
-      const mapBitmap = await renderRouteMap(CW, mapH, DPR);
-      ctx.save();
-      rrect(ctx, PADX + CARD_PAD, mapY, CW, mapH, 10);
-      ctx.clip();
-      if (mapBitmap) {
-        ctx.drawImage(mapBitmap, PADX + CARD_PAD, mapY, CW, mapH);
-      } else {
-        ctx.fillStyle = '#e8e4df';
-        ctx.fillRect(PADX + CARD_PAD, mapY, CW, mapH);
-      }
-      ctx.restore();
-      ctx.strokeStyle = 'rgba(17,17,40,0.1)';
-      ctx.lineWidth = 1;
-      rrect(ctx, PADX + CARD_PAD + 0.5, mapY + 0.5, CW - 1, mapH - 1, 10);
-      ctx.stroke();
-      y += cardH + GAP;
-    }
+    y = row2Y + mapCardH + GAP;
 
     // ── Footer ──
     const fetched = _forecastGeneratedAt
