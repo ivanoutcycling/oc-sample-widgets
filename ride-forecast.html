@@ -825,7 +825,7 @@ async function renderRouteMap(width, height, dpr) {
 
   // Route polyline
   ctx.strokeStyle = '#f97316';
-  ctx.lineWidth = 3.5;
+  ctx.lineWidth = 4;
   ctx.lineJoin = ctx.lineCap = 'round';
   ctx.globalAlpha = 0.9;
   ctx.beginPath();
@@ -845,12 +845,12 @@ async function renderRouteMap(width, height, dpr) {
     ctx.translate(p.x, p.y);
     ctx.rotate((((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180);
     ctx.beginPath();
-    ctx.moveTo(0, -9); ctx.lineTo(4.5, 8); ctx.lineTo(0, 3.5); ctx.lineTo(-4.5, 8);
+    ctx.moveTo(0, -13); ctx.lineTo(6.5, 11.5); ctx.lineTo(0, 5); ctx.lineTo(-6.5, 11.5);
     ctx.closePath();
     ctx.fillStyle = clr;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.stroke();
     ctx.restore();
@@ -860,23 +860,23 @@ async function renderRouteMap(width, height, dpr) {
   for (const [w, fill] of [[_waypoints[0], '#22c55e'], [_waypoints[_waypoints.length - 1], '#ef4444']]) {
     const p = toPx(w.lat, w.lng);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
     ctx.fillStyle = fill;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
   }
 
   // Attribution
-  ctx.font = '10px Inter, sans-serif';
+  ctx.font = '11px Inter, sans-serif';
   ctx.textAlign = 'left';
   const attr = '© OpenStreetMap © CARTO';
   const tw = ctx.measureText(attr).width;
   ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  ctx.fillRect(width - tw - 14, height - 20, tw + 14, 20);
+  ctx.fillRect(width - tw - 16, height - 22, tw + 16, 22);
   ctx.fillStyle = 'rgba(17,17,40,0.7)';
-  ctx.fillText(attr, width - tw - 7, height - 7);
+  ctx.fillText(attr, width - tw - 8, height - 8);
 
   return canvas;
 }
@@ -1036,7 +1036,7 @@ function rrect(ctx, x, y, w, h, r) {
 // Small-caps section title used inside export cards.
 function exTitle(ctx, text, x, y) {
   ctx.save();
-  ctx.font = '600 13px Unbounded, sans-serif';
+  ctx.font = '600 15px Unbounded, sans-serif';
   try { ctx.letterSpacing = '2px'; } catch(_) {}
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(17,17,40,0.85)';
@@ -1049,10 +1049,10 @@ function exTitle(ctx, text, x, y) {
 function exStatLine(ctx, x, y, items, maxW) {
   ctx.textAlign = 'left';
   const segments = it => [
-    { font: k => `${13.5 * k}px Inter, sans-serif`,       color: 'rgba(17,17,40,0.66)', text: it.label + '  ' },
-    { font: k => `700 ${15 * k}px Inter, sans-serif`,     color: '#111128',             text: it.value + (it.unit ? ' ' + it.unit : '') }
+    { font: k => `${15 * k}px Inter, sans-serif`,         color: 'rgba(17,17,40,0.66)', text: it.label + '  ' },
+    { font: k => `700 ${17 * k}px Inter, sans-serif`,     color: '#111128',             text: it.value + (it.unit ? ' ' + it.unit : '') }
   ];
-  const sep = { font: k => `${14 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.4)', text: '   ·   ' };
+  const sep = { font: k => `${15 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.4)', text: '   ·   ' };
   const parts = items.flatMap((it, i) => i ? [sep, ...segments(it)] : segments(it));
   const widthAt = k => parts.reduce((w, p) => { ctx.font = p.font(k); return w + ctx.measureText(p.text).width; }, 0);
   let k = 1;
@@ -1123,15 +1123,15 @@ async function exportWeatherImage() {
     const INK = '#111128';
     const hasMap = !!(_waypoints && _waypoints.length > 1);
 
-    const chartDefs = buildChartConfigs(_forecastPoints, 1.45, true)
-      .map(d => ({ ...d, h: d.key === 'elev' ? 165 : 260 }));
+    const chartDefs = buildChartConfigs(_forecastPoints, 1.6, true)
+      .map(d => ({ ...d, h: d.key === 'elev' ? 175 : 270 }));
     const chartTitles = { temp: 'Temperature', precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
     const summaryItems = _waypoints ? buildSummaryItems(_forecastPoints, _waypoints) : null;
     const defOf = k => chartDefs.find(d => d.key === k);
 
     // Compact two-column grid: temp | precip, then map | wind + elevation,
     // with the ride stats inline under the elevation chart.
-    const HEADER_H = 158, FEEL_H = 134, FOOT_H = 48, STATS_H = summaryItems ? 50 : 0;
+    const HEADER_H = 166, FEEL_H = 142, FOOT_H = 50, STATS_H = summaryItems ? 54 : 0;
     const cardH = k => CARD_PAD + TITLE_H + defOf(k).h + CARD_PAD;
     const rightColH = cardH('wind') + GAP + cardH('elev') + STATS_H;
     const mapCardH = rightColH;
@@ -1165,17 +1165,17 @@ async function exportWeatherImage() {
     rrect(ctx, PADX, 28, IW, 4, 2);
     ctx.fill();
     ctx.save();
-    ctx.font = '600 11px Unbounded, sans-serif';
+    ctx.font = '600 12px Unbounded, sans-serif';
     try { ctx.letterSpacing = '5px'; } catch(_) {}
     ctx.fillStyle = '#3B82F6';
-    ctx.fillText('RIDE FORECAST', PADX + 1, 62);
+    ctx.fillText('RIDE FORECAST', PADX + 1, 64);
     ctx.restore();
-    ctx.font = '900 34px Unbounded, sans-serif';
+    ctx.font = '900 38px Unbounded, sans-serif';
     ctx.fillStyle = INK;
-    ctx.fillText(label, PADX, 102);
-    ctx.font = '500 15px Inter, sans-serif';
+    ctx.fillText(label, PADX, 108);
+    ctx.font = '500 16.5px Inter, sans-serif';
     ctx.fillStyle = 'rgba(17,17,40,0.68)';
-    ctx.fillText(metaStr, PADX, 130);
+    ctx.fillText(metaStr, PADX, 138);
 
     let y = HEADER_H;
 
@@ -1194,26 +1194,26 @@ async function exportWeatherImage() {
       const cx = PADX + i * colW + colW / 2;
       ctx.textAlign = 'center';
 
-      ctx.font = '36px ' + EMOJI_FONT;
+      ctx.font = '40px ' + EMOJI_FONT;
       ctx.fillStyle = INK;
-      ctx.fillText(item.emoji, cx, y + 46);
+      ctx.fillText(item.emoji, cx, y + 50);
 
       ctx.save();
-      ctx.font = '600 10.5px Unbounded, sans-serif';
+      ctx.font = '600 11.5px Unbounded, sans-serif';
       try { ctx.letterSpacing = '2px'; } catch(_) {}
       ctx.fillStyle = 'rgba(17,17,40,0.55)';
-      ctx.fillText(item.label.toUpperCase(), cx, y + 72);
+      ctx.fillText(item.label.toUpperCase(), cx, y + 78);
       ctx.restore();
 
-      ctx.font = '700 18px Inter, sans-serif';
+      ctx.font = '700 21px Inter, sans-serif';
       ctx.fillStyle = INK;
-      ctx.fillText(item.value, cx, y + 97);
+      ctx.fillText(item.value, cx, y + 104);
 
-      ctx.font = '13.5px Inter, sans-serif';
+      ctx.font = '15px Inter, sans-serif';
       ctx.fillStyle = 'rgba(17,17,40,0.72)';
       let desc = item.desc;
       while (ctx.measureText(desc).width > colW - 28 && desc.length > 10) desc = desc.slice(0, -4) + '…';
-      ctx.fillText(desc, cx, y + 118);
+      ctx.fillText(desc, cx, y + 126);
     });
     y += FEEL_H + GAP;
 
@@ -1237,7 +1237,7 @@ async function exportWeatherImage() {
     const elevY = drawChartCard(rightX, row2Y, 'wind');
     drawChartCard(rightX, elevY, 'elev');
     if (summaryItems) {
-      exStatLine(ctx, rightX + CARD_PAD, elevY + CARD_PAD + TITLE_H + defOf('elev').h + 28, summaryItems, CCW);
+      exStatLine(ctx, rightX + CARD_PAD, elevY + CARD_PAD + TITLE_H + defOf('elev').h + 30, summaryItems, CCW);
     }
 
     // Row 2 left: route map, sized to match the right-hand column
@@ -1266,7 +1266,7 @@ async function exportWeatherImage() {
     const fetched = _forecastGeneratedAt
       ? 'Forecast fetched ' + new Date(_forecastGeneratedAt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) + ' · '
       : '';
-    ctx.font = '13px Inter, sans-serif';
+    ctx.font = '14px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(17,17,40,0.55)';
     ctx.fillText(fetched + 'Weather data by Open-Meteo.com', W / 2, y + 18);
