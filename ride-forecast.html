@@ -208,8 +208,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   <div class="feel-panel" id="feel-panel"></div>
 
   <div class="card">
+    <div class="summary-row" id="summary-row" style="border-top:none;margin-top:0"></div>
+  </div>
+
+  <div class="card">
     <div class="chart-title">Temperature</div>
-    <div class="chart-wrap"><canvas id="chart-temp"></canvas></div>
+    <div class="summary-row" id="temp-stats" style="border-top:none;margin-top:0"></div>
   </div>
   <div class="card">
     <div class="chart-title">Precipitation &amp; Cloud Cover</div>
@@ -225,10 +229,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webk
   </div>
 
   <div class="map-wrap"><div id="forecast-map"></div></div>
-
-  <div class="card" style="padding:0 0 0 0">
-    <div class="summary-row" id="summary-row"></div>
-  </div>
 </div>
 </div>
 
@@ -578,6 +578,43 @@ function interpolateByTime(waypoints, startTimeMs, speedMph) {
   return samples;
 }
 
+// The weather-sample points (interpolateByTime) land every 10 minutes of
+// ride time, which is far too coarse for an elevation profile — it smooths
+// away real climbs and descents. This instead walks the full-resolution
+// track (the actual RideWithGPS/GPX points), so the elevation chart matches
+// the terrain RideWithGPS reports, not a simplified version of it. Downsampled
+// to a sane point count for chart performance on very long/detailed routes.
+function buildElevProfile(waypoints, startTimeMs, speedMph) {
+  if (!waypoints || waypoints.length < 2) return null;
+  const speedMps = speedMph * 0.44704;
+  if (!(speedMps > 0)) return null;
+  const MAX_POINTS = 400;
+  const stride = Math.max(1, Math.ceil(waypoints.length / MAX_POINTS));
+  const sampled = [];
+  for (let i = 0; i < waypoints.length; i += stride) sampled.push(waypoints[i]);
+  const last = waypoints[waypoints.length - 1];
+  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  // {x,y} points on a numeric (minutes-elapsed) x-axis rather than one
+  // category-scale label per point — Chart.js's category scale doesn't
+  // space ticks correctly once there are hundreds of categories, even with
+  // maxTicksLimit capping how many are drawn (the drawn labels end up
+  // bunched together instead of evenly spread across the axis).
+  return {
+    startTimeMs,
+    points: sampled.map(w => ({ x: (w.dist_m / speedMps) / 60, y: mToFt(w.ele_m) }))
+  };
+}
+
+// Reads the current session's waypoints/timing to build the elevation
+// profile above — used by both the on-screen render and the export.
+function computeElevProfile() {
+  if (!_waypoints || _waypoints.length < 2 || !_sessionMeta) return null;
+  const { speedMph, startDate, startTime } = _sessionMeta;
+  if (!speedMph || !startDate) return null;
+  const startTimeMs = new Date(`${startDate}T${startTime || '07:00'}:00`).getTime();
+  return buildElevProfile(_waypoints, startTimeMs, speedMph);
+}
+
 // ── Open-Meteo weather fetching ──
 // Uses UTC timezone so our ISO timestamps align with Open-Meteo's time array.
 async function fetchWeatherForSamples(samples, onProgress) {
@@ -660,20 +697,29 @@ function mkDataset(label, data, color, opts = {}) {
 // Shared chart definitions for the on-screen view (F=1) and the image
 // export, which re-renders them offscreen with larger fonts and, with
 // dark=true, near-black text for glanceability in shared images.
-function buildChartConfigs(pts, F = 1, dark = false) {
+// elevProfile (see buildElevProfile), when given, plots the elevation chart
+// from the full-resolution track instead of the sparse weather samples.
+function buildChartConfigs(pts, F = 1, dark = false, elevProfile = null) {
   const labels = pts.map(p => fmtHHMM(p.timestamp));
   const tickFont = { family: 'DM Mono', size: Math.round(9.5 * F) };
   const tickColor = dark ? 'rgba(17,17,40,0.82)' : 'rgba(17,17,40,0.45)';
-  const X = {
+  // Factories, not shared objects: each chart gets its own scale config.
+  // Chart.js attaches internal per-instance state (computed tick pixel
+  // positions, etc.) directly onto the options objects it's given, so
+  // reusing one X/Y object across multiple Chart instances let one chart's
+  // cached layout leak into another's — most visibly on the elevation
+  // chart, whose hundreds of points made its ticks render bunched up at
+  // stale positions computed for a different chart's much smaller dataset.
+  const mkX = () => ({
     ticks: { font: tickFont, color: tickColor, maxRotation: 0, maxTicksLimit: 9, padding: 6 },
     grid: { color: 'rgba(17,17,40,0.04)', drawTicks: false },
     border: { display: false }
-  };
-  const Y = {
+  });
+  const mkY = () => ({
     ticks: { font: tickFont, color: tickColor, padding: 8, maxTicksLimit: 6 },
     grid: { color: 'rgba(17,17,40,0.06)', drawTicks: false },
     border: { display: false }
-  };
+  });
   // Legend text/spacing scales a bit more gently than the axis text so a
   // 3-series legend (precip chart) still fits on one line at large F.
   const LF = dark ? F * 0.8 : F;
@@ -696,39 +742,44 @@ function buildChartConfigs(pts, F = 1, dark = false) {
       }
     }
   };
-  const elevFt = pts.map(p => mToFt(p.ele_m));
+  // Elevation: use the full-resolution profile on its own numeric (minutes-
+  // elapsed) x-axis when available; otherwise fall back to the same sparse
+  // weather-sample category axis the other charts use.
+  const elevFt = elevProfile ? elevProfile.points.map(p => p.y) : pts.map(p => mToFt(p.ele_m));
+  const elevX = elevProfile
+    ? { type: 'linear', min: 0, max: elevProfile.points[elevProfile.points.length - 1].x, ...mkX(),
+        ticks: { ...mkX().ticks, callback: v => fmtHHMM(new Date(elevProfile.startTimeMs + v * 60000).toISOString()) } }
+    : mkX();
   return [
-    { key: 'temp', h: 250, config: { type: 'line', data: { labels, datasets: [
-        mkDataset('Temperature (°F)', pts.map(p=>p.temp_f),       PALETTE.blue),
-        mkDataset('Feels Like (°F)',  pts.map(p=>p.feels_like_f), PALETTE.orange, { backgroundColor: areaFill(PALETTE.orange, 0.12) })
-      ]}, options: { ...OPTS, scales: { x: X, y: Y } } } },
     { key: 'precip', h: 250, config: { type: 'line', data: { labels, datasets: [
         mkDataset('Precip Prob (%)', pts.map(p=>p.precip_prob), PALETTE.blue, { yAxisID: 'yPct' }),
         mkDataset('Cloud Cover (%)', pts.map(p=>p.cloud_cover), PALETTE.grayLine, { yAxisID: 'yPct', borderWidth: 1.5, backgroundColor: areaFill(PALETTE.grayLine, 0.14) }),
         mkDataset('Precip (in/hr)',  pts.map(p=>p.precip_in),   '#0ea5e9', { yAxisID: 'yIn' })
       ]}, options: { ...OPTS, scales: {
-        x: X,
-        yPct: { ...Y, position: 'left',  min: 0, max: 100 },
-        yIn:  { ...Y, position: 'right', min: 0, suggestedMax: 0.5,
+        x: mkX(),
+        yPct: { ...mkY(), position: 'left',  min: 0, max: 100 },
+        yIn:  { ...mkY(), position: 'right', min: 0, suggestedMax: 0.5,
                 grid: { drawOnChartArea: false, drawTicks: false },
-                ticks: { ...Y.ticks, callback: v => v > 0 ? v.toFixed(2) + '"' : '0"' } }
+                ticks: { ...mkY().ticks, callback: v => v > 0 ? v.toFixed(2) + '"' : '0"' } }
       } } } },
     { key: 'wind', h: 250, config: { type: 'line', data: { labels, datasets: [
         mkDataset('Wind (mph)',  pts.map(p=>p.wind_mph),      PALETTE.blue),
         mkDataset('Gusts (mph)', pts.map(p=>p.wind_gust_mph), PALETTE.orange, { borderDash: [5, 4], backgroundColor: areaFill(PALETTE.orange, 0.1) })
-      ]}, options: { ...OPTS, scales: { x: X, y: { ...Y, min: 0 } } } } },
-    { key: 'elev', h: 180, config: { type: 'line', data: { labels, datasets: [
-        mkDataset('Elevation (ft)', elevFt, PALETTE.orange, { borderWidth: 1.5, backgroundColor: areaFill(PALETTE.orange, 0.28) })
-      ]}, options: { ...OPTS, scales: { x: X, y: { ...Y, min: Math.max(0, Math.min(...elevFt) - 200) } } } } }
+      ]}, options: { ...OPTS, scales: { x: mkX(), y: { ...mkY(), min: 0 } } } } },
+    { key: 'elev', h: 180, config: { type: 'line', data: { labels: elevProfile ? undefined : labels, datasets: [
+        mkDataset('Elevation (ft)', elevProfile ? elevProfile.points : elevFt, PALETTE.orange,
+                  { borderWidth: 1.5, backgroundColor: areaFill(PALETTE.orange, 0.28) })
+      ]}, options: { ...OPTS, scales: { x: elevX, y: { ...mkY(), min: Math.max(0, Math.min(...elevFt) - 200) } } } } }
   ];
 }
 
 async function renderCharts(pts) {
   await _chartReady;
   destroyCharts();
-  for (const def of buildChartConfigs(pts)) {
+  for (const def of buildChartConfigs(pts, 1, false, computeElevProfile())) {
     _charts[def.key] = new Chart(document.getElementById('chart-' + def.key).getContext('2d'), def.config);
   }
+  renderTempStats(pts);
 }
 
 // ── Map rendering ──
@@ -841,7 +892,7 @@ async function renderRouteMap(width, height, dpr) {
 
   // Route polyline
   ctx.strokeStyle = PALETTE.orange;
-  ctx.lineWidth = 5.5;
+  ctx.lineWidth = 7;
   ctx.lineJoin = ctx.lineCap = 'round';
   ctx.globalAlpha = 0.9;
   ctx.beginPath();
@@ -861,12 +912,12 @@ async function renderRouteMap(width, height, dpr) {
     ctx.translate(p.x, p.y);
     ctx.rotate((((pt.wind_dir_deg || 0) + 180) % 360) * Math.PI / 180);
     ctx.beginPath();
-    ctx.moveTo(0, -18); ctx.lineTo(9, 16); ctx.lineTo(0, 7); ctx.lineTo(-9, 16);
+    ctx.moveTo(0, -32); ctx.lineTo(16, 28); ctx.lineTo(0, 12); ctx.lineTo(-16, 28);
     ctx.closePath();
     ctx.fillStyle = clr;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2.75;
+    ctx.lineWidth = 4;
     ctx.lineJoin = 'round';
     ctx.stroke();
     ctx.restore();
@@ -876,11 +927,11 @@ async function renderRouteMap(width, height, dpr) {
   for (const [w, fill] of [[_waypoints[0], PALETTE.green], [_waypoints[_waypoints.length - 1], PALETTE.red]]) {
     const p = toPx(w.lat, w.lng);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
     ctx.fillStyle = fill;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3.3;
+    ctx.lineWidth = 4;
     ctx.stroke();
   }
 
@@ -983,19 +1034,19 @@ function setGeneratedAt(ts) {
 // ── Ride-feel summary panel ──
 // Shared data builder used by both the DOM panel and the canvas export.
 function buildFeelItems(pts) {
-  const feelsLike = pts.map(p => p.feels_like_f);
-  const avgFeels  = feelsLike.reduce((a, b) => a + b) / feelsLike.length;
-  const minFeels  = Math.min(...feelsLike);
-  const maxFeels  = Math.max(...feelsLike);
+  const temps   = pts.map(p => p.temp_f);
+  const avgTemp = temps.reduce((a, b) => a + b) / temps.length;
+  const minTemp = Math.min(...temps);
+  const maxTemp = Math.max(...temps);
 
   let tempEmoji, tempValue;
-  if      (avgFeels < 35) { tempEmoji = '🥶'; tempValue = 'Very Cold'; }
-  else if (avgFeels < 48) { tempEmoji = '🧤'; tempValue = 'Cold'; }
-  else if (avgFeels < 58) { tempEmoji = '🧥'; tempValue = 'Cool'; }
-  else if (avgFeels < 70) { tempEmoji = '😊'; tempValue = 'Comfortable'; }
-  else if (avgFeels < 82) { tempEmoji = '☀️'; tempValue = 'Warm'; }
+  if      (avgTemp < 35) { tempEmoji = '🥶'; tempValue = 'Very Cold'; }
+  else if (avgTemp < 48) { tempEmoji = '🧤'; tempValue = 'Cold'; }
+  else if (avgTemp < 58) { tempEmoji = '🧥'; tempValue = 'Cool'; }
+  else if (avgTemp < 70) { tempEmoji = '😊'; tempValue = 'Comfortable'; }
+  else if (avgTemp < 82) { tempEmoji = '☀️'; tempValue = 'Warm'; }
   else                    { tempEmoji = '🥵'; tempValue = 'Hot'; }
-  const tempDesc = `${Math.round(minFeels)}–${Math.round(maxFeels)}°F feels like`;
+  const tempDesc = `${Math.round(minTemp)}–${Math.round(maxTemp)}°F`;
 
   const maxPrecipProb = Math.max(...pts.map(p => p.precip_prob));
   const maxPrecipIn   = Math.max(...pts.map(p => p.precip_in));
@@ -1035,6 +1086,34 @@ function renderFeelSummary(pts) {
   ).join('');
 }
 
+// ── Temperature min/max/avg (replaces the old temperature line chart —
+// feels-like tracked real temp too closely to earn its own chart, and a
+// glanceable range reads faster than a nearly-flat line). ──
+function buildTempStats(pts) {
+  const temps = pts.map(p => p.temp_f);
+  return {
+    min: Math.round(Math.min(...temps)),
+    max: Math.round(Math.max(...temps)),
+    avg: Math.round(temps.reduce((a, b) => a + b, 0) / temps.length)
+  };
+}
+
+function renderTempStats(pts) {
+  const el = document.getElementById('temp-stats');
+  if (!el) return;
+  const s = buildTempStats(pts);
+  el.innerHTML = [
+    { label: 'Min', value: s.min },
+    { label: 'Avg', value: s.avg },
+    { label: 'Max', value: s.max }
+  ].map(it =>
+    `<div class="summary-item">
+      <div class="summary-label">${it.label}</div>
+      <div class="summary-value">${it.value}<span class="summary-unit"> °F</span></div>
+    </div>`
+  ).join('');
+}
+
 // ── Canvas image export ──
 // Renders a fixed-width, high-DPI report: banner, conditions, ride stats,
 // all four charts re-rendered offscreen at export size (crisp regardless of
@@ -1049,6 +1128,21 @@ function rrect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Canvas textAlign:'center' centers by advance width, but color-emoji glyphs
+// often carry lopsided left/right bearing (extra padding on one side), so
+// centering that way visibly drifts off-center. This centers on the glyph's
+// actual inked bounds instead, falling back to advance width if the browser
+// doesn't report them.
+function fillTextCenteredEmoji(ctx, text, cx, y) {
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = 'left';
+  const m = ctx.measureText(text);
+  const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight;
+  const x = Number.isFinite(l) && Number.isFinite(r) && (l || r) ? cx - (r - l) / 2 : cx - m.width / 2;
+  ctx.fillText(text, x, y);
+  ctx.textAlign = prevAlign;
+}
+
 // Small-caps section title used inside export cards.
 function exTitle(ctx, text, x, y) {
   ctx.save();
@@ -1060,29 +1154,94 @@ function exTitle(ctx, text, x, y) {
   ctx.restore();
 }
 
-// Inline "Label value · Label value" ride-stat line under the elevation
-// chart. Font sizes shrink proportionally if the line would exceed maxW.
-function exStatLine(ctx, x, y, items, maxW) {
-  ctx.textAlign = 'left';
-  const segments = it => [
-    { font: k => `${22 * k}px Inter, sans-serif`,         color: 'rgba(17,17,40,0.66)', text: it.label + '  ' },
-    { font: k => `700 ${26 * k}px Inter, sans-serif`,     color: '#111128',             text: it.value + (it.unit ? ' ' + it.unit : '') }
+// Full-width "Distance · Elev Gain · Duration · Avg Temp · Max Wind" bar —
+// its own prominent card up top rather than fine print squeezed into a
+// chart card.
+function drawSummaryBar(ctx, x, y, w, h, items) {
+  exCard(ctx, x, y, w, h);
+  const colW = w / items.length;
+  items.forEach((it, i) => {
+    if (i > 0) {
+      ctx.strokeStyle = 'rgba(17,17,40,0.07)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + i * colW, y + 22);
+      ctx.lineTo(x + i * colW, y + h - 22);
+      ctx.stroke();
+    }
+    const cx = x + i * colW + colW / 2;
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.font = '600 15px Unbounded, sans-serif';
+    try { ctx.letterSpacing = '2px'; } catch(_) {}
+    ctx.fillStyle = 'rgba(17,17,40,0.55)';
+    ctx.fillText(it.label.toUpperCase(), cx, y + h / 2 - 12);
+    ctx.restore();
+
+    const vFont = '700 34px "DM Mono", monospace', uFont = '18px Inter, sans-serif';
+    ctx.font = vFont;
+    const vw = ctx.measureText(it.value).width;
+    ctx.font = uFont;
+    const uw = it.unit ? ctx.measureText(' ' + it.unit).width : 0;
+    let tx = cx - (vw + uw) / 2;
+    ctx.textAlign = 'left';
+    ctx.font = vFont;
+    ctx.fillStyle = '#111128';
+    ctx.fillText(it.value, tx, y + h / 2 + 26);
+    if (it.unit) {
+      ctx.font = uFont;
+      ctx.fillStyle = 'rgba(17,17,40,0.55)';
+      ctx.fillText(' ' + it.unit, tx + vw, y + h / 2 + 26);
+    }
+  });
+}
+
+// Temperature card content — replaces the old line chart with a glanceable
+// Min/Avg/Max readout, sized to match the chart card next to it. cardPad/
+// titleH are the same constants the caller uses for its chart cards, so
+// this card's content area lines up with them exactly.
+function drawTempStatBox(ctx, x, y, w, h, stats, cardPad, titleH) {
+  exCard(ctx, x, y, w, h);
+  exTitle(ctx, 'Temperature', x + cardPad, y + cardPad + 20);
+  const items = [
+    { label: 'Min', value: stats.min },
+    { label: 'Avg', value: stats.avg },
+    { label: 'Max', value: stats.max }
   ];
-  const sep = { font: k => `${22 * k}px Inter, sans-serif`, color: 'rgba(17,17,40,0.5)', text: '   ·   ' };
-  const parts = items.flatMap((it, i) => i ? [sep, ...segments(it)] : segments(it));
-  const widthAt = k => parts.reduce((w, p) => { ctx.font = p.font(k); return w + ctx.measureText(p.text).width; }, 0);
-  let k = 1;
-  if (maxW) {
-    const w = widthAt(1);
-    if (w > maxW) k = maxW / w;
-  }
-  let cx = x;
-  for (const p of parts) {
-    ctx.font = p.font(k);
-    ctx.fillStyle = p.color;
-    ctx.fillText(p.text, cx, y);
-    cx += ctx.measureText(p.text).width;
-  }
+  const colW = w / 3;
+  const contentTop = y + cardPad + titleH;
+  const contentH = h - cardPad - titleH - cardPad;
+  const midY = contentTop + contentH / 2;
+  items.forEach((it, i) => {
+    if (i > 0) {
+      ctx.strokeStyle = 'rgba(17,17,40,0.07)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + i * colW, contentTop + contentH * 0.12);
+      ctx.lineTo(x + i * colW, contentTop + contentH * 0.88);
+      ctx.stroke();
+    }
+    const cx = x + i * colW + colW / 2;
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.font = '600 20px Unbounded, sans-serif';
+    try { ctx.letterSpacing = '3px'; } catch(_) {}
+    ctx.fillStyle = 'rgba(17,17,40,0.55)';
+    ctx.fillText(it.label.toUpperCase(), cx, midY - 90);
+    ctx.restore();
+
+    // Shrink to fit so 3-digit or negative readings can't overflow the column.
+    const text = it.value + '°';
+    let fs = 128;
+    ctx.font = `700 ${fs}px Inter, sans-serif`;
+    const maxW = colW - 32;
+    while (ctx.measureText(text).width > maxW && fs > 60) {
+      fs -= 4;
+      ctx.font = `700 ${fs}px Inter, sans-serif`;
+    }
+    ctx.fillStyle = '#111128';
+    ctx.fillText(text, cx, midY + 70);
+  });
 }
 
 // White rounded card with a soft shadow and hairline border.
@@ -1139,20 +1298,24 @@ async function exportWeatherImage() {
     const INK = '#111128';
     const hasMap = !!(_waypoints && _waypoints.length > 1);
 
-    const chartDefs = buildChartConfigs(_forecastPoints, 2.6, true)
+    const chartDefs = buildChartConfigs(_forecastPoints, 2.6, true, computeElevProfile())
       .map(d => ({ ...d, h: d.key === 'elev' ? 260 : 380 }));
-    const chartTitles = { temp: 'Temperature', precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
+    const chartTitles = { precip: 'Precipitation & Cloud Cover', wind: 'Wind', elev: 'Elevation' };
     const summaryItems = _waypoints ? buildSummaryItems(_forecastPoints, _waypoints) : null;
+    const tempStats = buildTempStats(_forecastPoints);
     const defOf = k => chartDefs.find(d => d.key === k);
 
-    // Compact two-column grid: temp | precip, then map | wind + elevation,
-    // with the ride stats inline under the elevation chart.
-    const HEADER_H = 236, FEEL_H = 216, FOOT_H = 64, STATS_H = summaryItems ? 76 : 0;
+    // Compact two-column grid: temperature stats | precipitation, then
+    // map | wind + elevation. The ride-length summary gets its own
+    // full-width bar up top instead of fine print under a chart.
+    const HEADER_H = 236, FEEL_H = 216, FOOT_H = 64, SUMMARY_H = summaryItems ? 130 : 0;
     const cardH = k => CARD_PAD + TITLE_H + defOf(k).h + CARD_PAD;
-    const rightColH = cardH('wind') + GAP + cardH('elev') + STATS_H;
+    const row1H = cardH('precip');
+    const rightColH = cardH('wind') + GAP + cardH('elev');
     const mapCardH = rightColH;
     const mapH = mapCardH - CARD_PAD * 2 - TITLE_H;
-    const H = HEADER_H + FEEL_H + GAP + cardH('temp') + GAP + rightColH + GAP + FOOT_H;
+    const H = HEADER_H + FEEL_H + GAP + (summaryItems ? SUMMARY_H + GAP : 0) +
+              row1H + GAP + rightColH + GAP + FOOT_H;
 
     const canvas = document.createElement('canvas');
     canvas.width  = W * DPR;
@@ -1212,7 +1375,7 @@ async function exportWeatherImage() {
 
       ctx.font = '64px ' + EMOJI_FONT;
       ctx.fillStyle = INK;
-      ctx.fillText(item.emoji, cx, y + 76);
+      fillTextCenteredEmoji(ctx, item.emoji, cx, y + 76);
 
       ctx.save();
       ctx.font = '600 17px Unbounded, sans-serif';
@@ -1233,28 +1396,31 @@ async function exportWeatherImage() {
     });
     y += FEEL_H + GAP;
 
+    // ── Ride-length summary bar: its own full-width card up top ──
+    if (summaryItems) {
+      drawSummaryBar(ctx, PADX, y, IW, SUMMARY_H, summaryItems);
+      y += SUMMARY_H + GAP;
+    }
+
     // ── Two-column grid ──
     exCharts = createExportCharts(chartDefs, CCW, DPR);
     const leftX = PADX, rightX = PADX + COL_W + GAP;
 
     const drawChartCard = (x, cy, key) => {
-      const h = cardH(key) + (key === 'elev' ? STATS_H : 0);
+      const h = cardH(key);
       exCard(ctx, x, cy, COL_W, h);
       exTitle(ctx, chartTitles[key], x + CARD_PAD, cy + CARD_PAD + 20);
       ctx.drawImage(exCharts.canvases[key], x + CARD_PAD, cy + CARD_PAD + TITLE_H, CCW, defOf(key).h);
       return cy + h + GAP;
     };
 
-    // Row 1: temperature | precipitation
-    drawChartCard(leftX, y, 'temp');
+    // Row 1: temperature stats | precipitation
+    drawTempStatBox(ctx, leftX, y, COL_W, row1H, tempStats, CARD_PAD, TITLE_H);
     const row2Y = drawChartCard(rightX, y, 'precip');
 
-    // Row 2 right: wind, then elevation with the ride stats under the chart
+    // Row 2 right: wind, then elevation
     const elevY = drawChartCard(rightX, row2Y, 'wind');
     drawChartCard(rightX, elevY, 'elev');
-    if (summaryItems) {
-      exStatLine(ctx, rightX + CARD_PAD, elevY + CARD_PAD + TITLE_H + defOf('elev').h + 42, summaryItems, CCW);
-    }
 
     // Row 2 left: route map, sized to match the right-hand column
     exCard(ctx, leftX, row2Y, COL_W, mapCardH);
