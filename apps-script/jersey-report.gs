@@ -21,12 +21,18 @@
  * 1. Add this file to the SAME Apps Script project as roster-sync.gs — it reuses
  *    that file's prop_() / getAccessToken_() / rtdbGet_() helpers and its
  *    SERVICE_ACCOUNT_JSON, DATABASE_URL and EVENT_ID script properties.
- * 2. Optional Script Properties:
+ * 2. Run buildJerseyReport() from the editor, or reload the sheet and use
+ *    OutCycling → Build jersey report. The FIRST run creates a new spreadsheet for
+ *    the report and records its id in the JERSEY_REPORT_SS_ID script property; every
+ *    run after that rewrites that same file, so it keeps one stable link you can
+ *    share with the jersey table without exposing the orders sheet. The new file is
+ *    created in the Drive of whoever authorizes the script — share it from there.
+ * 3. Optional Script Properties:
+ *      JERSEY_REPORT_SS_ID   use an existing spreadsheet instead of creating one
+ *                            (clear it to have a fresh one created on the next run)
+ *      JERSEY_REPORT_SS_NAME name for the created file (default "Jersey Pickups — <eventId>")
  *      JERSEY_REPORT_SHEET   tab to write   (default "Jersey Pickups"; created if missing)
- *      JERSEY_REPORT_SS_ID   spreadsheet id (default: the sheet this project is bound to)
- * 3. Run buildJerseyReport() from the editor, or reload the sheet and use
- *    OutCycling → Build jersey report. Optionally run installJerseyReportTrigger()
- *    once to also refresh it hourly.
+ * 4. Optionally run installJerseyReportTrigger() once to refresh it hourly.
  * ---------------------------------------------------------------------------
  */
 
@@ -37,19 +43,39 @@ var JR_HEADERS = [
 
 /** roster-sync.gs must be in this project — it owns the credentials and RTDB helpers. */
 function jrRequireHelpers_() {
-  if (typeof prop_ !== 'function' || typeof getAccessToken_ !== 'function' || typeof rtdbGet_ !== 'function') {
+  if (typeof prop_ !== 'function' || typeof props_ !== 'function' ||
+      typeof getAccessToken_ !== 'function' || typeof rtdbGet_ !== 'function') {
     throw new Error('jersey-report.gs needs roster-sync.gs in the same Apps Script project ' +
-                    '(it reuses prop_, getAccessToken_ and rtdbGet_).');
+                    '(it reuses prop_, props_, getAccessToken_ and rtdbGet_).');
   }
 }
 
-/** The spreadsheet the report is written to. */
-function jrSpreadsheet_() {
+/**
+ * The spreadsheet the report lives in — its own file, separate from the orders sheet.
+ *
+ * First run: create it, name the first tab after the report, and remember its id in
+ * JERSEY_REPORT_SS_ID. Later runs: reopen that file. A stored id that no longer opens
+ * (file deleted, or the authorizing account lost access) is reported rather than
+ * quietly replaced, so a hourly trigger can never litter Drive with duplicates.
+ */
+function jrReportSpreadsheet_(eventId, sheetName) {
   var id = prop_('JERSEY_REPORT_SS_ID', null);
-  if (id) return SpreadsheetApp.openById(id);
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) throw new Error('No active spreadsheet — set the JERSEY_REPORT_SS_ID script property.');
-  return ss;
+  if (id) {
+    try {
+      return { ss: SpreadsheetApp.openById(id), created: false };
+    } catch (e) {
+      throw new Error('Could not open the report spreadsheet (JERSEY_REPORT_SS_ID = ' + id + '): ' +
+                      (e.message || e) + '. Fix the id, or clear that script property to have a ' +
+                      'new report spreadsheet created on the next run.');
+    }
+  }
+
+  var name = prop_('JERSEY_REPORT_SS_NAME', 'Jersey Pickups — ' + eventId);
+  var ss = SpreadsheetApp.create(name);
+  ss.getSheets()[0].setName(sheetName);   // reuse the default tab instead of leaving "Sheet1" behind
+  props_().setProperty('JERSEY_REPORT_SS_ID', ss.getId());
+  Logger.log('Created jersey report spreadsheet "%s": %s', name, ss.getUrl());
+  return { ss: ss, created: true };
 }
 
 /** ms epoch → "2026-08-28 09:41" in the spreadsheet's timezone (blank if unset). */
@@ -110,12 +136,13 @@ function buildJerseyReport() {
   var overrides = rtdbGet_(token, 'overrides/' + eventId)   || {};
   var checkins  = rtdbGet_(token, 'checkins/' + eventId)    || {};
 
-  var ss = jrSpreadsheet_();
+  var sheetName = prop_('JERSEY_REPORT_SHEET', 'Jersey Pickups');
+  var target = jrReportSpreadsheet_(eventId, sheetName);
+  var ss = target.ss;
   var tz = ss.getSpreadsheetTimeZone() || Session.getScriptTimeZone();
   var rows = jrBuildRows_(roster, jerseys, overrides, checkins, tz);
   var pickedCount = rows.filter(function (row) { return row.picked; }).length;
 
-  var sheetName = prop_('JERSEY_REPORT_SHEET', 'Jersey Pickups');
   var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
   sheet.clear();
 
@@ -134,15 +161,30 @@ function buildJerseyReport() {
   sheet.setFrozenRows(2);
   sheet.autoResizeColumns(1, JR_HEADERS.length);
 
-  Logger.log('Jersey report: %s riders, %s picked up → "%s"', rows.length, pickedCount, sheetName);
-  return { total: rows.length, pickedUp: pickedCount, sheet: sheetName };
+  Logger.log('Jersey report: %s riders, %s picked up → %s', rows.length, pickedCount, ss.getUrl());
+  return {
+    total: rows.length, pickedUp: pickedCount, sheet: sheetName,
+    url: ss.getUrl(), created: target.created
+  };
+}
+
+/** Menu target: build the report, then show where it landed. */
+function buildJerseyReportFromMenu() {
+  var res = buildJerseyReport();
+  var ui = SpreadsheetApp.getUi();
+  ui.alert('Jersey report',
+    res.pickedUp + ' of ' + res.total + ' jerseys collected.\n\n' +
+    (res.created ? 'Created a new spreadsheet for the report:\n' : 'Report spreadsheet:\n') +
+    res.url +
+    (res.created ? '\n\nIt is in your Drive — share it with whoever needs it.' : ''),
+    ui.ButtonSet.OK);
 }
 
 /** Sheet menu: OutCycling → Build jersey report. */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('OutCycling')
-    .addItem('Build jersey report', 'buildJerseyReport')
+    .addItem('Build jersey report', 'buildJerseyReportFromMenu')
     .addToUi();
 }
 

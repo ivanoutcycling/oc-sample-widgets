@@ -191,13 +191,20 @@ edited on the day is reported as edited, not as originally registered.
 - Add the file to the **same** Apps Script project as `roster-sync.gs` (Files → +, name it
   `jersey-report`) — it reuses that file's credentials and RTDB helpers, so no extra service
   account or property is needed.
-- Optional Script Properties: `JERSEY_REPORT_SHEET` (tab name, default `Jersey Pickups`, created if
-  missing) and `JERSEY_REPORT_SS_ID` (write to a different spreadsheet; defaults to the one the
-  project is bound to).
 - Run it from **OutCycling → Build jersey report** in the sheet menu (reload the sheet once for the
   menu to appear) or `buildJerseyReport()` in the editor. `installJerseyReportTrigger()` also
   refreshes it hourly.
-- The tab is rebuilt from scratch on each run; the master orders sheet is never modified.
+- The **first run creates its own spreadsheet** for the report (named `Jersey Pickups — <eventId>`)
+  and stores the id in the `JERSEY_REPORT_SS_ID` script property; every run after that rewrites
+  that same file, so the link stays stable and can be shared with the jersey table without
+  exposing the orders sheet. The file is created in the Drive of whoever authorizes the script —
+  share it from there. The menu run shows the link when it finishes.
+- Optional Script Properties: `JERSEY_REPORT_SS_ID` (point it at an existing spreadsheet instead —
+  clear it to have a fresh one created next run), `JERSEY_REPORT_SS_NAME` (name for the created
+  file) and `JERSEY_REPORT_SHEET` (tab name, default `Jersey Pickups`).
+- The tab is rebuilt from scratch on each run; the master orders sheet is never modified. A stored
+  id that no longer opens raises an error rather than being silently replaced, so the hourly
+  trigger can't litter Drive with duplicate report files.
 
 ## Multiple events
 Run several rides off one project by giving each its own `EVENT_ID` in Script Properties and
@@ -224,8 +231,10 @@ opening the dashboard with `?event=<id>`.
 6. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
 7. Confirm the master sheet is unchanged after check-ins / jersey pickups.
 8. If the jersey report is installed: mark a jersey picked up, run **OutCycling → Build jersey
-   report**, and confirm that rider appears at the top of the *Jersey Pickups* tab with the
-   right size, timestamp and volunteer email — and that the orders tab is untouched.
+   report**, and confirm it reports the link to the report spreadsheet it created, that the rider
+   appears at the top of its *Jersey Pickups* tab with the right size, timestamp and volunteer
+   email, and that the orders sheet is untouched. Run it a second time → the same file is rewritten
+   (no second spreadsheet in Drive).
 
 > **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, the
 > jersey-inventory feature added a `/jerseyInventory` node, the check-in number feature added an
