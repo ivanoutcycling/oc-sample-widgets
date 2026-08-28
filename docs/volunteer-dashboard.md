@@ -181,6 +181,24 @@ e.g. key `ivan@outcycling,org` with value `true` (a boolean). That account can t
   **Never commit these.**
 - Run `installTriggers()` once and authorize. The roster then syncs every 5 minutes and on edit.
 
+### 4. Jersey pickup report (optional)
+`apps-script/jersey-report.gs` writes **who has received what jersey** to a spreadsheet tab: one
+row per registrant with their size, and — for riders who have collected — the pickup timestamp and
+the volunteer who handed it over. It reads the same records the dashboard shows (`/eventRoster`,
+`/jerseys`, `/overrides` for day-of size corrections, `/checkins` for the rider number), so a size
+edited on the day is reported as edited, not as originally registered.
+
+- Add the file to the **same** Apps Script project as `roster-sync.gs` (Files → +, name it
+  `jersey-report`) — it reuses that file's credentials and RTDB helpers, so no extra service
+  account or property is needed.
+- Optional Script Properties: `JERSEY_REPORT_SHEET` (tab name, default `Jersey Pickups`, created if
+  missing) and `JERSEY_REPORT_SS_ID` (write to a different spreadsheet; defaults to the one the
+  project is bound to).
+- Run it from **OutCycling → Build jersey report** in the sheet menu (reload the sheet once for the
+  menu to appear) or `buildJerseyReport()` in the editor. `installJerseyReportTrigger()` also
+  refreshes it hourly.
+- The tab is rebuilt from scratch on each run; the master orders sheet is never modified.
+
 ## Multiple events
 Run several rides off one project by giving each its own `EVENT_ID` in Script Properties and
 opening the dashboard with `?event=<id>`.
@@ -205,6 +223,9 @@ opening the dashboard with `?event=<id>`.
    error. The *Rest stop check-ins* strip tallies live.
 6. Confirm the breakdown tables (by route, by jersey size) tally correctly as you toggle.
 7. Confirm the master sheet is unchanged after check-ins / jersey pickups.
+8. If the jersey report is installed: mark a jersey picked up, run **OutCycling → Build jersey
+   report**, and confirm that rider appears at the top of the *Jersey Pickups* tab with the
+   right size, timestamp and volunteer email — and that the orders tab is untouched.
 
 > **Note:** the jersey feature added a `/jerseys` node to `firebase/database.rules.json`, the
 > jersey-inventory feature added a `/jerseyInventory` node, the check-in number feature added an
