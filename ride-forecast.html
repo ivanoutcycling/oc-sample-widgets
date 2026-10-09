@@ -783,13 +783,20 @@ async function renderCharts(pts) {
 }
 
 // ── Map rendering ──
+// CARTO retired its free, keyless raster "Basemaps" CDN (basemaps.cartocdn.com
+// now returns an "API key required" error for unauthenticated requests), so
+// this uses Esri's free World Street Map tile service instead — no account
+// or key needed, and it's what renderRouteMap's offscreen tile fetch for the
+// export also uses, below.
+const MAP_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+const MAP_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ';
+
 function renderMap(pts, waypoints) {
   const mapEl = document.getElementById('forecast-map');
   if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; }
   _leafletMap = L.map(mapEl);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd', maxZoom: 18, crossOrigin: 'anonymous'
+  L.tileLayer(MAP_TILE_URL, {
+    attribution: MAP_ATTRIBUTION, maxZoom: 19, crossOrigin: 'anonymous'
   }).addTo(_leafletMap);
 
   const latlngs = waypoints.map(w => [w.lat, w.lng]);
@@ -863,17 +870,18 @@ async function renderRouteMap(width, height, dpr) {
   canvas.height = height * dpr;
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  // CARTO Voyager land colour as fallback for missing tiles
+  // Fallback land colour, shown briefly behind tiles still loading
   ctx.fillStyle = '#f5f0eb';
   ctx.fillRect(0, 0, width, height);
 
-  const retina = dpr >= 2 ? '@2x' : '';
   const n = 2 ** z;
   const loads = [];
   for (let tx = Math.floor(originX / ts); tx * ts < originX + width; tx++) {
     for (let ty = Math.max(0, Math.floor(originY / ts)); ty * ts < originY + height && ty < n; ty++) {
       const wrapX = ((tx % n) + n) % n;
-      const url = `https://${'abcd'[(wrapX + ty) % 4]}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${wrapX}/${ty}${retina}.png`;
+      // Esri's tile service takes row/col in z/y/x order and has no retina
+      // (@2x) variant or {s} subdomain sharding, unlike the old CARTO CDN.
+      const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${ty}/${wrapX}`;
       loads.push(new Promise(resolve => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -938,7 +946,7 @@ async function renderRouteMap(width, height, dpr) {
   // Attribution
   ctx.font = '15px Inter, sans-serif';
   ctx.textAlign = 'left';
-  const attr = '© OpenStreetMap © CARTO';
+  const attr = 'Tiles © Esri';
   const tw = ctx.measureText(attr).width;
   ctx.fillStyle = 'rgba(255,255,255,0.78)';
   ctx.fillRect(width - tw - 22, height - 30, tw + 22, 30);
